@@ -10,17 +10,22 @@ Nova follows a simplicity-first philosophy — every change listed here represen
 
 ---
 
-## [0.0.2] — *In Progress*
-**Focus:** Persistent Settings and Local State  
+## [0.0.2] — Released
+**Focus:** Persistent settings, stability, and security hardening  
 **Issues:**  
 - ISSUE 4 — Basic Settings Storage  
-**Planned Outcomes:**  
-- Save and restore window size and position using a local JSON file.  
-- Establish the foundation for user preferences and configurations.
+- Follow-ups from ISSUE 3 — Secure Preload Bridge  
+
+**Highlights:**  
+- Implemented local JSON settings under Electron `userData` for persistence.  
+- Window size/position now saved automatically (move/resize/close/SIGINT) and restored on relaunch.  
+- Hardened main process lifecycle to avoid crashes on window destroy and process signals.  
+- Preload bridge expanded with `api.getSetting`/`api.setSetting` for safe renderer access.  
+- Minimal CSP added to renderer to reduce security warnings.
 
 ---
 
-## [0.0.1] — *Released*
+## [0.0.1] — Released
 **Versioning:** Managed manually by Aeon (Michael) through direct updates to `package.json` and git tags.  
 Versioning follows intuition and creative judgment rather than fixed rules.  
 
