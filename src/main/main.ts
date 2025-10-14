@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'node:path';
 import { getSetting, setSetting } from './settings';
+import { logInfo, logError } from './logger';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -49,22 +50,28 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  logInfo('App ready');
   // IPC handler for app version
   ipcMain.handle('get-version', () => app.getVersion());
 
   // Generic settings IPC
   ipcMain.handle('get-setting', (_e, key: string, defaults?: unknown) => getSetting(key, defaults));
   ipcMain.handle('set-setting', (_e, key: string, value: unknown) => setSetting(key, value));
+  ipcMain.on('renderer-error', (_e, payload: { message: string; stack?: string }) => {
+    logError(`Renderer error: ${payload.message}`, payload.stack);
+  });
   createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
+      logInfo('Activate with no windows; creating window');
       createWindow();
     }
   });
 });
 
 app.on('window-all-closed', () => {
+  logInfo('All windows closed');
   if (mainWindowRef && !mainWindowRef.isDestroyed()) {
     const b = mainWindowRef.getBounds();
     setSetting('windowBounds', { width: b.width, height: b.height, x: b.x, y: b.y });
@@ -75,6 +82,7 @@ app.on('window-all-closed', () => {
 });
 
 process.on('SIGINT', () => {
+  logInfo('SIGINT received');
   if (mainWindowRef && !mainWindowRef.isDestroyed()) {
     const b = mainWindowRef.getBounds();
     setSetting('windowBounds', { width: b.width, height: b.height, x: b.x, y: b.y });
@@ -83,9 +91,18 @@ process.on('SIGINT', () => {
 });
 
 process.on('SIGTERM', () => {
+  logInfo('SIGTERM received');
   if (mainWindowRef && !mainWindowRef.isDestroyed()) {
     const b = mainWindowRef.getBounds();
     setSetting('windowBounds', { width: b.width, height: b.height, x: b.x, y: b.y });
   }
   process.exit(0);
+});
+
+// Crash reporting
+process.on('uncaughtException', (err) => {
+  logError('Uncaught exception in main', err);
+});
+process.on('unhandledRejection', (reason) => {
+  logError('Unhandled rejection in main', reason);
 });
