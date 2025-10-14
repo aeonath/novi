@@ -10,6 +10,18 @@ Nova follows a simplicity-first philosophy — every change listed here represen
 
 ---
 
+## [0.0.3] — In Progress
+**Focus:** Logging and Crash Reporting  
+**Issues:**  
+- ISSUE 5 — Add Logging and Error Handling  
+
+**Planned Outcomes:**  
+- Write important events and errors to `userData/logs/nova.log`.  
+- Catch uncaught exceptions and unhandled rejections (main and renderer).  
+- Show a simple in-app alert on renderer errors.
+
+---
+
 ## [0.0.2] — Released
 **Focus:** Persistent settings, stability, and security hardening  
 **Issues:**  
