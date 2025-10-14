@@ -68,6 +68,34 @@ To apply code changes, stop the app and run `npm start` again.
 
 - There is no dev server or hot reload. Make a change, then run `npm start` again.
 
+## Windows Packaging
+
+### Prerequisites
+
+- Windows 10/11
+- Node.js 22+
+- npm
+
+### Build Portable EXE (unsigned)
+
+```bash
+npm run pack:win
+```
+
+Output will be placed under `dist/` and `dist/win-*` by electron-builder as a single portable executable.
+
+### Build NSIS Installer (unsigned)
+
+```bash
+npm run pack:win:exe
+```
+
+This produces an `.exe` installer (NSIS) under `dist/`.
+
+Notes:
+- The scripts will compile the app with `tsc` first, then package `dist/**`.
+- Builds are unsigned by design at this stage; Windows may show a SmartScreen prompt.
+
 ## Next Steps
 
 This is a clean foundation for building an Electron application. You can now:

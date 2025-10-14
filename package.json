@@ -6,7 +6,9 @@
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.json && npm run copy:renderer",
     "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');\"",
-    "start": "npm run clean && npm run build && electron ./dist/main/main.js"
+    "start": "npm run clean && npm run build && electron ./dist/main/main.js",
+    "pack:win": "npm run build && electron-builder --win portable",
+    "pack:win:exe": "npm run build && electron-builder --win nsis"
   },
   "repository": {
     "type": "git",
@@ -22,7 +24,25 @@
   "devDependencies": {
     "@types/node": "^24.7.2",
     "electron": "^38.2.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "productName": "Nova",
+    "appId": "studio.miranova.nova",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    }
   },
   "version": "0.0.1"
 }
