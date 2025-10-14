@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nova IDE</title>
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #1e1e1e;
+        color: #fff;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+      }
+      
+      .container {
+        text-align: center;
+      }
+      
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, #00d4ff, #0099cc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      .version {
+        font-size: 1.2rem;
+        color: #888;
+        margin-top: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Nova IDE</h1>
+      <p>Welcome to your Electron + TypeScript workspace!</p>
+      <div class="version" id="version">Loading version...</div>
+    </div>
+    <script src="./index.js"></script>
+  </body>
+</html>
