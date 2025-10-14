@@ -1,0 +1,2 @@
+# nova
+Nova AI IDE
