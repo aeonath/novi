@@ -2,22 +2,22 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const versionElement = document.getElementById('version');
   
-  if (versionElement && window.electronAPI) {
+  if (versionElement && window.api) {
     try {
-      const version = await window.electronAPI.getVersion();
+      const version = await window.api.getVersion();
       versionElement.textContent = `Version: ${version}`;
     } catch (error) {
       console.error('Failed to get version:', error);
       versionElement.textContent = 'Version: Unknown';
     }
   }
+  if (window.api) {
+    const pong = await window.api.ping();
+    console.log('ping ->', pong);
+  }
   
   // Example of listening to menu actions
   // If preload is not exposing API yet, skip gracefully
 });
 
-// Example function that could be called from the main process
-export function handleMenuAction(action: string): void {
-  console.log('Handling menu action:', action);
-  // Add your menu action handling logic here
-}
+// Intentionally no exports so this compiles to a plain browser script (no CommonJS wrapper)

@@ -10,9 +10,10 @@ The Nova project values simplicity, stability, and clarity over trends and prema
 - **Every feature or dependency must justify its inclusion with a clear, immediate benefit.**
 
 ### Roles
-- **Cursor and Claude**: Execute coding tasks and assist with implementation details.
-- **ChatGPT**: Leads architecture and plans the development phases of the project.
-- **Michael (Designer)**: Sets direction and approves architectural changes.
+- **Cursor and GPT-5** (nickname: Coda, pronouns: they/them): Executes coding tasks and assists with debugging and implementation details.
+- **ChatGPT** (nickname: Chat, pronouns: he/his): Leads architecture and plans the development phases of the project.
+- **Claude** (nickname: Claudette, pronouns: she/her): Executes coding tasks and assists with implementation details.
+- **Michael** (nickname: Aeon, pronouns: he/his): Designer — sets direction and approves architectural changes.
 
 ### Current Tech Stack
 - Electron
