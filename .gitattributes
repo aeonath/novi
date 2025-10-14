@@ -1,0 +1,31 @@
+# ==========================================
+# Miranova Studios .gitattributes Template
+# ==========================================
+
+# Default all files to LF line endings
+* text eol=lf
+
+# Treat common binary formats as binary (no diff or conversion)
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.bmp  binary
+*.pdf  binary
+*.zip  binary
+*.7z   binary
+*.exe  binary
+*.dll  binary
+*.ttf  binary
+*.otf  binary
+*.wav  binary
+*.mp3  binary
+*.ogg  binary
+*.flac binary
+*.mov  binary
+*.mp4  binary
+*.webm binary
+
+# Optional: ensure shell scripts keep LF endings
+*.sh   text eol=lf

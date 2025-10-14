@@ -1,0 +1,26 @@
+{
+  "name": "nova",
+  "version": "0.0.01",
+  "description": "Nova AI IDE",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node ./src/main.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeonath4/nova.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Aeonath4/nova/issues"
+  },
+  "homepage": "https://github.com/Aeonath4/nova#readme",
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "electron": "^38.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
