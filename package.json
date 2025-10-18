@@ -7,8 +7,8 @@
     "build": "tsc -p tsconfig.json && npm run copy:renderer",
     "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');\"",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
-    "pack:win": "npm run build && electron-builder --win portable",
-    "pack:win:exe": "npm run build && electron-builder --win nsis"
+    "pack:win": "npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& set ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true&& electron-builder --win portable",
+    "pack:win:exe": "npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& set ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true&& electron-builder --win nsis"
   },
   "repository": {
     "type": "git",

@@ -1,151 +1,145 @@
-# SPRINT 3 — Nova Editing Core
+# SPRINT 3 — Nova Editing Core (Refined)
 
-Sprint 3 introduces the Monaco Editor as Nova’s text editing engine and integrates it into the existing command, file, and settings systems.  
-By the end of this sprint, Nova will be capable of opening, viewing, and editing text files with full persistence and theme awareness.  
-The goal is not yet to create a full IDE, but to deliver a robust, elegant foundation for one.
+Sprint 3 introduces the Monaco Editor as Nova’s text editing core.  
+This sprint maintains Nova’s simplicity and transparency while expanding capability — the editor feels native, integrated, and directly responsive to user interaction.
+
+---
+
+## Adjusted Principles for Sprint 3
+- All editor configuration is handled through Nova’s Settings Panel (no config files).  
+- All commands are accessed through the Action HUD or contextual UI, not a palette.  
+- Monaco should appear seamless — no web-like chrome or clutter.
 
 ---
 
 ## Task 1 — Monaco Integration (Core)
 **Objective:**  
-Embed the Monaco Editor into Nova’s renderer environment.
+Embed the Monaco Editor as Nova’s primary text editing component.
 
 **Tasks:**  
-1. Add Monaco Editor as a local dependency (no CDN).  
-2. Create a dedicated Editor component in `src/renderer/editor/`.  
-3. Initialize Monaco in a single-view container.  
-4. Verify basic typing, scrolling, and line numbering.  
-5. Ensure editor resizes gracefully with the window.  
+1. Add Monaco Editor locally.  
+2. Create an `EditorView` container in `src/renderer/editor/`.  
+3. Verify smooth input, scrolling, and resizing.  
 **Result:**  
-Monaco loads and operates as a responsive text editor within Nova.
+Monaco runs natively within Nova.
 
 ---
 
 ## Task 2 — File Open and Save Integration
 **Objective:**  
-Connect Monaco to Nova’s existing file-handling IPC.
+Connect editor content to Nova’s file I/O layer.
 
 **Tasks:**  
-1. Use the command palette “Open File” action to load selected files.  
-2. Display the file contents in the Monaco Editor.  
-3. Implement “Save File” and “Save As” commands through IPC.  
-4. Handle unsaved change detection (simple prompt on close).  
+1. Load selected files into Monaco via IPC.  
+2. Implement Save and Save As actions.  
+3. Handle unsaved changes elegantly.  
 **Result:**  
-Files can be opened, edited, and saved directly through Monaco.
+Files can be opened, edited, and saved seamlessly.
 
 ---
 
 ## Task 3 — Tabbed Document System
 **Objective:**  
-Enable multiple files to be open simultaneously.
+Allow multiple files to be open simultaneously.
 
 **Tasks:**  
-1. Create a lightweight tab bar above the editor.  
-2. Each tab represents an open document with its filename.  
-3. Allow switching between tabs and closing them.  
-4. Preserve unsaved state per tab until saved or closed.  
+1. Create a minimal tab bar above the editor.  
+2. Support tab switching and closing.  
+3. Track unsaved state visually.  
 **Result:**  
-A minimal but functional multi-document interface.
+Multi-document editing with intuitive UI.
 
 ---
 
 ## Task 4 — Theme Synchronization
 **Objective:**  
-Unify Nova’s UI and Monaco’s syntax highlighting themes.
+Unify Monaco and Nova themes.
 
 **Tasks:**  
-1. Extend the theme manager to provide Monaco-compatible color definitions.  
-2. Apply Nova’s light and dark themes to Monaco dynamically.  
-3. Persist the active theme selection in settings.json.  
+1. Extend Nova’s theme system to define syntax colors.  
+2. Apply Light and Dark themes dynamically.  
+3. Persist user choice through Settings Panel.  
 **Result:**  
-Seamless visual consistency between Nova UI and editor content.
+Consistent appearance across all UI elements.
 
 ---
 
 ## Task 5 — Editor Settings Persistence
 **Objective:**  
-Save and restore editor preferences across sessions.
+Preserve editor-specific preferences.
 
 **Tasks:**  
-1. Store basic editor settings (font size, word wrap, minimap visibility).  
-2. Use existing settings manager infrastructure.  
-3. Add commands in the palette for toggling or adjusting these settings.  
+1. Store font size, minimap, and wrap settings via Settings Panel.  
+2. Apply instantly and persist on exit.  
 **Result:**  
-Editor settings remain consistent between launches.
+A personalized editing experience that “just works.”
 
 ---
 
 ## Task 6 — Basic Language Awareness
 **Objective:**  
-Introduce syntax highlighting and minimal language support.
+Enable syntax highlighting and minimal IntelliSense.
 
 **Tasks:**  
-1. Enable Monaco’s built-in JavaScript, TypeScript, and JSON support.  
-2. Load appropriate language mode based on file extension.  
-3. Verify syntax highlighting updates dynamically per tab.  
+1. Activate Monaco’s JS/TS/JSON modes.  
+2. Load proper syntax automatically by file extension.  
 **Result:**  
-Nova provides intelligent syntax coloring for core text formats.
+Intelligent, context-aware editing.
 
 ---
 
 ## Task 7 — Search and Replace
 **Objective:**  
-Provide in-editor text search and replace.
+Provide efficient text search within the editor.
 
 **Tasks:**  
-1. Implement Monaco’s search widget (Ctrl/Cmd + F and Ctrl/Cmd + H).  
-2. Confirm correct behavior across large files.  
-3. Add “Find Next” and “Replace All” shortcuts.  
+1. Implement Monaco’s search and replace UI.  
+2. Support keyboard shortcuts (Ctrl/Cmd + F / H).  
 **Result:**  
-Functional text search and replace within the editor.
+Smooth and intuitive search operations.
 
 ---
 
 ## Task 8 — Auto-Save and Recovery
 **Objective:**  
-Increase resilience by automatically saving work and recovering on restart.
+Ensure work safety through automatic backups.
 
 **Tasks:**  
-1. Implement timed auto-save for modified documents.  
-2. On startup, restore unsaved files from a recovery cache.  
-3. Log recovery events to Nova’s log system.  
+1. Implement timed auto-save for unsaved buffers.  
+2. Restore recovered files on restart.  
+3. Log recovery operations.  
 **Result:**  
-Work is preserved even after unexpected shutdowns.
+Work is preserved even after interruption.
 
 ---
 
 ## Task 9 — Performance Verification
 **Objective:**  
-Ensure Monaco integration does not degrade startup or responsiveness.
+Verify performance after editor integration.
 
 **Tasks:**  
-1. Measure load times before and after Monaco initialization.  
-2. Confirm smooth scrolling and typing performance.  
-3. Profile memory usage and CPU impact during editing.  
-4. Log findings for future optimization (no tuning yet).  
+1. Measure startup time and editor load latency.  
+2. Confirm smooth performance for typical workloads.  
 **Result:**  
-Confirmed responsive performance under typical workloads.
+Nova remains lightweight and responsive.
 
 ---
 
 ## Task 10 — Documentation and Review
 **Objective:**  
-Finalize Sprint 3 by documenting the new editing system and summarizing results.
+Finalize Sprint 3 and update all docs.
 
 **Tasks:**  
-1. Update README with Monaco features and shortcuts.  
-2. Add CHANGELOG entry for version 0.2.0.  
-3. Document editor modules and IPC connections in DEV_NOTES.md.  
-4. Outline candidate tasks for Sprint 4 (to be reviewed by Aeon).  
+1. Update README and CHANGELOG for version 0.2.0.  
+2. Document the editor system in DEV_NOTES.md.  
 **Result:**  
-Documentation matches implementation and Nova’s roadmap remains clear.
+Clear documentation reflecting a functional Nova editing environment.
 
 ---
 
 ## Sprint 3 Summary
-Sprint 3 introduces the heart of Nova: a live editing experience powered by the Monaco Editor.  
-By the end of this sprint, Nova becomes a true editing environment with file I/O, tabs, themes, and recovery — all built upon the stable, elegant foundation established in Sprints 1 and 2.
+Sprint 3 introduces the Monaco Editor and delivers a cohesive, theme-aware, user-friendly editing environment — without adopting any of the clutter or bloat of traditional IDEs.
 
 ---
 
-*End of Sprint 3.*
+*End of Sprint 3 (Refined).*

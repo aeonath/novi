@@ -1,151 +1,148 @@
-# SPRINT 2 — Nova Interaction Layer
+# SPRINT 2 — Nova Interaction Layer (Revised)
 
-Sprint 2 focuses on bringing interactivity, structure, and basic extensibility to Nova.  
-The goals are to move beyond foundation work and introduce user-facing elements that make Nova feel alive: basic commands, a lightweight file viewer, improved UI shell, and initial testing infrastructure.
+Sprint 2 focuses on introducing intuitive interaction and visibility into Nova.  
+This phase replaces the traditional command palette and JSON configuration model with systems that prioritize clarity, discoverability, and elegance.
 
 ---
 
-## Task 1 — Command Palette Skeleton
+## Task 1 — Action HUD Prototype
 **Objective:**  
-Add a minimal in-app command palette accessible by keyboard shortcut (Ctrl/Cmd + K).
+Create a minimal contextual action interface to replace the command palette concept.
 
 **Tasks:**  
-1. Implement a basic modal overlay that opens and closes with the shortcut.  
-2. Populate it with three placeholder commands:  
-   - “About Nova” (shows version)  
-   - “Toggle Theme” (switches light/dark placeholder styles)  
-   - “Open Folder” (invokes a dummy IPC call)  
-3. Use plain HTML/CSS/TypeScript — no external libraries.  
+1. Implement a small on-screen overlay (HUD) that appears when the user presses a shortcut (e.g., Ctrl/Cmd + Space).  
+2. The HUD displays only a handful of *context-relevant actions*, such as:  
+   - Open File  
+   - Toggle Theme  
+   - Settings  
+3. Use arrow keys or mouse to navigate options.  
+4. Actions invoke the same internal command system for reusability, but the UI remains simple and focused.  
 **Result:**  
-A simple, working palette interface proving Nova’s command architecture.
+A visible, discoverable action interface that feels direct and intuitive — Nova’s answer to the bloated command palette.
 
 ---
 
 ## Task 2 — File Tree Mock
 **Objective:**  
-Display a lightweight, read-only file tree for a chosen directory.
+Display a lightweight, read-only file tree for a selected directory.
 
 **Tasks:**  
 1. Add a left-hand panel listing files and folders from a selected path.  
 2. Use IPC to request folder contents from the main process.  
-3. Support expanding/collapsing folders and basic scroll.  
-4. No editing or file preview yet — just structure.  
+3. Support expand/collapse and scrolling.  
 **Result:**  
-A working visual mock of a file browser inside Nova.
+A basic visual file browser that provides spatial awareness inside Nova.
 
 ---
 
-## Task 3 — Settings Panel (UI)
+## Task 3 — Visual Settings Panel
 **Objective:**  
-Expose Nova’s existing settings via a small interface.
+Introduce Nova’s first configuration interface — entirely visual, no manual JSON editing.
 
 **Tasks:**  
-1. Add a simple settings dialog accessible from the command palette.  
-2. Show current values (e.g., window size, theme).  
-3. Allow modifying a setting (such as theme or a “developer mode” toggle).  
-4. Persist changes using the existing settings manager.  
+1. Create a simple modal or tabbed panel listing available settings (theme, font size, etc.).  
+2. Use toggles, sliders, and dropdowns for changes.  
+3. Persist values via the existing settings manager.  
+4. Apply changes in real time.  
 **Result:**  
-Visible, editable settings linked to Nova’s persistence layer.
+A fully interactive, UI-based settings system that eliminates file-based configuration.
 
 ---
 
 ## Task 4 — Custom Title Bar and Status Bar
 **Objective:**  
-Refine Nova’s presentation with custom window chrome and feedback area.
+Unify Nova’s visual presentation with custom window chrome.
 
 **Tasks:**  
-1. Replace the default window title bar with a custom HTML/CSS bar.  
-2. Add buttons for minimize, maximize/restore, and close.  
-3. Add a bottom status bar showing basic messages (“Ready”, “Loading”, “Saved”).  
+1. Replace the default title bar with a custom HTML/CSS version.  
+2. Add native-feeling minimize, maximize, and close controls.  
+3. Add a bottom status bar displaying contextual information (“Ready”, “Loading”, etc.).  
 **Result:**  
-A unified, frameless window with clean, minimal Nova-style UI.
+A frameless window consistent with Nova’s design aesthetic.
 
 ---
 
 ## Task 5 — Theme System Foundation
 **Objective:**  
-Introduce a simple theme architecture that future components can build upon.
+Implement the core theme framework used by all renderer components.
 
 **Tasks:**  
-1. Define a theme structure (colors, fonts, backgrounds).  
-2. Provide two built-in themes: Light and Dark.  
-3. Allow switching themes via the command palette or settings panel.  
-4. Save selected theme in settings.json.  
+1. Define a theme structure (colors, fonts, padding, accents).  
+2. Include Light and Dark themes.  
+3. Integrate theme selection with the Settings Panel.  
 **Result:**  
-Theme switching fully operational and persistent between sessions.
+Theme switching is instant and persists between sessions.
 
 ---
 
 ## Task 6 — File Open and Preview Prototype
 **Objective:**  
-Demonstrate loading and displaying a text file inside Nova.
+Demonstrate opening and displaying text files inside Nova.
 
 **Tasks:**  
-1. Extend IPC bridge to open a chosen file via file dialog.  
-2. Load text contents and display in a simple read-only editor area.  
-3. No syntax highlighting or editing yet — just raw display.  
+1. Add IPC “Open File” and “Read File” commands.  
+2. Display the file contents in a basic read-only viewer.  
+3. Add “Reload File” and “Close File” options to Action HUD.  
 **Result:**  
-The first tangible step toward Nova’s document editing capabilities.
+The first visible step toward an integrated editor.
 
 ---
 
 ## Task 7 — Unit Testing Setup
 **Objective:**  
-Establish a minimal automated test framework.
+Establish minimal automated test coverage.
 
 **Tasks:**  
-1. Add Vitest or a similar lightweight TypeScript test runner.  
-2. Write initial tests for settings manager and logger.  
-3. Integrate tests into npm scripts (`npm test`).  
+1. Add a lightweight test runner (Vitest or equivalent).  
+2. Test the settings manager and logger.  
+3. Integrate with npm scripts (`npm test`).  
 **Result:**  
-Basic automated validation of core modules.
+Automated validation for Nova’s key systems.
 
 ---
 
-## Task 8 — Developer Diagnostics Command
+## Task 8 — Developer Diagnostics Panel
 **Objective:**  
-Add a command that displays system info for debugging.
+Provide a small diagnostics viewer for environment details.
 
 **Tasks:**  
-1. Collect Node, Electron, and OS version details.  
-2. Display results in a modal or log viewer panel.  
-3. Optionally provide a “Copy Diagnostics” button.  
+1. Collect Electron, Node, and OS version data.  
+2. Display it in a modal panel, accessible from the Action HUD.  
+3. Include a “Copy Info” button for quick sharing.  
 **Result:**  
-Built-in tool for quick diagnostics and environment checks.
+Built-in developer info tool for easier debugging.
 
 ---
 
 ## Task 9 — Cross-Platform Verification
 **Objective:**  
-Ensure Nova behaves consistently on Windows, macOS, and Linux.
+Validate stability on Windows, macOS, and Linux.
 
 **Tasks:**  
-1. Validate window creation, settings persistence, and logs across platforms.  
-2. Fix any path or permissions issues.  
-3. Update documentation for known differences.  
+1. Test startup, settings, and logs across all platforms.  
+2. Fix any path or permission issues.  
 **Result:**  
-Confirmed cross-platform stability.
+Cross-platform stability confirmed.
 
 ---
 
-## Task 10 — Documentation Update and Sprint Review
+## Task 10 — Documentation and Sprint Review
 **Objective:**  
-Capture learnings and prepare for the next sprint.
+Document the new interactive systems and update development notes.
 
 **Tasks:**  
-1. Update README with new features and shortcuts.  
-2. Update CHANGELOG with version 0.1.0 once features are verified.  
-3. Document new modules (Command Palette, File Tree, Settings UI).  
-4. Draft Sprint 3 planning notes.  
+1. Update README with Action HUD and Settings Panel features.  
+2. Add entries to CHANGELOG for version 0.1.0.  
+3. Outline Sprint 3 planning notes.  
 **Result:**  
-Project documentation and roadmap aligned with Nova’s current state.
+All documentation matches Nova’s current design philosophy.
 
 ---
 
 ## Sprint 2 Summary
-Sprint 2 transforms Nova from a static foundation into a lightly interactive desktop environment.  
-By the end of this sprint, Nova will have a functional command system, a basic file tree, user-visible settings, custom chrome, theme switching, and automated testing — all achieved without sacrificing simplicity or elegance.
+Sprint 2 introduces user-facing interaction and configuration that are visual, contextual, and intuitive.  
+It firmly separates Nova from legacy IDE patterns by removing the command palette and JSON-based settings in favor of clear, elegant UI systems.
 
 ---
 
-*End of Sprint 2.*
+*End of Sprint 2 (Revised).*
