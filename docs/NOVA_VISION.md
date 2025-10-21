@@ -74,3 +74,8 @@ Nova is:
 - A bridge between **human vision** and **machine capability**.  
 
 With Nova, AI becomes a team member — guided by process, purpose, and clarity.
+
+
+# PHASE 2
+
+THere are cetain things we would like to do with Nova that require agent integration.  WE will explore this in PHASE2 after we implement the above vision.
