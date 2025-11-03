@@ -22,10 +22,19 @@ jest.mock('electron', () => ({
 
 describe('Crash Reporter', () => {
   let testCrashesDir: string;
+  let originalConsoleError: typeof console.error;
 
   beforeAll(() => {
     testCrashesDir = join(tmpdir(), 'crashes');
     mkdirSync(testCrashesDir, { recursive: true });
+    // Suppress console.error output during tests (expected behavior from crash reporter)
+    originalConsoleError = console.error;
+    console.error = jest.fn();
+  });
+
+  afterAll(() => {
+    // Restore original console.error
+    console.error = originalConsoleError;
   });
 
   beforeEach(() => {
