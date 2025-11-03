@@ -162,12 +162,17 @@ describe('Logger', () => {
     });
 
     it('should append multiple log entries to same file', () => {
+      // Ensure log file is clean before this test
+      const today = new Date().toISOString().split('T')[0];
+      const logFile = join(testLogDir, `${today}.log`);
+      if (existsSync(logFile)) {
+        unlinkSync(logFile);
+      }
+
       logInfo('First message');
       logError('Second message');
       logInfo('Third message');
 
-      const today = new Date().toISOString().split('T')[0];
-      const logFile = join(testLogDir, `${today}.log`);
       const content = readFileSync(logFile, 'utf-8');
 
       expect(content).toContain('First message');
