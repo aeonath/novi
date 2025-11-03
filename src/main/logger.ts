@@ -5,7 +5,10 @@ import { join } from 'node:path';
 function getLogFile(): string {
   const dir = join(app.getPath('userData'), 'logs');
   mkdirSync(dir, { recursive: true });
-  return join(dir, 'nova.log');
+  // Use date-based log file: YYYY-MM-DD.log
+  const today = new Date();
+  const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  return join(dir, `${dateStr}.log`);
 }
 
 function line(level: string, message: string): string {
@@ -14,12 +17,28 @@ function line(level: string, message: string): string {
 }
 
 export function logInfo(message: string): void {
-  try { appendFileSync(getLogFile(), line('INFO', message)); } catch {}
+  const logLine = line('INFO', message);
+  // Print to console
+  console.log(logLine.trim());
+  // Write to file
+  try {
+    appendFileSync(getLogFile(), logLine);
+  } catch {
+    // Silently ignore file write errors
+  }
 }
 
 export function logError(message: string, error?: unknown): void {
   const stack = error instanceof Error ? `\n${error.stack}` : error ? `\n${String(error)}` : '';
-  try { appendFileSync(getLogFile(), line('ERROR', `${message}${stack}`)); } catch {}
+  const logLine = line('ERROR', `${message}${stack}`);
+  // Print to console
+  console.error(logLine.trim());
+  // Write to file
+  try {
+    appendFileSync(getLogFile(), logLine);
+  } catch {
+    // Silently ignore file write errors
+  }
 }
 
 
