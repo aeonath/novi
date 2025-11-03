@@ -6,12 +6,12 @@ import { logInfo, logError } from './logger';
 let mainWindowRef: BrowserWindow | null = null;
 
 // Set NODE_ENV for development (not used for branching, kept for future use)
-if (!process.env.NODE_ENV) {
-  process.env.NODE_ENV = 'development';
-}
+process.env.NODE_ENV ??= 'development';
 
 function createWindow(): void {
-  const savedBounds = (getSetting<{ width: number; height: number; x?: number; y?: number }>('windowBounds')) || { width: 1200, height: 800 };
+  const savedBounds = getSetting<{ width: number; height: number; x?: number; y?: number }>(
+    'windowBounds'
+  ) ?? { width: 1200, height: 800 };
 
   const mainWindow = new BrowserWindow({
     width: savedBounds.width,
@@ -28,15 +28,22 @@ function createWindow(): void {
   });
 
   // Always load local built HTML file
-  mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+  void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   mainWindow.setMinimumSize(800, 600);
 
   // Persist bounds on close
-  const saveBounds = () => {
+  const saveBounds = (): void => {
     try {
-      if (mainWindow.isDestroyed()) return;
+      if (mainWindow.isDestroyed()) {
+        return;
+      }
       const bounds = mainWindow.getBounds();
-      setSetting('windowBounds', { width: bounds.width, height: bounds.height, x: bounds.x, y: bounds.y });
+      setSetting('windowBounds', {
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+      });
     } catch {
       // ignore if window already destroyed
     }
@@ -49,7 +56,7 @@ function createWindow(): void {
   mainWindowRef = mainWindow;
 }
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   logInfo('App ready');
   // IPC handler for app version
   ipcMain.handle('get-version', () => app.getVersion());

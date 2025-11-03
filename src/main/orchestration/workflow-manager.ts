@@ -1,15 +1,15 @@
 /**
  * Workflow Manager (Placeholder)
- * 
+ *
  * TODO: Implement workflow orchestration functionality
- * 
+ *
  * The workflow manager will provide:
  * - Workflow definition and execution
  * - Task scheduling and coordination
  * - Agent management and communication
  * - Workflow state persistence
  * - Error handling and retry logic
- * 
+ *
  * Future implementation considerations:
  * - Workflow definition format (YAML, JSON, etc.)
  * - Parallel and sequential task execution
@@ -26,18 +26,18 @@ export class WorkflowManager {
 
 export interface Workflow {
   // TODO: Define workflow interface
-  // id: string;
-  // name: string;
-  // tasks: Task[];
+  id: string;
+  name: string;
+  tasks: Task[];
   // triggers?: Trigger[];
 }
 
 export interface Task {
   // TODO: Define task interface
-  // id: string;
-  // type: string;
-  // config: Record<string, unknown>;
-  // dependencies?: string[];
+  id: string;
+  type: string;
+  config: Record<string, unknown>;
+  dependencies?: string[];
 }
 
 export function loadWorkflow(_path: string): Promise<Workflow> {
@@ -59,4 +59,3 @@ export function resumeWorkflow(_workflowId: string): Promise<void> {
   // TODO: Resume a paused workflow
   return Promise.resolve();
 }
-

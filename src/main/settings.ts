@@ -8,7 +8,9 @@ const settingsPath = join(app.getPath('userData'), 'settings.json');
 
 export function loadSettings(): Settings {
   try {
-    if (!existsSync(settingsPath)) return {};
+    if (!existsSync(settingsPath)) {
+      return {};
+    }
     const raw = readFileSync(settingsPath, 'utf-8');
     return JSON.parse(raw) as Settings;
   } catch {
@@ -49,5 +51,3 @@ export function setSetting(key: string, value: unknown): void {
 export function getSettingsFilePath(): string {
   return settingsPath;
 }
-
-

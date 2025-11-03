@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+
+# Generated files
+*.js
+!jest.config.js
+!*.config.js
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+
+# Package files
+package-lock.json
+

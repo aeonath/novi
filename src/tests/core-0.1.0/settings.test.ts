@@ -46,14 +46,14 @@ describe('Settings Manager', () => {
     it('should load settings from existing file', () => {
       const testSettings: Settings = { key1: 'value1', key2: 42 };
       writeFileSync(originalSettingsPath, JSON.stringify(testSettings, null, 2), 'utf-8');
-      
+
       const settings = loadSettings();
       expect(settings).toEqual(testSettings);
     });
 
     it('should return empty object when file contains invalid JSON', () => {
       writeFileSync(originalSettingsPath, 'invalid json', 'utf-8');
-      
+
       const settings = loadSettings();
       expect(settings).toEqual({});
     });
@@ -62,12 +62,12 @@ describe('Settings Manager', () => {
   describe('saveSettings', () => {
     it('should create settings file with correct content', () => {
       const testSettings: Settings = { testKey: 'testValue', numberKey: 123 };
-      
+
       saveSettings(testSettings);
-      
+
       expect(existsSync(originalSettingsPath)).toBe(true);
       const content = readFileSync(originalSettingsPath, 'utf-8');
-      const saved = JSON.parse(content);
+      const saved = JSON.parse(content) as Settings;
       expect(saved).toEqual(testSettings);
     });
 
@@ -119,7 +119,7 @@ describe('Settings Manager', () => {
   describe('setSetting', () => {
     it('should set a new setting', () => {
       setSetting('newKey', 'newValue');
-      
+
       const value = getSetting('newKey');
       expect(value).toBe('newValue');
     });
@@ -127,17 +127,17 @@ describe('Settings Manager', () => {
     it('should update an existing setting', () => {
       setSetting('testKey', 'initialValue');
       setSetting('testKey', 'updatedValue');
-      
+
       const value = getSetting('testKey');
       expect(value).toBe('updatedValue');
     });
 
     it('should save settings to file', () => {
       setSetting('persistedKey', 'persistedValue');
-      
+
       // Reload settings from file to verify persistence
       const content = readFileSync(originalSettingsPath, 'utf-8');
-      const settings = JSON.parse(content);
+      const settings = JSON.parse(content) as Settings;
       expect(settings.persistedKey).toBe('persistedValue');
     });
 
@@ -148,7 +148,7 @@ describe('Settings Manager', () => {
       setSetting('nullVal', null);
       setSetting('arrayVal', [1, 2, 3]);
       setSetting('objectVal', { key: 'value' });
-      
+
       expect(getSetting('stringVal')).toBe('test');
       expect(getSetting('numberVal')).toBe(123);
       expect(getSetting('boolVal')).toBe(true);
@@ -170,9 +170,9 @@ describe('Settings Manager', () => {
   describe('Integration: Window Bounds', () => {
     it('should save and restore window bounds', () => {
       const bounds = { width: 1200, height: 800, x: 100, y: 200 };
-      
+
       setSetting('windowBounds', bounds);
-      
+
       const restored = getSetting<typeof bounds>('windowBounds');
       expect(restored).toEqual(bounds);
       expect(restored?.width).toBe(1200);
@@ -183,9 +183,9 @@ describe('Settings Manager', () => {
 
     it('should handle partial window bounds', () => {
       const partialBounds = { width: 1200, height: 800 };
-      
+
       setSetting('windowBounds', partialBounds);
-      
+
       const restored = getSetting<typeof partialBounds>('windowBounds');
       expect(restored).toEqual(partialBounds);
     });

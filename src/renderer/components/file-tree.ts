@@ -1,15 +1,15 @@
 /**
  * File Tree Component (Placeholder)
- * 
+ *
  * TODO: Implement file tree functionality
- * 
+ *
  * The file tree will provide:
  * - Project directory navigation
  * - File and folder browsing
  * - File operations (create, delete, rename, move)
  * - Context menu for file operations
  * - File search and filtering
- * 
+ *
  * Future implementation considerations:
  * - Virtual scrolling for large directories
  * - File type icons
@@ -26,11 +26,11 @@ export class FileTree {
 
 export interface FileNode {
   // TODO: Define file node interface
-  // name: string;
-  // path: string;
-  // type: 'file' | 'directory';
-  // children?: FileNode[];
-  // isExpanded?: boolean;
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: FileNode[];
+  isExpanded?: boolean;
 }
 
 export function loadDirectory(_path: string): Promise<FileNode[]> {
@@ -52,4 +52,3 @@ export function renameFile(_oldPath: string, _newPath: string): Promise<void> {
   // TODO: Rename a file or directory
   return Promise.resolve();
 }
-

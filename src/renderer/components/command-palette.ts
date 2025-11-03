@@ -1,14 +1,14 @@
 /**
  * Command Palette Component (Placeholder)
- * 
+ *
  * TODO: Implement command palette functionality
- * 
+ *
  * The command palette will provide:
  * - Quick command execution (Ctrl+P / Cmd+P)
  * - File search and navigation
  * - Command search and execution
  * - Keyboard shortcuts management
- * 
+ *
  * Future implementation considerations:
  * - Fuzzy search for commands
  * - Command categories (File, Edit, View, etc.)
@@ -24,11 +24,11 @@ export class CommandPalette {
 
 export interface Command {
   // TODO: Define command interface
-  // id: string;
-  // label: string;
-  // category?: string;
-  // handler: () => void;
-  // keyboardShortcut?: string;
+  id: string;
+  label: string;
+  category?: string;
+  handler: () => void;
+  keyboardShortcut?: string;
 }
 
 export function registerCommand(_command: Command): void {
@@ -42,4 +42,3 @@ export function showCommandPalette(): void {
 export function hideCommandPalette(): void {
   // TODO: Hide the command palette UI
 }
-

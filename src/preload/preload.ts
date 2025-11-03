@@ -4,10 +4,12 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('api', {
   getVersion: () => ipcRenderer.invoke('get-version'),
-  ping: async () => 'pong',
-  getSetting: <T = unknown>(key: string, defaults?: T) => ipcRenderer.invoke('get-setting', key, defaults),
+  ping: () => Promise.resolve('pong'),
+  getSetting: <T = unknown>(key: string, defaults?: T) =>
+    ipcRenderer.invoke('get-setting', key, defaults),
   setSetting: (key: string, value: unknown) => ipcRenderer.invoke('set-setting', key, value),
-  reportError: (message: string, stack?: string) => ipcRenderer.send('renderer-error', { message, stack })
+  reportError: (message: string, stack?: string) =>
+    ipcRenderer.send('renderer-error', { message, stack }),
 });
 
 // Type definitions for the exposed API

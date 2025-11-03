@@ -1,15 +1,15 @@
 /**
  * Terminal Component (Placeholder)
- * 
+ *
  * TODO: Implement terminal/console functionality
- * 
+ *
  * The terminal will provide:
  * - Integrated terminal emulator
  * - Command execution and output display
  * - Multiple terminal tabs
  * - Terminal customization (colors, fonts, etc.)
  * - Copy/paste support
- * 
+ *
  * Future implementation considerations:
  * - xterm.js or similar terminal emulator library
  * - Shell integration (PowerShell, Bash, etc.)
@@ -25,10 +25,10 @@ export class Terminal {
 
 export interface TerminalOptions {
   // TODO: Define terminal options interface
-  // shell?: string;
-  // cwd?: string;
+  shell?: string;
+  cwd?: string;
   // theme?: TerminalTheme;
-  // fontSize?: number;
+  fontSize?: number;
 }
 
 export function createTerminal(_options?: TerminalOptions): Terminal {
@@ -44,4 +44,3 @@ export function executeCommand(_command: string, _terminal: Terminal): Promise<s
 export function clearTerminal(_terminal: Terminal): void {
   // TODO: Clear terminal output
 }
-

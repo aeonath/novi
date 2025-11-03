@@ -1,8 +1,8 @@
 /**
  * Code Editor Component (Placeholder)
- * 
+ *
  * TODO: Implement code editor functionality
- * 
+ *
  * The editor will provide:
  * - Multi-file editing support
  * - Syntax highlighting
@@ -10,7 +10,7 @@
  * - Find and replace
  * - Code formatting
  * - Multiple editor tabs
- * 
+ *
  * Future implementation considerations:
  * - Monaco Editor or CodeMirror integration
  * - Language server protocol (LSP) support
@@ -27,11 +27,11 @@ export class Editor {
 
 export interface EditorOptions {
   // TODO: Define editor options interface
-  // language?: string;
-  // theme?: string;
-  // fontSize?: number;
-  // wordWrap?: boolean;
-  // minimap?: boolean;
+  language?: string;
+  theme?: string;
+  fontSize?: number;
+  wordWrap?: boolean;
+  minimap?: boolean;
 }
 
 export function openFile(_path: string, _options?: EditorOptions): Editor {
@@ -47,4 +47,3 @@ export function saveFile(_editor: Editor, _path: string): Promise<void> {
 export function closeFile(_editor: Editor): void {
   // TODO: Close editor tab
 }
-

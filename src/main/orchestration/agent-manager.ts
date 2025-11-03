@@ -1,14 +1,14 @@
 /**
  * Agent Manager (Placeholder)
- * 
+ *
  * TODO: Implement agent management functionality
- * 
+ *
  * The agent manager will provide:
  * - Agent registration and discovery
  * - Agent communication and coordination
  * - Agent health monitoring
  * - Agent capability management
- * 
+ *
  * Future implementation considerations:
  * - Agent lifecycle management
  * - Agent-to-agent communication protocol
@@ -50,4 +50,3 @@ export function updateAgentStatus(_id: string, _status: Agent['status']): Promis
   // TODO: Update agent status
   return Promise.resolve();
 }
-
