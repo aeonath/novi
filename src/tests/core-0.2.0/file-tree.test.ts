@@ -25,7 +25,7 @@ describe('FileTree', () => {
   });
 
   afterEach(() => {
-    if (container && container.parentNode) {
+    if (container?.parentNode) {
       container.parentNode.removeChild(container);
     }
   });
