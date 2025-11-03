@@ -1,4 +1,9 @@
-# Claude Configuration — Lyric Project (dev-core)
+# Sym Configuration — Nova Project (dev-core)
+
+# Composer (Sym) Config
+
+You are a AI software engineer at miranova studios.  Please read this config before
+iterating on the tasks in the SPRINT plan documents.
 
 ## 🚨 CRITICAL WORKFLOW RULE 🚨
 **NEVER COMMIT ANY CHANGES WITHOUT CREATING A CHANGELOG ENTRY FIRST!**
@@ -8,17 +13,18 @@ This applies to ALL filesystem modifications - code, config, docs, renames, dele
 **ALWAYS COMPLETE ONE TASK AT A TIME AND STOP!**
 - **MANDATORY**: After completing any task, ALWAYS create:
   1. Changelog entry (nova/changelog/YYYYMMDD/HHMM-CHANGELOG.md)
-  2. Sprint task summary (nova/aeon/trajectory-0.9.1/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md)
+  2. Sprint task summary (nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md)
   3. Commit changes
 - **STOP EXECUTION** after task completion - do NOT proceed to next task
 - **WAIT** for user instruction before starting next task
 - **NEVER** implement multiple tasks in one session unless explicitly instructed
 
 ## 🖥️ SHELL ENVIRONMENT REMINDER 🖥️
-**YOU ARE RUNNING POWERSHELL, NOT BASH!**
+**YOU ARE RUNNING POWERSHELL ON WINDOWS, NOT BASH!**
 - Use PowerShell commands: `Get-Date -Format "yyyyMMdd/HHmm"` NOT `date +"%Y%m%d/%H%M"`
 - Use PowerShell syntax for all terminal operations
 - Remember: Windows PowerShell environment in Cursor
+- Note: We may move to Linux in the future, but currently developing on Windows
 
 ## User Control Configuration
 
@@ -29,19 +35,8 @@ USER_RESPONSE: YES
 
 
 **Options**
-- **YES** – Claude will document, stage, commit, and write changelog entries.
+- **YES** – Sym will document, stage, commit, and write changelog entries.
 - **NO** – Skip changelog and git operations; useful during debugging.
-
-### Deployment Toggle (Lyric Is Interpreted)
-
-Should I deploy the project after changes?
-USER_RESPONSE: NO
-
-
-**Notes**
-- Lyric is an interpreted language; it does not require compilation or S3 deployment.
-- Deployment toggles exist only for future use if Nova adds publishing features.
-- Setting `NO` means all work remains local and version-controlled only.
 
 ---
 
@@ -49,21 +44,21 @@ USER_RESPONSE: NO
 
 ### 1. Preparation
 - Ensure `dev-core` branch is checked out.
-- Verify `.gitignore` excludes build artifacts (`__pycache__`, `.egg-info`, etc.).
-- Confirm both toggles in this config are correct before each iteration.
+- Verify `.gitignore` excludes build artifacts 
+- Confirm toggles in this config are correct before each iteration.
 
 ### 2. Modify or Generate Code
-Claude will:
-- Create or update files inside `/lyric/`, `/tests/`, and `/examples/`.
-- Maintain imports and Python package integrity.
-- Ensure new modules import cleanly.
+Sym will:
+- Create or update files inside `/src/`, `/src/tests/`, `/src/main/`, `/src/preload/`, `/src/renderer/`.
+
 - **IMPORTANT**: When instructed to iterate on a specific task (e.g., "SPRINT3_PLAN.md Task 1"), only implement that specific task and its requirements. Do not implement other tasks from the sprint unless explicitly instructed.
-- **TEST STRUCTURE**: Conform to the unit test structure defined in `nova/aeon/trajectory-0.9.1/TEST_STRUCTURE.md` - organize tests by yield version in `lyric/tests/core-0.x.x/` directories
-- **🚨 CRITICAL TEST REQUIREMENT 🚨**: **ALL UNIT TESTS MUST PASS 100% BEFORE TASK COMPLETION!** This is the END GOAL specified in TEST_STRUCTURE.md. If you cannot achieve 100% test pass rate in a reasonable amount of time (typically 3-5 attempts), PAUSE EXECUTION and ask the user what should be done next. Do not consider any task complete until all tests are passing.
-- **🚨 STUDIO DIRECTORY RESTRICTION 🚨**: **DO NOT MODIFY FILES IN THE `studio/` DIRECTORY!** The studio directory contains example scripts that should remain unchanged unless explicitly instructed otherwise. Focus development work on core language files in `/lyric/`, `/tests/`, and `/examples/` directories only.
+
+- **TEST STRUCTURE**: Conform to the unit test structure defined in `nova/aeon/trajectory-1.0.0/TEST_STRUCTURE.md` if it exists. If no test structure exists, organize tests appropriately for the Nova Electron project (TypeScript/JavaScript).
+- **🚨 CRITICAL TEST REQUIREMENT 🚨**: **ALL UNIT TESTS MUST PASS 100% BEFORE TASK COMPLETION!** You must implement unit tests for all features you implement. If there are no unit tests yet, you need to pick a framework (e.g., Jest, Mocha, Vitest) and write them. If you cannot achieve 100% test pass rate in a reasonable amount of time (typically 3-5 attempts), PAUSE EXECUTION and ask the user what should be done next. Do not consider any task complete until all tests are passing.
+- **🚨 STUDIO DIRECTORY RESTRICTION 🚨**: **DO NOT MODIFY FILES IN THE `studio/` DIRECTORY!** The studio directory contains example scripts that should remain unchanged unless explicitly instructed otherwise. Focus development work on core Nova application files in `/src/`, `/src/tests/`, and related directories only.
 
 ### 3. Write Summary (Conditional)
-If **Git Commit Toggle = YES**, Claude writes a changelog entry **AFTER** completing the task implementation:
+If **Git Commit Toggle = YES**, Sym writes a changelog entry **AFTER** completing the task implementation:
 
 **MANDATORY REQUIREMENT**: Always get the current date and time before creating changelog files.
 
@@ -92,12 +87,12 @@ If a changelog file already exists with the same timestamp, append a decimal suf
 - Relevant sprint and task references
 
 ### 4. Write Sprint Task Summary (Conditional)
-If **Git Commit Toggle = YES**, Claude writes a sprint task summary **AFTER** completing the task implementation:
+If **Git Commit Toggle = YES**, Sym writes a sprint task summary **AFTER** completing the task implementation:
 
 **🚨 CRITICAL REQUIREMENT 🚨**: 
 **ALWAYS CREATE SPRINT TASK SUMMARY - THIS IS MANDATORY!**
 
-nova/aeon/trajectory-0.9.1/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md
+nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md
 
 
 **Naming Convention**: Always use SPRINTX_TASKX_SUMMARY.md format (e.g., SPRINT1_TASK1_SUMMARY.md, SPRINT1_TASK2_SUMMARY.md)
@@ -110,10 +105,10 @@ nova/aeon/trajectory-0.9.1/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md
 - Reference to changelog for details
 
 ### 5. Write Sprint DOD Summary (Conditional)
-If **Git Commit Toggle = YES** and sprint is complete, Claude writes a sprint definition of done summary **AFTER** completing all sprint tasks:
+If **Git Commit Toggle = YES** and sprint is complete, Sym writes a sprint definition of done summary **AFTER** completing all sprint tasks:
 
 
-nova/aeon/trajectory-0.9.1/yield-0.x.x/SPRINTX_DOD_SUMMARY.md
+nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md
 
 
 **Include**
@@ -199,6 +194,10 @@ Closes: Sprint 4 Task 2"
 git commit -m "Sprint4 Task2: Update specification and grammar"
 ```
 
+**Note**: For Nova project, examples might be:
+- `git commit -m "Sprint1 Task2: Implement main process IPC"`
+- `git commit -m "Sprint2 Task1: Add renderer UI components"`
+
 ### Changelog Format
 
 # SprintX TaskY — YYYYMMDD.HHMM
@@ -207,11 +206,11 @@ git commit -m "Sprint4 Task2: Update specification and grammar"
 Short explanation of what was implemented or fixed.
 
 ## Files Changed
-- lyric/lexer.py — implemented tokenizer
-- tests/test_lexer.py — added baseline tests
+- src/main/main.ts — implemented main process handler
+- src/tests/main.test.ts — added unit tests
 
 ## Reason
-Establishes foundational lexer and test coverage for Lyric v0.1
+Establishes foundational main process and test coverage for Nova
 
 ## Git Commit Hash
 `TBD` - SprintX TaskY Implementation
@@ -224,24 +223,28 @@ Establishes foundational lexer and test coverage for Lyric v0.1
 
 ## Safety & Validation Rules
 
-Claude must never delete directories without confirmation.
+Sym must never delete directories without confirmation.
 
 Always include commit hash in changelog.
 
-All generated Python files must be syntactically valid and importable.
+All generated TypeScript/JavaScript files must be syntactically valid and compile without errors.
 
-Unit tests must run via pytest -q without fatal errors.
+Unit tests must run via the chosen test framework (Jest/Mocha/Vitest) without fatal errors.
 
-CLI command lyric run examples/hello.ly must work after Sprint 1 completion.
+The Electron application must build and run correctly after task completion.
 
-## Language Specification Maintenance
+## Development Environment
 
-**IMPORTANT**: The Lyric Language Specification is now maintained manually at `../lyric-lang.org` and is no longer part of this project repository. Claude will NOT make updates to the language specification - this is handled manually by the user.
+**IMPORTANT**: 
+- Nova is an Electron application written in TypeScript/JavaScript
+- Development is currently on Windows using PowerShell
+- We may move to Linux in the future, but code should be cross-platform compatible
+- Test framework must be chosen and configured if not already present
 
 ## Summary
 
-No build/deploy steps.
+Build/deploy steps: Electron application build process may be required.
 
-Focus: Pure interpreted language development.
+Focus: Electron-based orchestration platform development.
 
 Goal: Maintain structured commits, organized changelogs, and validated tests.
