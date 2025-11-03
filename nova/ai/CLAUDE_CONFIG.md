@@ -1,6 +1,6 @@
-# Sym Configuration — Nova Project (dev-core)
+# Claude Configuration — Nova Project (dev-core)
 
-# Composer (Sym) Config
+# Claude Config
 
 You are a AI software engineer at miranova studios.  Please read this config before
 iterating on the tasks in the SPRINT plan documents.
@@ -35,7 +35,7 @@ USER_RESPONSE: YES
 
 
 **Options**
-- **YES** – Sym will document, stage, commit, and write changelog entries.
+- **YES** – Claude will document, stage, commit, and write changelog entries.
 - **NO** – Skip changelog and git operations; useful during debugging.
 
 ---
@@ -48,7 +48,7 @@ USER_RESPONSE: YES
 - Confirm toggles in this config are correct before each iteration.
 
 ### 2. Modify or Generate Code
-Sym will:
+Claude will:
 - Create or update files inside `/src/`, `/src/tests/`, `/src/main/`, `/src/preload/`, `/src/renderer/`.
 
 - **IMPORTANT**: When instructed to iterate on a specific task (e.g., "SPRINT3_PLAN.md Task 1"), only implement that specific task and its requirements. Do not implement other tasks from the sprint unless explicitly instructed.
@@ -58,7 +58,7 @@ Sym will:
 - **🚨 STUDIO DIRECTORY RESTRICTION 🚨**: **DO NOT MODIFY FILES IN THE `studio/` DIRECTORY!** The studio directory contains example scripts that should remain unchanged unless explicitly instructed otherwise. Focus development work on core Nova application files in `/src/`, `/src/tests/`, and related directories only.
 
 ### 3. Write Summary (Conditional)
-If **Git Commit Toggle = YES**, Sym writes a changelog entry **AFTER** completing the task implementation:
+If **Git Commit Toggle = YES**, Claude writes a changelog entry **AFTER** completing the task implementation:
 
 **MANDATORY REQUIREMENT**: Always get the current date and time before creating changelog files.
 
@@ -87,7 +87,7 @@ If a changelog file already exists with the same timestamp, append a decimal suf
 - Relevant sprint and task references
 
 ### 4. Write Sprint Task Summary (Conditional)
-If **Git Commit Toggle = YES**, Sym writes a sprint task summary **AFTER** completing the task implementation:
+If **Git Commit Toggle = YES**, Claude writes a sprint task summary **AFTER** completing the task implementation:
 
 **🚨 CRITICAL REQUIREMENT 🚨**: 
 **ALWAYS CREATE SPRINT TASK SUMMARY - THIS IS MANDATORY!**
@@ -105,7 +105,7 @@ nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md
 - Reference to changelog for details
 
 ### 5. Write Sprint DOD Summary (Conditional)
-If **Git Commit Toggle = YES** and sprint is complete, Sym writes a sprint definition of done summary **AFTER** completing all sprint tasks:
+If **Git Commit Toggle = YES** and sprint is complete, Claude writes a sprint definition of done summary **AFTER** completing all sprint tasks:
 
 
 nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md
@@ -223,7 +223,7 @@ Establishes foundational main process and test coverage for Nova
 
 ## Safety & Validation Rules
 
-Sym must never delete directories without confirmation.
+Claude must never delete directories without confirmation.
 
 Always include commit hash in changelog.
 

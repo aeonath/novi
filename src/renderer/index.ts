@@ -2,6 +2,7 @@
 import { ActionHUD } from './components/action-hud';
 import { createDefaultActions, ActionContext } from './components/actions';
 import { FileTree } from './components/file-tree';
+import { SettingsPanel } from './components/settings-panel';
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
@@ -23,6 +24,75 @@ document.addEventListener('DOMContentLoaded', (): void => {
       console.log('ping ->', pong);
     }
 
+    // Initialize Settings Panel
+    const settingsPanel = new SettingsPanel();
+
+    // Add default settings
+    settingsPanel.addSetting({
+      id: 'theme',
+      label: 'Theme',
+      type: 'dropdown',
+      value: 'dark',
+      options: [
+        { label: 'Light', value: 'light' },
+        { label: 'Dark', value: 'dark' },
+      ],
+    });
+
+    settingsPanel.addSetting({
+      id: 'fontSize',
+      label: 'Font Size',
+      type: 'slider',
+      value: 14,
+      min: 10,
+      max: 24,
+      step: 1,
+    });
+
+    settingsPanel.addSetting({
+      id: 'autoSave',
+      label: 'Auto Save',
+      type: 'toggle',
+      value: true,
+    });
+
+    settingsPanel.addSetting({
+      id: 'editorTabSize',
+      label: 'Tab Size',
+      type: 'slider',
+      value: 2,
+      min: 2,
+      max: 8,
+      step: 1,
+    });
+
+    // Load settings from storage
+    await settingsPanel.loadFromStorage();
+
+    // Handle setting changes
+    settingsPanel.onChange(async (id, value) => {
+      // Save to storage
+      await settingsPanel.saveToStorage(id, value);
+
+      // Apply in real time
+      switch (id) {
+        case 'theme':
+          document.body.dataset.theme = String(value);
+          break;
+        case 'fontSize':
+          document.documentElement.style.setProperty('--font-size', `${value}px`);
+          break;
+        case 'autoSave':
+          // eslint-disable-next-line no-console
+          console.log(`Auto save ${value ? 'enabled' : 'disabled'}`);
+          break;
+        case 'editorTabSize':
+          // eslint-disable-next-line no-console
+          console.log(`Tab size set to ${value}`);
+          break;
+      }
+    });
+
     // Initialize Action HUD
     const actionContext: ActionContext = {
       onOpenFile: () => {
@@ -30,12 +100,15 @@ document.addEventListener('DOMContentLoaded', (): void => {
         console.log('Open File action - will be implemented in Task 6');
       },
       onToggleTheme: () => {
-        // eslint-disable-next-line no-console
-        console.log('Toggle Theme action - will be implemented in Task 5');
+        // Toggle theme between light and dark
+        const currentTheme = settingsPanel.getSetting('theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        settingsPanel.setSetting('theme', newTheme);
+        document.body.dataset.theme = String(newTheme);
+        void settingsPanel.saveToStorage('theme', newTheme);
       },
       onOpenSettings: () => {
-        // eslint-disable-next-line no-console
-        console.log('Settings action - will be implemented in Task 3');
+        settingsPanel.show();
       },
     };
 
