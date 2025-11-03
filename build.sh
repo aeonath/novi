@@ -1,3 +1,3 @@
 #!/bin/bash
-npm run pack:win
+powershell.exe -File pack.ps1
 
