@@ -1,0 +1,136 @@
+import { createDefaultActions, ActionContext } from '../../renderer/components/actions';
+
+describe('Actions', () => {
+  describe('createDefaultActions', () => {
+    it('should create default actions with all handlers', () => {
+      const context: ActionContext = {
+        onOpenFile: jest.fn(),
+        onToggleTheme: jest.fn(),
+        onOpenSettings: jest.fn(),
+      };
+
+      const actions = createDefaultActions(context);
+
+      expect(actions).toHaveLength(3);
+      expect(actions[0].id).toBe('open-file');
+      expect(actions[0].label).toBe('Open File');
+      expect(actions[1].id).toBe('toggle-theme');
+      expect(actions[1].label).toBe('Toggle Theme');
+      expect(actions[2].id).toBe('settings');
+      expect(actions[2].label).toBe('Settings');
+    });
+
+    it('should call onOpenFile handler when Open File action is executed', () => {
+      const onOpenFile = jest.fn();
+      const context: ActionContext = {
+        onOpenFile,
+      };
+
+      const actions = createDefaultActions(context);
+      const openFileAction = actions.find((a) => a.id === 'open-file');
+
+      expect(openFileAction).toBeDefined();
+      if (openFileAction) {
+        void Promise.resolve(openFileAction.handler());
+        expect(onOpenFile).toHaveBeenCalled();
+      }
+    });
+
+    it('should call onToggleTheme handler when Toggle Theme action is executed', () => {
+      const onToggleTheme = jest.fn();
+      const context: ActionContext = {
+        onToggleTheme,
+      };
+
+      const actions = createDefaultActions(context);
+      const toggleThemeAction = actions.find((a) => a.id === 'toggle-theme');
+
+      expect(toggleThemeAction).toBeDefined();
+      if (toggleThemeAction) {
+        void Promise.resolve(toggleThemeAction.handler());
+        expect(onToggleTheme).toHaveBeenCalled();
+      }
+    });
+
+    it('should call onOpenSettings handler when Settings action is executed', () => {
+      const onOpenSettings = jest.fn();
+      const context: ActionContext = {
+        onOpenSettings,
+      };
+
+      const actions = createDefaultActions(context);
+      const settingsAction = actions.find((a) => a.id === 'settings');
+
+      expect(settingsAction).toBeDefined();
+      if (settingsAction) {
+        void Promise.resolve(settingsAction.handler());
+        expect(onOpenSettings).toHaveBeenCalled();
+      }
+    });
+
+    it('should handle missing handlers gracefully', () => {
+      const context: ActionContext = {};
+
+      const actions = createDefaultActions(context);
+
+      expect(actions).toHaveLength(3);
+      // Should not throw when handlers are missing
+      actions.forEach((action) => {
+        expect(() => {
+          void Promise.resolve(action.handler());
+        }).not.toThrow();
+      });
+    });
+
+    it('should handle async handlers', async () => {
+      const asyncHandler = jest.fn().mockResolvedValue(undefined);
+      const context: ActionContext = {
+        onOpenFile: asyncHandler,
+      };
+
+      const actions = createDefaultActions(context);
+      const openFileAction = actions.find((a) => a.id === 'open-file');
+
+      expect(openFileAction).toBeDefined();
+      if (openFileAction) {
+        await Promise.resolve(openFileAction.handler());
+        expect(asyncHandler).toHaveBeenCalled();
+      }
+    });
+
+    it('should create actions with correct structure', () => {
+      const context: ActionContext = {
+        onOpenFile: jest.fn(),
+        onToggleTheme: jest.fn(),
+        onOpenSettings: jest.fn(),
+      };
+
+      const actions = createDefaultActions(context);
+
+      actions.forEach((action) => {
+        expect(action).toHaveProperty('id');
+        expect(action).toHaveProperty('label');
+        expect(action).toHaveProperty('handler');
+        expect(typeof action.id).toBe('string');
+        expect(typeof action.label).toBe('string');
+        expect(typeof action.handler).toBe('function');
+      });
+    });
+
+    it('should create all three default actions', () => {
+      const context: ActionContext = {
+        onOpenFile: jest.fn(),
+        onToggleTheme: jest.fn(),
+        onOpenSettings: jest.fn(),
+      };
+
+      const actions = createDefaultActions(context);
+
+      const actionIds = actions.map((a) => a.id);
+      expect(actionIds).toContain('open-file');
+      expect(actionIds).toContain('toggle-theme');
+      expect(actionIds).toContain('settings');
+    });
+  });
+});
+

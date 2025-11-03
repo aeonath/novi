@@ -98,10 +98,7 @@ Distribute Nova as a runnable Windows application.
 Ensure clarity and alignment across all contributors (human and AI).
 
 **Tasks:**  
-1. Write `README.md` with setup, build, and run instructions.  
-2. Write `TEAM.md` defining philosophy, roles, and stack.  
-3. Verify that folder layout and workflow match the documents.  
-**Result:** Clear, accurate documentation reflecting Nova’s guiding principles.
+1. Write `README.md` with setup, build, and run instructions.   
 
 ---
 

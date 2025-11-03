@@ -1,4 +1,7 @@
 // Renderer process entry point
+import { ActionHUD } from './components/action-hud';
+import { createDefaultActions, ActionContext } from './components/actions';
+
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
     const versionElement = document.getElementById('version');
@@ -8,6 +11,7 @@ document.addEventListener('DOMContentLoaded', (): void => {
         const version = await window.api.getVersion();
         versionElement.textContent = `Version: ${version}`;
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Failed to get version:', error);
         versionElement.textContent = 'Version: Unknown';
       }
@@ -18,9 +22,26 @@ document.addEventListener('DOMContentLoaded', (): void => {
       console.log('ping ->', pong);
     }
 
-    // Example of listening to menu actions
-    // If preload is not exposing API yet, skip gracefully
-    
+    // Initialize Action HUD
+    const actionContext: ActionContext = {
+      onOpenFile: () => {
+        // eslint-disable-next-line no-console
+        console.log('Open File action - will be implemented in Task 6');
+      },
+      onToggleTheme: () => {
+        // eslint-disable-next-line no-console
+        console.log('Toggle Theme action - will be implemented in Task 5');
+      },
+      onOpenSettings: () => {
+        // eslint-disable-next-line no-console
+        console.log('Settings action - will be implemented in Task 3');
+      },
+    };
+
+    const actions = createDefaultActions(actionContext);
+    // Initialize Action HUD (stored for potential future programmatic access)
+    new ActionHUD(actions);
+
     // Copy Diagnostics button
     const copyDiagnosticsBtn = document.getElementById('copy-diagnostics');
     if (copyDiagnosticsBtn && window.api) {
