@@ -46,6 +46,7 @@
     ],
     "win": {
       "signAndEditExecutable": false,
+      "compression": "store",
       "target": [
         {
           "target": "portable",
