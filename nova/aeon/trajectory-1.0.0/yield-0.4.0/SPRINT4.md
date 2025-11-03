@@ -10,6 +10,53 @@ This sprint focuses on deep integration — file management, version control, an
 
 ---
 
+## Task 0 — React Framework Integration
+**Objective:**  
+Introduce React as Nova’s renderer framework to support dynamic UI components and modular architecture.
+
+**Tasks:**  
+1. Install React 18 and React DOM:  
+   ```bash
+   npm install react react-dom
+   npm install --save-dev @types/react @types/react-dom
+   ```
+Replace the static HTML renderer with a React root in src/renderer/index.tsx.
+
+Establish the base component structure:
+
+<App /> → Root container (manages layout, theme, context)
+
+<EditorView /> → Monaco wrapper
+
+<FileBrowser /> → Interactive file tree
+
+<StatusBar /> → App state and Git status
+
+Configure Webpack/Vite for JSX and TypeScript (TSX) support.
+
+Verify HMR (hot module reloading) and renderer rebuilds without restart.
+
+### Acceptance Criteria:
+
+ Nova starts successfully and renders a React root component.
+
+ No runtime or TypeScript compilation errors.
+
+ Renderer updates dynamically when UI changes occur.
+
+ Existing preload and IPC communication remain functional.
+
+ All future renderer work (Monaco, File Browser, Settings Panel) implemented as React components.
+
+### 🧱 **Why Add It Now**
+- **Monaco and File Tree require reactive state.** Without React, managing component-level updates will quickly get messy.  
+- **The Action HUD and Settings Panel** can reuse modular React components for consistency.  
+- **Testing and Theming become simpler** — React allows unified context providers for theme and settings.  
+- It aligns with the long-term vision: Nova = Electron + React + TypeScript.
+
+---
+
+
 ## Task 1 — Enhanced Monaco Editor Integration  
 **Objective:**  
 Extend Nova’s editor core with advanced capabilities and plugin hooks.
