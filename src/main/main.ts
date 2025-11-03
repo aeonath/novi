@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard } from 'electron';
 import { join } from 'node:path';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
+import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './crash-reporter';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -66,7 +67,16 @@ void app.whenReady().then(() => {
   ipcMain.handle('set-setting', (_e, key: string, value: unknown) => setSetting(key, value));
   ipcMain.on('renderer-error', (_e, payload: { message: string; stack?: string }) => {
     logError(`Renderer error: ${payload.message}`, payload.stack);
+    saveCrashReport('rendererError', new Error(payload.message), payload.stack);
   });
+  
+  // Crash reporting and diagnostics IPC
+  ipcMain.handle('copy-diagnostics', () => {
+    const diagnostics = getDiagnosticsInfo();
+    clipboard.writeText(diagnostics);
+    return diagnostics;
+  });
+  ipcMain.handle('get-crashes-directory', () => getCrashesDirectory());
   createWindow();
 
   app.on('activate', () => {
@@ -109,7 +119,15 @@ process.on('SIGTERM', () => {
 // Crash reporting
 process.on('uncaughtException', (err) => {
   logError('Uncaught exception in main', err);
+  saveCrashReport('uncaughtException', err);
+  // Don't exit immediately - allow crash report to be saved
+  // App will likely crash anyway, but give it a moment
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 });
 process.on('unhandledRejection', (reason) => {
   logError('Unhandled rejection in main', reason);
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  saveCrashReport('unhandledRejection', error);
 });

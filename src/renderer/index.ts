@@ -20,6 +20,30 @@ document.addEventListener('DOMContentLoaded', (): void => {
 
     // Example of listening to menu actions
     // If preload is not exposing API yet, skip gracefully
+    
+    // Copy Diagnostics button
+    const copyDiagnosticsBtn = document.getElementById('copy-diagnostics');
+    if (copyDiagnosticsBtn && window.api) {
+      copyDiagnosticsBtn.style.display = 'block';
+      copyDiagnosticsBtn.addEventListener('click', () => {
+        void (async (): Promise<void> => {
+          try {
+            await window.api.copyDiagnostics();
+            // Show feedback
+            const originalText = copyDiagnosticsBtn.textContent;
+            copyDiagnosticsBtn.textContent = 'Copied!';
+            copyDiagnosticsBtn.style.background = '#00cc00';
+            setTimeout(() => {
+              copyDiagnosticsBtn.textContent = originalText;
+              copyDiagnosticsBtn.style.background = '#00d4ff';
+            }, 2000);
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to copy diagnostics:', error);
+          }
+        })();
+      });
+    }
   })();
 });
 

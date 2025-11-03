@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('api', {
   setSetting: (key: string, value: unknown) => ipcRenderer.invoke('set-setting', key, value),
   reportError: (message: string, stack?: string) =>
     ipcRenderer.send('renderer-error', { message, stack }),
+  copyDiagnostics: () => ipcRenderer.invoke('copy-diagnostics'),
+  getCrashesDirectory: () => ipcRenderer.invoke('get-crashes-directory'),
 });
 
 // Type definitions for the exposed API

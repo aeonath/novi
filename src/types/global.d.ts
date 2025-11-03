@@ -7,6 +7,8 @@ declare global {
       getSetting: <T = unknown>(key: string, defaults?: T) => Promise<T | undefined>;
       setSetting: (key: string, value: unknown) => Promise<unknown>;
       reportError: (message: string, stack?: string) => void;
+      copyDiagnostics: () => Promise<string>;
+      getCrashesDirectory: () => Promise<string>;
     };
   }
 }
