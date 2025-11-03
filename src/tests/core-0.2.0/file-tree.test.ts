@@ -80,12 +80,18 @@ describe('FileTree', () => {
     });
 
     it('should handle directory load errors gracefully', async () => {
+      // Mock console.error to suppress expected error output
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
       mockApi.readDirectory.mockRejectedValue(new Error('Permission denied'));
 
       fileTree = new FileTree('test-file-tree-container');
       await fileTree.loadDirectory('/test');
 
       expect(container.innerHTML).toContain('Failed to load directory');
+
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
     });
 
     it('should render entries from sorted directory (sorted by main process)', async () => {

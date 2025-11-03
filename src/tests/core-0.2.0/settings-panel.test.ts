@@ -510,6 +510,9 @@ describe('SettingsPanel', () => {
         setSetting: mockSetSetting,
       };
 
+      // Mock console.error to suppress expected error output
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
       mockGetSetting.mockRejectedValueOnce(new Error('Storage error'));
 
       panel.addSetting({
@@ -525,6 +528,9 @@ describe('SettingsPanel', () => {
 
       await expect(panel.loadFromStorage()).resolves.not.toThrow();
       expect(panel.getSetting('theme')).toBe('light'); // Should keep default
+
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
     });
 
     it('should handle save errors gracefully', async () => {
@@ -534,9 +540,15 @@ describe('SettingsPanel', () => {
         setSetting: mockSetSetting,
       };
 
+      // Mock console.error to suppress expected error output
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
       mockSetSetting.mockRejectedValueOnce(new Error('Storage error'));
 
       await expect(panel.saveToStorage('theme', 'dark')).resolves.not.toThrow();
+
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
     });
   });
 
