@@ -10,8 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "pack:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
-    "pack:win:exe": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
+    "pack:win": "npm run clean && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
+    "pack:win:exe": "npm run clean && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
   },
   "repository": {
     "type": "git",

@@ -1,6 +1,9 @@
 # PowerShell script for Windows packaging
 # This script handles environment variables and electron-builder execution
 
+Write-Host "Cleaning previous builds..." -ForegroundColor Cyan
+npm run clean
+
 Write-Host "Building TypeScript..." -ForegroundColor Cyan
 npm run build
 
