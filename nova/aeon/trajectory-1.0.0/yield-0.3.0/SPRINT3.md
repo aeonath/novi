@@ -1,5 +1,7 @@
 # SPRINT 3 — Nova Editing Core (Refined)
 
+**target version** 0.3.0
+
 Sprint 3 introduces the Monaco Editor as Nova’s text editing core.  
 This sprint maintains Nova’s simplicity and transparency while expanding capability — the editor feels native, integrated, and directly responsive to user interaction.
 

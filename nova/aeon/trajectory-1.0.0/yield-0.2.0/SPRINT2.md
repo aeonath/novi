@@ -1,5 +1,7 @@
 # SPRINT 2 — Nova Interaction Layer (Revised)
 
+**target version** 0.2.0
+
 Sprint 2 focuses on introducing intuitive interaction and visibility into Nova.  
 This phase replaces the traditional command palette and JSON configuration model with systems that prioritize clarity, discoverability, and elegance.
 

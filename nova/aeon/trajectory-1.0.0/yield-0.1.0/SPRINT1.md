@@ -1,5 +1,7 @@
 # SPRINT 1 — Nova Foundations
 
+**target version** 0.1.0
+
 This document outlines the first development sprint for the Nova project.  
 Sprint 1 establishes the core structure, identity, and stability of the application — taking Nova from a blank window to a functional, stateful, and logged desktop app.  
 Each task builds upon the previous one in logical order.
