@@ -7,6 +7,9 @@
     "build": "tsc -p tsconfig.json && npm run copy:renderer",
     "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');\"",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "pack:win": "npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& set ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true&& electron-builder --win portable",
     "pack:win:exe": "npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& set ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true&& electron-builder --win nsis"
   },
@@ -22,10 +25,13 @@
   },
   "homepage": "https://github.com/Aeonath4/nova#readme",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.7.2",
     "electron": "^38.2.2",
-    "typescript": "^5.9.3",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "typescript": "^5.9.3"
   },
   "build": {
     "productName": "Nova",
@@ -40,7 +46,12 @@
     "win": {
       "signAndEditExecutable": false,
       "target": [
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     }
   },

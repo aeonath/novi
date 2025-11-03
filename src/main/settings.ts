@@ -28,7 +28,16 @@ export function saveSettings(settings: Settings): void {
 
 export function getSetting<T = unknown>(key: string, defaults?: T): T | undefined {
   const s = loadSettings();
-  return (s[key] as T) ?? defaults;
+  // Check if key exists in settings object
+  if (!(key in s)) {
+    return defaults;
+  }
+  // Explicitly handle null values - return null if stored, otherwise use default
+  const value = s[key];
+  if (value === null) {
+    return null as T;
+  }
+  return (value as T) ?? defaults;
 }
 
 export function setSetting(key: string, value: unknown): void {
