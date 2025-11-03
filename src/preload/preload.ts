@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.send('renderer-error', { message, stack }),
   copyDiagnostics: () => ipcRenderer.invoke('copy-diagnostics'),
   getCrashesDirectory: () => ipcRenderer.invoke('get-crashes-directory'),
+  readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
 });
 
 // Type definitions for the exposed API

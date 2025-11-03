@@ -1,6 +1,7 @@
 // Renderer process entry point
 import { ActionHUD } from './components/action-hud';
 import { createDefaultActions, ActionContext } from './components/actions';
+import { FileTree } from './components/file-tree';
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
@@ -41,6 +42,12 @@ document.addEventListener('DOMContentLoaded', (): void => {
     const actions = createDefaultActions(actionContext);
     // Initialize Action HUD (stored for potential future programmatic access)
     new ActionHUD(actions);
+
+    // Initialize File Tree
+    // Stored for potential future programmatic access (e.g., via Action HUD)
+    new FileTree('file-tree-container');
+    // File tree starts empty - user can select directory via Action HUD later
+    // This will be enhanced in future tasks
 
     // Copy Diagnostics button
     const copyDiagnosticsBtn = document.getElementById('copy-diagnostics');

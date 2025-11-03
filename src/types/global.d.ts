@@ -1,4 +1,12 @@
 // Global ambient types for renderer access to preload API
+export interface DirectoryEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  isDirectory: boolean;
+  size: number;
+}
+
 declare global {
   interface Window {
     api: {
@@ -9,6 +17,8 @@ declare global {
       reportError: (message: string, stack?: string) => void;
       copyDiagnostics: () => Promise<string>;
       getCrashesDirectory: () => Promise<string>;
+      readDirectory: (path: string) => Promise<DirectoryEntry[]>;
+      selectDirectory: () => Promise<string | null>;
     };
   }
 }

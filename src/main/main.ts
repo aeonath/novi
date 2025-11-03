@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain, clipboard } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join } from 'node:path';
+import { readdir, stat } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
 import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './crash-reporter';
@@ -77,6 +78,53 @@ void app.whenReady().then(() => {
     return diagnostics;
   });
   ipcMain.handle('get-crashes-directory', () => getCrashesDirectory());
+  
+  // File system IPC handlers
+  ipcMain.handle('read-directory', async (_e, path: string) => {
+    try {
+      const entries = await readdir(path, { withFileTypes: true });
+      const result = await Promise.all(
+        entries.map(async (entry) => {
+          const fullPath = join(path, entry.name);
+          const stats = await stat(fullPath);
+          return {
+            name: entry.name,
+            path: fullPath,
+            type: entry.isDirectory() ? 'directory' : 'file',
+            isDirectory: entry.isDirectory(),
+            size: stats.size,
+          };
+        })
+      );
+      // Sort: directories first, then files, both alphabetically
+      return result.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) {
+          return -1;
+        }
+        if (!a.isDirectory && b.isDirectory) {
+          return 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } catch (error) {
+      logError(`Failed to read directory: ${path}`, error);
+      throw error;
+    }
+  });
+  
+  ipcMain.handle('select-directory', async () => {
+    if (!mainWindowRef) {
+      return null;
+    }
+    const result = await dialog.showOpenDialog(mainWindowRef, {
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+  
   createWindow();
 
   app.on('activate', () => {
