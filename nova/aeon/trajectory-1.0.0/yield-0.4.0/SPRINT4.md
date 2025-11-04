@@ -109,27 +109,10 @@ Provide Git visibility, status icons, and simple commit/push/pull actions to emb
 
 ---
 
-## 🧩 Task 5 — Command-Line Interface (Nova CLI)
+#
+## 🧩 Task 5 — Integrated Terminal (Optional)
 **Description:**  
-Allow launching and operating Nova directly from the terminal.
-
-The window will be like a terminal window however the prompt *nova>* will appear before 
-each command input.
-
-**Acceptance Criteria:**  
-- [ ] `nova> version` outputs correct build.  
-- [ ] `nova> open` opens the file open dialog box.
-- `nova> save` saves the current file open in the editor
-- `nova> help` displays a help message  
-
-
-**Notes for Claude:**    
-
----
-
-## 🧩 Task 6 — Integrated Terminal (Optional)
-**Description:**  
-Prototype a terminal panel for quick command-line operations inside Nova.
+Prototype a terminal panel for quick command-line ope rations inside Nova.
 
 **Acceptance Criteria:**  
 - [ ] Terminal opens and responds to input.  
@@ -150,6 +133,24 @@ The terminal panel
 - Ensure that the terminal font, background, and foreground colors derive from Nova’s current theme so the experience feels cohesive.  
 - Handle window resize events so the terminal adjusts its rows/columns when the Nova window is resized.  
 - When the terminal panel is closed, tear down the pty session and any associated IPC listeners to avoid leaks.  
+
+
+# 🧩 Task 6 — Command-Line Interface (Nova CLI)
+**Description:**  
+Allow launching and operating Nova directly from the terminal.
+
+The window will be like a terminal window however the prompt *nova>* will appear before 
+each command input.
+
+**Acceptance Criteria:**  
+- [ ] `nova> version` outputs correct build.  
+- [ ] `nova> open` opens the file open dialog box.
+- `nova> save` saves the current file open in the editor
+- `nova> help` displays a help message  
+
+
+**Notes for Claude:**    
+
 
 ---
 
