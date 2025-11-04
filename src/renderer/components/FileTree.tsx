@@ -485,7 +485,7 @@ const styles = {
     fontSize: '13px',
     fontWeight: 'bold' as const,
     letterSpacing: '0.5px',
-    color: '#858585',
+    color: '#cccccc',
   },
   headerButtons: {
     display: 'flex',

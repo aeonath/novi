@@ -219,7 +219,7 @@ const styles = {
     maxWidth: '200px',
   },
   tabActive: {
-    backgroundColor: '#1e1e1e',
+    backgroundColor: '#3e3e40',
     color: '#ffffff',
   },
   tabHover: {

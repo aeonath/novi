@@ -30,7 +30,7 @@ const AppInner: React.FC = () => {
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
-  const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string }>>([]);
+  const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string; workspaceRoot?: string | null }>>([]);
   const { setGitStatus } = useAppContext();
   
   // Context menu state for welcome screen
@@ -252,20 +252,17 @@ const AppInner: React.FC = () => {
       }
 
       try {
-        // Create terminal session with reasonable default dimensions
-        // These will be updated once the Terminal component mounts and fits to container
-        console.log('[App] Creating terminal session...');
-        const result = await window.api.terminalCreate(workspaceRoot || undefined, 120, 30);
-        const terminalId = result.id;
-        console.log('[App] Terminal session created:', terminalId);
+        // Generate terminal ID (PTY will be created by Terminal component after measuring)
+        const terminalId = `terminal-${Date.now()}`;
+        console.log('[App] Preparing terminal tab:', terminalId);
 
         // Hide welcome screen
         setShowWelcome(false);
 
-        // Add terminal tab - Use terminalId as the tab ID for direct mapping
+        // Add terminal tab - Terminal component will create PTY with correct dimensions
         if ((window as any).__tabBarAPI) {
           (window as any).__tabBarAPI.addTab({
-            id: terminalId, // Use terminalId as tab ID for direct mapping
+            id: terminalId,
             type: 'terminal',
             filePath: terminalId,
             fileName: 'bash',
@@ -275,7 +272,7 @@ const AppInner: React.FC = () => {
           });
           
           // Add to terminal tabs state to trigger re-render
-          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: 'bash' }]);
+          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: 'bash', workspaceRoot }]);
           console.log('[App] Added terminal to state:', terminalId);
           
           // Switch to terminal tab
@@ -717,6 +714,7 @@ const AppInner: React.FC = () => {
                 >
                   <Terminal 
                     terminalId={tab.id}
+                    workspaceRoot={tab.workspaceRoot || undefined}
                     isActive={activeTab?.id === tab.id}
                     onData={async (data: string) => {
                       if (window.api?.terminalWrite) {

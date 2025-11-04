@@ -50,7 +50,7 @@ contextBridge.exposeInMainWorld('api', {
   windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
   quit: () => ipcRenderer.send('app-quit'),
   // Terminal operations
-  terminalCreate: (cwd?: string, cols?: number, rows?: number) => ipcRenderer.invoke('terminal-create', cwd, cols, rows),
+  terminalCreate: (cwd?: string, cols?: number, rows?: number, customId?: string) => ipcRenderer.invoke('terminal-create', cwd, cols, rows, customId),
   terminalWrite: (terminalId: string, data: string) => ipcRenderer.invoke('terminal-write', terminalId, data),
   terminalResize: (terminalId: string, cols: number, rows: number) => ipcRenderer.invoke('terminal-resize', terminalId, cols, rows),
   terminalKill: (terminalId: string) => ipcRenderer.invoke('terminal-kill', terminalId),

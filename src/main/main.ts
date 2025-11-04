@@ -404,9 +404,9 @@ void app.whenReady().then(() => {
   });
 
   // Terminal IPC handlers
-  ipcMain.handle('terminal-create', async (_e, cwd?: string, cols = 80, rows = 24) => {
+  ipcMain.handle('terminal-create', async (_e, cwd?: string, cols = 80, rows = 24, customId?: string) => {
     try {
-      const terminalId = terminalService.createSession(cwd, cols, rows);
+      const terminalId = terminalService.createSession(cwd, cols, rows, customId);
       const session = terminalService.getSession(terminalId);
       
       if (!session || !mainWindowRef) {

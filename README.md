@@ -1,8 +1,11 @@
 # Nova IDE
 
-Nova is MiraNova Studios' flagship orchestration platform - a next-generation code editor built with Electron and TypeScript. Nova prioritizes clarity, discoverability, and elegance over traditional IDE complexity.
+Nova is a modern development environment built with Electron and TypeScript.
+It sits comfortably between simplicity and power — more expressive than a text editor, 
+yet free from the excess of a traditional IDE.
+Nova focuses on clarity, performance, and a workspace that feels effortless to use.
 
-**Version:** 0.3.0 (Sprint 3 - Editing Core)  
+**Version:** 0.3.5 (Sprint 3 - Editing Core)  
 **Status:** Active Development
 
 ## Project Structure

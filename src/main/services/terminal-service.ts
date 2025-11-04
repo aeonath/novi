@@ -55,12 +55,12 @@ class TerminalService {
   /**
    * Create a new terminal session with PTY
    */
-  createSession(cwd?: string, cols = 120, rows = 30): string {
-    const id = `terminal-${this.nextId++}`;
+  createSession(cwd?: string, cols = 120, rows = 30, customId?: string): string {
+    const id = customId || `terminal-${this.nextId++}`;
     const shellPath = this.getBashPath();
     const cwdPath = cwd || process.cwd();
 
-    logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}`);
+    logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}, dimensions: ${cols}x${rows}`);
 
     // Spawn PTY process
     const ptyProcess = pty.spawn(shellPath, [], {
@@ -127,10 +127,10 @@ class TerminalService {
     }
 
     try {
+      // Resize the PTY (sends SIGWINCH to shell)
       session.pty.resize(cols, rows);
       session.cols = cols;
       session.rows = rows;
-      // Terminal resized silently
       return true;
     } catch (error) {
       logError(`[TerminalService] Failed to resize terminal ${id}:`, error);
