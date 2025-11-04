@@ -111,13 +111,19 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       console.log('[MonacoEditor] EditorService initialized');
 
       // Add custom context menu handler on the editor's DOM node
+      // Use capture phase and ensure it's attached after a brief delay to override Monaco
       const editorDomNode = editorRef.current.getDomNode();
+      const handleContextMenu = (e: MouseEvent) => {
+        console.log('[MonacoEditor] Context menu triggered at:', e.clientX, e.clientY);
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY });
+      };
+      
       if (editorDomNode) {
-        editorDomNode.addEventListener('contextmenu', (e: MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setContextMenu({ x: e.clientX, y: e.clientY });
-        });
+        // Add in capture phase to intercept before Monaco can handle it
+        editorDomNode.addEventListener('contextmenu', handleContextMenu, true);
+        console.log('[MonacoEditor] Context menu listener attached');
       }
 
       // Set up change listener
@@ -151,6 +157,9 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
 
       return () => {
         document.removeEventListener('keydown', handleKeyDown);
+        if (editorDomNode) {
+          editorDomNode.removeEventListener('contextmenu', handleContextMenu, true);
+        }
         disposable?.dispose();
         editorServiceRef.current?.dispose();
         editorRef.current?.dispose();
@@ -356,6 +365,8 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     };
   }, [loadFile, getValue, setValue, isDirtyMethod, markAsSaved, getFilePath, updateOptions, formatDocument, goToDefinition, peekDefinition, findReferences, renameSymbol, runLinting, clearDiagnostics, focus]);
 
+  console.log('[MonacoEditor] Rendering, contextMenu:', contextMenu);
+  
   return (
     <>
       <div ref={containerRef} style={styles.container} />
