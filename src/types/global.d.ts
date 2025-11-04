@@ -1,4 +1,8 @@
 // Global ambient types for renderer access to preload API
+
+// Monaco Editor global (loaded via AMD)
+/// <reference types="monaco-editor" />
+
 export interface DirectoryEntry {
   name: string;
   path: string;
@@ -15,6 +19,9 @@ export interface FileData {
 }
 
 declare global {
+  // Monaco Editor AMD global
+  const monaco: typeof import('monaco-editor');
+  
   interface Window {
     api: {
       getVersion: () => Promise<string>;

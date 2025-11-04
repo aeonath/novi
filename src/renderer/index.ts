@@ -10,8 +10,27 @@ import { DiagnosticsPanel } from './components/diagnostics-panel.js';
 import { initializeThemeManager, themes } from './theme.js';
 import { MonacoEditorView, detectLanguage } from './editor/index.js';
 
+// Wait for Monaco to be loaded before initializing
+function waitForMonaco(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof monaco !== 'undefined') {
+      resolve();
+    } else {
+      const checkInterval = setInterval(() => {
+        if (typeof monaco !== 'undefined') {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 50);
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
+    // Wait for Monaco Editor to load
+    await waitForMonaco();
+    
     // Initialize Theme System
     const themeManager = initializeThemeManager();
     await themeManager.loadThemeFromStorage();

@@ -5,7 +5,11 @@
  * and file operations.
  */
 
-import * as monaco from 'monaco-editor';
+// Monaco types for TypeScript
+/// <reference types="monaco-editor" />
+
+// Monaco is loaded via AMD loader, so we use the global
+declare const monaco: typeof import('monaco-editor');
 
 export interface EditorOptions {
   language?: string;
@@ -18,7 +22,7 @@ export interface EditorOptions {
 }
 
 export class MonacoEditorView {
-  private editor: monaco.editor.IStandaloneCodeEditor | null = null;
+  private editor: any | null = null;
   private container: HTMLElement;
   private currentTheme: 'light' | 'dark' = 'dark';
 
@@ -167,7 +171,7 @@ function helloNova() {
   /**
    * Get editor instance (for advanced usage)
    */
-  public getEditor(): monaco.editor.IStandaloneCodeEditor | null {
+  public getEditor(): any | null {
     return this.editor;
   }
 
