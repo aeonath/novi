@@ -292,14 +292,14 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
         </div>
 
         {tree.length === 0 ? (
-          <div style={styles.emptyState}>
+          <div className="file-tree-scroll" style={styles.emptyState}>
             <p>No folder open</p>
             <button style={styles.openButton} onClick={openDirectory}>
               Open Folder
             </button>
           </div>
         ) : (
-          <div style={styles.tree}>
+          <div className="file-tree-scroll" style={styles.tree}>
             {tree.map((node) => (
               <FileTreeNode key={node.path} node={node} level={0} />
             ))}

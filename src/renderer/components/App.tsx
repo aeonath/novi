@@ -8,7 +8,6 @@
  * Main layout structure for Nova IDE
  */
 
-import '../global.css';
 import React, { useEffect, useState, useMemo } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
