@@ -62,7 +62,9 @@ class TerminalService {
 
     logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}, dimensions: ${cols}x${rows}`);
 
-    // Spawn PTY process
+    // Spawn PTY process with explicit dimensions
+    // The cols/rows parameters are what matter - they set the PTY size
+    // which the shell reads via ioctl() to determine terminal width
     const ptyProcess = pty.spawn(shellPath, [], {
       name: 'xterm-256color',
       cols,
@@ -72,8 +74,6 @@ class TerminalService {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
-        COLUMNS: String(cols),
-        LINES: String(rows),
       },
     });
 
@@ -93,19 +93,7 @@ class TerminalService {
       this.sessions.delete(id);
     });
 
-    // CRITICAL FIX: Bash doesn't always update COLUMNS on initial PTY creation
-    // Wait for shell to start, then force COLUMNS/LINES to be set
-    // This command clears itself so it's invisible to the user
-    setTimeout(() => {
-      // Send command to set COLUMNS and LINES, then clear the command from display
-      // Using \r to return to start of line, then spaces to overwrite, then \r again
-      const cmd = `export COLUMNS=${cols} LINES=${rows}`;
-      const clear = '\r' + ' '.repeat(cmd.length + 10) + '\r';
-      ptyProcess.write(cmd + '\r' + clear);
-      logInfo(`[TerminalService] Forced COLUMNS=${cols} LINES=${rows} for terminal ${id}`);
-    }, 100); // Small delay to let shell initialize
-
-    logInfo(`[TerminalService] PTY session ${id} created successfully (PID: ${ptyProcess.pid})`);
+    logInfo(`[TerminalService] PTY session ${id} created successfully (PID: ${ptyProcess.pid}, dimensions: ${cols}x${rows})`);
     return id;
   }
 
@@ -143,16 +131,6 @@ class TerminalService {
       session.pty.resize(cols, rows);
       session.cols = cols;
       session.rows = rows;
-      
-      // CRITICAL FIX: Force shell to update COLUMNS/LINES
-      // Bash on Windows doesn't always respond to SIGWINCH properly
-      // Send invisible command to set environment variables
-      setTimeout(() => {
-        const cmd = `export COLUMNS=${cols} LINES=${rows}`;
-        const clear = '\r' + ' '.repeat(cmd.length + 10) + '\r';
-        session.pty.write(cmd + '\r' + clear);
-      }, 50);
-      
       return true;
     } catch (error) {
       logError(`[TerminalService] Failed to resize terminal ${id}:`, error);

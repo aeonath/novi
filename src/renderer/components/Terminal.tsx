@@ -36,17 +36,23 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       return;
     }
 
-    console.log('[Terminal] PHASE 1: Measuring container and creating PTY...');
+    // CRITICAL: Only measure and create PTY when container is actually visible (isActive)
+    // Otherwise we measure a hidden container and get wrong dimensions
+    if (!isActive) {
+      console.log('[Terminal] Waiting for container to become active before measuring...');
+      return;
+    }
+
+    console.log('[Terminal] PHASE 1: Container is active, measuring and creating PTY...');
 
     // Measure container to get actual dimensions
     const measureAndCreatePTY = async () => {
       if (!containerRef.current) return;
 
-      // Wait for the container to be fully rendered and measured by the browser
-      // Use requestAnimationFrame to ensure layout is complete
+      // Wait for the container to be fully rendered, visible, and measured by the browser
       await new Promise(resolve => requestAnimationFrame(resolve));
       await new Promise(resolve => requestAnimationFrame(resolve));
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // Create a temporary xterm just to measure dimensions
       const tempTerminal = new XTerm({ convertEol: true });
@@ -57,9 +63,9 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         // Open temporarily to measure
         tempTerminal.open(containerRef.current);
         
-        // Wait for xterm to render
+        // Wait for xterm to render and layout
         await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150));
         
         // Fit multiple times to ensure accurate measurement
         tempFitAddon.fit();
@@ -78,17 +84,16 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
 
         // Validate dimensions before creating PTY
         if (cols < 40 || rows < 10) {
-          console.warn(`[Terminal] Measured dimensions seem too small (${cols}x${rows}), using defaults`);
-          // Use reasonable defaults if measurement failed
-          await window.api.terminalCreate(workspaceRoot, 120, 30, terminalId);
+          console.warn(`[Terminal] Measured dimensions seem invalid (${cols}x${rows}), using safe defaults`);
+          await window.api.terminalCreate(workspaceRoot, 100, 30, terminalId);
         } else {
-          // Create PTY with the EXACT measured dimensions and custom terminalId
+          // Create PTY with the EXACT measured dimensions
           console.log(`[Terminal] Creating PTY ${terminalId} with measured dimensions: ${cols}x${rows}`);
           await window.api.terminalCreate(workspaceRoot, cols, rows, terminalId);
         }
         
         setPtyCreated(true);
-        console.log(`[Terminal] PTY ${terminalId} created`);
+        console.log(`[Terminal] PTY ${terminalId} created successfully`);
       } catch (error) {
         console.error('[Terminal] Failed to measure and create PTY:', error);
         tempTerminal.dispose();
@@ -96,7 +101,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
     };
 
     measureAndCreatePTY();
-  }, [terminalId, workspaceRoot, ptyCreated]);
+  }, [terminalId, workspaceRoot, ptyCreated, isActive]);
 
   // PHASE 2: Open xterm AFTER PTY is created with correct dimensions
   useEffect(() => {
@@ -157,7 +162,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
       
-      // Fit terminal to container and verify PTY dimensions
+      // Fit terminal to container - PTY already created with correct dimensions
       setTimeout(() => {
         // Fit to actual container dimensions
         fitAddon.fit();
@@ -165,14 +170,10 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         const rows = terminal.rows;
         console.log('[Terminal] Initial xterm fit:', cols, 'x', rows);
         
-        // Wait a bit longer before sending resize to ensure shell has fully initialized
-        // This is critical for bash to properly handle SIGWINCH and update COLUMNS
-        setTimeout(() => {
-          if (onResize && cols > 0 && rows > 0) {
-            console.log('[Terminal] Sending delayed resize to PTY (shell should be ready):', cols, 'x', rows);
-            onResize(cols, rows);
-          }
-        }, 500); // Wait for shell to fully initialize before sending SIGWINCH
+        // DO NOT send resize - PTY was created with these exact dimensions
+        // Sending resize causes visible export commands and is unnecessary
+        // The shell already knows the correct dimensions from PTY creation
+        console.log('[Terminal] Skipping resize - PTY already has correct dimensions from creation');
         
         // Focus the terminal if it's active
         if (isActive) {
@@ -182,7 +183,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         // Mark as ready and initial fit as complete
         hasInitialFitRef.current = true;
         setIsReady(true);
-      }, 200); // Initial fit delay
+      }, 100); // Short delay since PTY is ready
 
       // Handle input
       terminal.onData((data) => {
