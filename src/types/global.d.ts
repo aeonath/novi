@@ -82,6 +82,7 @@ declare global {
       windowMaximize: () => void;
       windowClose: () => void;
       windowIsMaximized: () => Promise<boolean>;
+      quit: () => void;
       // Terminal operations
       terminalCreate: (cwd?: string, cols?: number, rows?: number) => Promise<{ id: string }>;
       terminalWrite: (terminalId: string, data: string) => Promise<{ success: boolean }>;

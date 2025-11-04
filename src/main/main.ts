@@ -481,6 +481,11 @@ void app.whenReady().then(() => {
     }
   });
   
+  ipcMain.on('app-quit', () => {
+    logInfo('[Main] App quit requested via IPC');
+    app.quit();
+  });
+  
   ipcMain.handle('window-is-maximized', () => {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
       return mainWindowRef.isMaximized();

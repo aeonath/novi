@@ -32,6 +32,9 @@ const AppInner: React.FC = () => {
   const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const { setGitStatus } = useAppContext();
+  
+  // Context menu state for welcome screen
+  const [welcomeContextMenu, setWelcomeContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   // Set up global terminal data listener
   useEffect(() => {
@@ -447,6 +450,33 @@ const AppInner: React.FC = () => {
   //   }
   // }, [showWelcome, monacoReady]);
 
+  // Welcome screen context menu handlers
+  const handleWelcomeContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setWelcomeContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleWelcomeMenuClose = useCallback(() => {
+    setWelcomeContextMenu(null);
+  }, []);
+
+  const handleQuit = useCallback(() => {
+    console.log('[App] Quit action triggered');
+    if (window.api?.quit) {
+      window.api.quit();
+    }
+    setWelcomeContextMenu(null);
+  }, []);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (welcomeContextMenu) {
+      const handleClick = () => setWelcomeContextMenu(null);
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [welcomeContextMenu]);
+
   useEffect(() => {
     // Wait for Monaco to load
     console.log('[App] Setting up Monaco loader check');
@@ -657,14 +687,17 @@ const AppInner: React.FC = () => {
             
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showWelcome && !monacoReady ? (
-                <div style={styles.welcome}>
+                <div style={styles.welcome} onContextMenu={handleWelcomeContextMenu}>
                   <h1>Nova</h1>
                   <p>Loading editor...</p>
                 </div>
               ) : showWelcome ? (
-                <div style={styles.welcome}>
+                <div style={styles.welcome} onContextMenu={handleWelcomeContextMenu}>
                   <h1>Nova</h1>
                   <p>Open a file to start editing</p>
+                  <p style={{ fontSize: '0.85em', opacity: 0.5, marginTop: '20px' }}>
+                    Right-click for options
+                  </p>
                 </div>
               ) : null}
               
@@ -717,6 +750,113 @@ const AppInner: React.FC = () => {
         <SettingsPanel />
         <DiagnosticsPanel />
         <RecoveryDialog />
+        
+        {/* Welcome screen context menu */}
+        {welcomeContextMenu && (
+          <div
+            style={{
+              position: 'fixed',
+              left: welcomeContextMenu.x,
+              top: welcomeContextMenu.y,
+              backgroundColor: '#252526',
+              border: '1px solid #3e3e42',
+              borderRadius: '4px',
+              padding: '4px 0',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              zIndex: 10000,
+              minWidth: '180px',
+            }}
+          >
+            <div
+              onClick={() => {
+                actionContext.onOpenFile?.();
+                handleWelcomeMenuClose();
+              }}
+              style={{
+                padding: '8px 16px',
+                cursor: 'pointer',
+                color: '#cccccc',
+                fontSize: '13px',
+                fontFamily: "'Segoe UI', sans-serif",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2a2d2e';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              📁 Open File
+            </div>
+            <div
+              onClick={() => {
+                actionContext.onNewTerminal?.();
+                handleWelcomeMenuClose();
+              }}
+              style={{
+                padding: '8px 16px',
+                cursor: 'pointer',
+                color: '#cccccc',
+                fontSize: '13px',
+                fontFamily: "'Segoe UI', sans-serif",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2a2d2e';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              💻 New Terminal
+            </div>
+            <div
+              onClick={() => {
+                actionContext.onOpenSettings?.();
+                handleWelcomeMenuClose();
+              }}
+              style={{
+                padding: '8px 16px',
+                cursor: 'pointer',
+                color: '#cccccc',
+                fontSize: '13px',
+                fontFamily: "'Segoe UI', sans-serif",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2a2d2e';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              ⚙️ Settings
+            </div>
+            <div
+              style={{
+                height: '1px',
+                backgroundColor: '#3e3e42',
+                margin: '4px 0',
+              }}
+            />
+            <div
+              onClick={handleQuit}
+              style={{
+                padding: '8px 16px',
+                cursor: 'pointer',
+                color: '#cccccc',
+                fontSize: '13px',
+                fontFamily: "'Segoe UI', sans-serif",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2a2d2e';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              🚪 Quit
+            </div>
+          </div>
+        )}
       </div>
   );
 };

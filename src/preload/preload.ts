@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('api', {
   windowMaximize: () => ipcRenderer.send('window-maximize'),
   windowClose: () => ipcRenderer.send('window-close'),
   windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  quit: () => ipcRenderer.send('app-quit'),
   // Terminal operations
   terminalCreate: (cwd?: string, cols?: number, rows?: number) => ipcRenderer.invoke('terminal-create', cwd, cols, rows),
   terminalWrite: (terminalId: string, data: string) => ipcRenderer.invoke('terminal-write', terminalId, data),
