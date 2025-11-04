@@ -243,8 +243,12 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         if (text) {
           const api = (window as any).api;
           if (api && api.clipboardWriteText) {
-            api.clipboardWriteText(text);
-            console.log('[MonacoEditor] Copied to clipboard:', text.substring(0, 50) + '...');
+            try {
+              await api.clipboardWriteText(text);
+              console.log('[MonacoEditor] Copied to clipboard:', text.substring(0, 50) + '...');
+            } catch (error) {
+              console.error('[MonacoEditor] Failed to copy:', error);
+            }
           } else {
             console.error('[MonacoEditor] Clipboard API not available');
           }
@@ -258,19 +262,23 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     if (editorRef.current) {
       const api = (window as any).api;
       if (api && api.clipboardReadText) {
-        const text = api.clipboardReadText();
-        console.log('[MonacoEditor] Read from clipboard:', text ? text.length : 0, 'chars');
-        if (text) {
-          const selection = editorRef.current.getSelection();
-          if (selection) {
-            editorRef.current.executeEdits('context-menu', [{
-              range: selection,
-              text: text
-            }]);
-            console.log('[MonacoEditor] Pasted from clipboard:', text.substring(0, 50) + '...');
+        try {
+          const text = await api.clipboardReadText();
+          console.log('[MonacoEditor] Read from clipboard:', text ? text.length : 0, 'chars');
+          if (text) {
+            const selection = editorRef.current.getSelection();
+            if (selection) {
+              editorRef.current.executeEdits('context-menu', [{
+                range: selection,
+                text: text
+              }]);
+              console.log('[MonacoEditor] Pasted from clipboard:', text.substring(0, 50) + '...');
+            }
+          } else {
+            console.warn('[MonacoEditor] No text in clipboard');
           }
-        } else {
-          console.warn('[MonacoEditor] No text in clipboard');
+        } catch (error) {
+          console.error('[MonacoEditor] Failed to paste:', error);
         }
       } else {
         console.error('[MonacoEditor] Clipboard API not available');

@@ -92,9 +92,9 @@ declare global {
       terminalRemoveDataListener: () => void;
       terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => void;
       terminalRemoveExitListener: () => void;
-      // Clipboard operations
-      clipboardReadText: () => string;
-      clipboardWriteText: (text: string) => void;
+      // Clipboard operations (async via IPC)
+      clipboardReadText: () => Promise<string>;
+      clipboardWriteText: (text: string) => Promise<{ success: boolean }>;
     };
   }
 }

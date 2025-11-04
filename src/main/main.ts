@@ -493,6 +493,28 @@ void app.whenReady().then(() => {
     logInfo('[Main] App quit requested via IPC');
     app.quit();
   });
+
+  // Clipboard IPC handlers
+  ipcMain.handle('clipboard-read-text', async () => {
+    try {
+      const { clipboard } = await import('electron');
+      return clipboard.readText();
+    } catch (error) {
+      logError('Failed to read clipboard', error as Error);
+      return '';
+    }
+  });
+
+  ipcMain.handle('clipboard-write-text', async (_e, text: string) => {
+    try {
+      const { clipboard } = await import('electron');
+      clipboard.writeText(text);
+      return { success: true };
+    } catch (error) {
+      logError('Failed to write clipboard', error as Error);
+      return { success: false };
+    }
+  });
   
   ipcMain.handle('window-is-maximized', () => {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {

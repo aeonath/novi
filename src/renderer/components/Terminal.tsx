@@ -324,14 +324,18 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   }, [isActive, isReady, terminalId]);
 
   // Handle copy from terminal
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback(async () => {
     if (terminalRef.current) {
       const selection = terminalRef.current.getSelection();
       if (selection) {
         const api = (window as any).api;
         if (api && api.clipboardWriteText) {
-          api.clipboardWriteText(selection);
-          console.log('[Terminal] Copied to clipboard:', selection.length, 'chars');
+          try {
+            await api.clipboardWriteText(selection);
+            console.log('[Terminal] Copied to clipboard:', selection.length, 'chars');
+          } catch (error) {
+            console.error('[Terminal] Failed to copy:', error);
+          }
         } else {
           console.error('[Terminal] Clipboard API not available');
         }
@@ -343,7 +347,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   }, []);
 
   // Handle paste to terminal
-  const handlePaste = useCallback(() => {
+  const handlePaste = useCallback(async () => {
     console.log('[Terminal] Paste triggered');
     if (terminalRef.current) {
       const api = (window as any).api;
@@ -353,18 +357,22 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         return;
       }
       
-      const text = api.clipboardReadText();
-      console.log('[Terminal] Read from clipboard:', text ? text.length : 0, 'chars');
-      
-      if (text) {
-        console.log('[Terminal] Pasting to terminal via onData');
-        if (onData) {
-          onData(text);
+      try {
+        const text = await api.clipboardReadText();
+        console.log('[Terminal] Read from clipboard:', text ? text.length : 0, 'chars');
+        
+        if (text) {
+          console.log('[Terminal] Pasting to terminal via onData');
+          if (onData) {
+            onData(text);
+          } else {
+            console.warn('[Terminal] onData callback not available');
+          }
         } else {
-          console.warn('[Terminal] onData callback not available');
+          console.warn('[Terminal] No text in clipboard');
         }
-      } else {
-        console.warn('[Terminal] No text in clipboard');
+      } catch (error) {
+        console.error('[Terminal] Failed to paste:', error);
       }
     }
     setContextMenu(null);

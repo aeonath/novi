@@ -3,7 +3,7 @@
  * See the LICENSE file in the project root for full license text.
  */
 
-import { contextBridge, ipcRenderer, clipboard } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -80,9 +80,9 @@ contextBridge.exposeInMainWorld('api', {
   terminalRemoveExitListener: () => {
     ipcRenderer.removeAllListeners('terminal-exit');
   },
-  // Clipboard operations
-  clipboardReadText: () => clipboard.readText(),
-  clipboardWriteText: (text: string) => clipboard.writeText(text),
+  // Clipboard operations (via IPC to main process)
+  clipboardReadText: () => ipcRenderer.invoke('clipboard-read-text'),
+  clipboardWriteText: (text: string) => ipcRenderer.invoke('clipboard-write-text', text),
 });
 
 // Type definitions for the exposed API
