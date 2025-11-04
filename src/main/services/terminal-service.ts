@@ -55,7 +55,7 @@ class TerminalService {
   /**
    * Create a new terminal session with PTY
    */
-  createSession(cwd?: string, cols = 80, rows = 24): string {
+  createSession(cwd?: string, cols = 120, rows = 30): string {
     const id = `terminal-${this.nextId++}`;
     const shellPath = this.getBashPath();
     const cwdPath = cwd || process.cwd();

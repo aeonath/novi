@@ -249,9 +249,10 @@ const AppInner: React.FC = () => {
       }
 
       try {
-        // Create terminal session
+        // Create terminal session with reasonable default dimensions
+        // These will be updated once the Terminal component mounts and fits to container
         console.log('[App] Creating terminal session...');
-        const result = await window.api.terminalCreate(workspaceRoot || undefined, 80, 24);
+        const result = await window.api.terminalCreate(workspaceRoot || undefined, 120, 30);
         const terminalId = result.id;
         console.log('[App] Terminal session created:', terminalId);
 
@@ -437,6 +438,21 @@ const AppInner: React.FC = () => {
       }
     };
   }, []);
+
+  // Ensure body receives focus after all components mount for Ctrl+K to work immediately
+  useEffect(() => {
+    // Give React time to mount all components and ActionHUD to set up its listener
+    const timer = setTimeout(() => {
+      console.log('[App] Ensuring body focus for keyboard shortcuts');
+      if (!document.body.hasAttribute('tabindex')) {
+        document.body.setAttribute('tabindex', '-1');
+      }
+      document.body.focus();
+      console.log('[App] Body focused, Ctrl+K should work');
+    }, 500); // Wait 500ms for all components to mount and listeners to be attached
+
+    return () => clearTimeout(timer);
+  }, []); // Only run once on mount
 
   useEffect(() => {
     // Wait for Monaco to load
@@ -682,6 +698,7 @@ const AppInner: React.FC = () => {
                       }
                     }}
                     onResize={async (cols: number, rows: number) => {
+                      console.log(`[App] Terminal ${tab.id} resize: ${cols}x${rows}`);
                       if (window.api?.terminalResize) {
                         await window.api.terminalResize(tab.id, cols, rows);
                       }
