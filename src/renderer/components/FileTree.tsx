@@ -285,7 +285,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
             )}
             {rootPath && (
               <button style={styles.button} onClick={openDirectory} title="Open Folder">
-                📁
+                <img src="assets/file_tree.png" alt="File Tree" style={styles.iconImage} />
               </button>
             )}
           </div>
@@ -478,6 +478,14 @@ const styles = {
     cursor: 'pointer',
     fontSize: '16px',
     padding: '2px 4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconImage: {
+    width: '16px',
+    height: '16px',
+    opacity: 0.9,
   },
   emptyState: {
     display: 'flex',

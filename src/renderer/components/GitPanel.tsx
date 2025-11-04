@@ -205,7 +205,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         <div style={styles.headerButtons}>
           {onToggleFiles && (
             <button style={styles.refreshButton} onClick={onToggleFiles} title="Show Files">
-              ☰
+              <img src="assets/file_tree.png" alt="File Tree" style={styles.iconImage} />
             </button>
           )}
           <button style={styles.refreshButton} onClick={refreshStatus} title="Refresh">
@@ -423,6 +423,14 @@ const styles = {
     fontSize: '16px',
     cursor: 'pointer',
     padding: '4px 8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconImage: {
+    width: '16px',
+    height: '16px',
+    opacity: 0.9,
   },
   emptyState: {
     display: 'flex',
@@ -439,20 +447,20 @@ const styles = {
     marginTop: '8px',
   },
   commitSection: {
-    padding: '12px',
+    padding: '16px',
     borderBottom: '1px solid #3e3e42',
   },
   commitInput: {
     width: '100%',
     minHeight: '60px',
-    padding: '8px',
+    padding: '10px',
     backgroundColor: '#1e1e1e',
     color: '#cccccc',
     border: '1px solid #3e3e42',
     borderRadius: '4px',
     fontSize: '12px',
     fontFamily: 'inherit',
-    resize: 'vertical' as const,
+    resize: 'none' as const,
     marginBottom: '8px',
   },
   commitActions: {

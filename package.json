@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.json && node scripts/build-renderer.js && npm run copy:renderer && npm run copy:monaco",
-    "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
+    "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/assets/file_tree.png','dist/renderer/assets/file_tree.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
     "copy:monaco": "node scripts/copy-monaco.js",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
     "test": "jest",
