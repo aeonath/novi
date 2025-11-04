@@ -89,32 +89,8 @@
     />
   </head>
   <body>
-    <div id="title-bar-container"></div>
-    <div class="app-content">
-      <div class="file-tree-panel">
-        <div class="file-tree-header">Explorer</div>
-        <div class="file-tree-content" id="file-tree-container"></div>
-      </div>
-      <div class="main-content">
-        <!-- Welcome Screen -->
-        <div class="container" id="welcome-screen">
-          <img
-            src="./assets/miranova_studios.png"
-            alt="Miranova Studios"
-            style="max-width: 220px; width: 22vw; height: auto"
-          />
-          <h1 style="margin-top: 1.25rem">Nova</h1>
-          <p style="margin: 0.25rem 0 0; opacity: 0.9">Build. Learn. Iterate.</p>
-          <div class="version" id="version" style="display: none">Loading version...</div>
-          <button id="copy-diagnostics" style="display: none; margin-top: 2rem; padding: 0.5rem 1rem; background: #00d4ff; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem">Copy Diagnostics</button>
-        </div>
-        <!-- Tab Bar -->
-        <div id="tab-bar-container" style="display: none;"></div>
-        <!-- Monaco Editor Container -->
-        <div id="monaco-editor-container" style="display: none; width: 100%; height: 100%;"></div>
-      </div>
-    </div>
-    <div id="status-bar-container"></div>
+    <!-- React Root -->
+    <div id="root"></div>
     <!-- Load Monaco Editor via AMD loader -->
     <script src="./monaco-loader.js"></script>
     <script src="./vs/loader.js"></script>
