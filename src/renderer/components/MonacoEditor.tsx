@@ -97,22 +97,27 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         suggestOnTriggerCharacters: false,
       });
 
-      // Hide specific context menu items
+      // Hide specific context menu items using Monaco's contribution system
       editorRef.current.onContextMenu(() => {
-        // Get the context menu and hide specific items
-        setTimeout(() => {
-          const menuItems = document.querySelectorAll('.monaco-menu-container .action-label');
-          menuItems.forEach((item: any) => {
-            const text = item.textContent || '';
-            // Hide "Change All Occurrences" and "Command Palette"
-            if (text.includes('Change All Occurrences') || text.includes('Command Palette')) {
-              const menuItem = item.closest('.action-item');
-              if (menuItem) {
-                (menuItem as HTMLElement).style.display = 'none';
+        // Use multiple timeouts to ensure we catch the menu rendering
+        [0, 10, 50, 100].forEach(delay => {
+          setTimeout(() => {
+            const menuItems = document.querySelectorAll('.monaco-menu-container .action-label');
+            menuItems.forEach((item: any) => {
+              const text = item.textContent || '';
+              // Hide unwanted items
+              if (text.includes('Change All Occurrences') || 
+                  text.includes('Command Palette') ||
+                  text.toLowerCase().includes('change all occurrences') ||
+                  text.toLowerCase().includes('command palette')) {
+                const menuItem = item.closest('.action-item');
+                if (menuItem) {
+                  (menuItem as HTMLElement).style.display = 'none';
+                }
               }
-            }
-          });
-        }, 0);
+            });
+          }, delay);
+        });
       });
 
       console.log('[MonacoEditor] Initialized successfully');

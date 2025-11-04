@@ -12,7 +12,7 @@ Nova focuses on clarity, performance, and a workspace that feels effortless to u
 
 ```
 src/
-├── main/                    # Main process (Electron)
+├── main/                   # Main process (Electron)
 │   ├── main.ts             # Application entry point, IPC handlers
 │   ├── logger.ts           # Logging system with date-based files
 │   ├── settings.ts         # Persistent settings storage
