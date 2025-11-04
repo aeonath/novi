@@ -172,18 +172,8 @@ Implement persistence of workspace state, including open files, layout, and rece
 Profile all integration systems and ensure smooth cross-platform performance.
 
 **Acceptance Criteria:**  
-- [ ] Startup < 3s on reference system.  
-- [ ] Idle CPU < 5%.  
-- [ ] Memory < 350 MB steady-state.  
-- [ ] No unhandled exceptions after 30 minutes runtime.  
-- [ ] Build passes tests on Windows, Linux, macOS.
+Just do your best with this but don't spend too much time on it.
 
-**Notes for Claude:**  
-- Use Electron’s built-in profiling tools or Chrome DevTools performance tab to measure startup and idle performance.  
-- Pay attention to IPC handlers, file watchers, and Git operations to ensure they are not running unnecessary work in the background.  
-- Test opening and closing multiple workspaces in a row and confirm that memory usage stabilizes instead of continuously rising.  
-- Run Nova for at least 30 minutes on each target platform (Sonnet/Windows, Vega/Linux, Melody/macOS) while performing basic operations (open files, view Git status, use the file browser).  
-- Capture logs and check for unhandled promise rejections, uncaught exceptions, or repeated warning messages.  
 
 ---
 
@@ -192,17 +182,11 @@ Profile all integration systems and ensure smooth cross-platform performance.
 Finalize all sprint deliverables and ensure documentation reflects the new architecture.
 
 **Acceptance Criteria:**  
-- [ ] `INTEGRATION.md` describes editor, Git, and CLI systems clearly.  
-- [ ] `README` and `CHANGELOG` updated to `0.4.0`.  
+- [ ] `docs/NOVA_INTEGRATION.md` describes workspace, Git, and CLI systems clearly.  
+- [ ] `README` updated to `0.4.0`.  
 - [ ] All markdown passes lint.  
-- [ ] Sprint 4 marked complete in `docs/TRAJECTORY_LOG.md`.
 
 **Notes for Claude:**  
-- Create `INTEGRATION.md` and document how the editor, file browser, Git service, workspace manager, and CLI interact, including a high-level diagram or sequence description for key flows (e.g., “open file,” “commit changes,” “resume workspace”).  
-- Update `README` to mention new capabilities (file browser, Git, CLI) and summarize Nova’s current feature set as of `0.4.0`.  
-- Append a new entry to `CHANGELOG` for `0.4.0`, listing the major features delivered in this sprint.  
-- Ensure all Markdown files render cleanly (no broken headings or links) and pass any existing Markdown lint tools configured in the repo.  
-- Add Sprint 4 completion notes and links to relevant docs in `docs/TRAJECTORY_LOG.md`.  
 
 ---
 

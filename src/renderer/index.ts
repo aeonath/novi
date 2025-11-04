@@ -43,8 +43,15 @@ function waitForMonaco(): Promise<boolean> {
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
+    // Performance tracking
+    const appStartTime = performance.now();
+    console.log('[Performance] App initialization started');
+    
     // Wait for Monaco Editor to load
+    const monacoStartTime = performance.now();
     const monacoLoaded = await waitForMonaco();
+    const monacoLoadTime = performance.now() - monacoStartTime;
+    console.log(`[Performance] Monaco load time: ${monacoLoadTime.toFixed(2)}ms`);
     
     // Initialize Theme System
     const themeManager = initializeThemeManager();
@@ -564,6 +571,11 @@ document.addEventListener('DOMContentLoaded', (): void => {
         })();
       });
     }
+    
+    // Performance summary
+    const totalStartupTime = performance.now() - appStartTime;
+    console.log(`[Performance] Total app startup time: ${totalStartupTime.toFixed(2)}ms`);
+    console.log(`[Performance] Initialization complete - Nova is ready`);
   })();
 });
 
