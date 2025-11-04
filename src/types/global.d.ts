@@ -90,6 +90,8 @@ declare global {
       terminalKill: (terminalId: string) => Promise<{ success: boolean }>;
       terminalOnData: (callback: (terminalId: string, data: string) => void) => void;
       terminalRemoveDataListener: () => void;
+      terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => void;
+      terminalRemoveExitListener: () => void;
       // Clipboard operations
       clipboardReadText: () => string;
       clipboardWriteText: (text: string) => void;

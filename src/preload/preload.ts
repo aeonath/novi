@@ -67,6 +67,19 @@ contextBridge.exposeInMainWorld('api', {
   terminalRemoveDataListener: () => {
     ipcRenderer.removeAllListeners('terminal-data');
   },
+  // Terminal exit listener (for terminal process termination)
+  terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => {
+    // Remove ALL existing listeners first to prevent duplicates
+    ipcRenderer.removeAllListeners('terminal-exit');
+    
+    // Now add the new listener
+    ipcRenderer.on('terminal-exit', (_event, terminalId: string, exitCode: number) => {
+      callback(terminalId, exitCode);
+    });
+  },
+  terminalRemoveExitListener: () => {
+    ipcRenderer.removeAllListeners('terminal-exit');
+  },
   // Clipboard operations
   clipboardReadText: () => clipboard.readText(),
   clipboardWriteText: (text: string) => clipboard.writeText(text),

@@ -420,6 +420,14 @@ void app.whenReady().then(() => {
         }
       });
 
+      // Forward PTY exit to renderer so it can close the tab
+      session.pty.onExit((exitEvent) => {
+        logInfo(`[Main] Terminal ${terminalId} exited with code ${exitEvent.exitCode}`);
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('terminal-exit', terminalId, exitEvent.exitCode);
+        }
+      });
+
       logInfo(`[Main] Terminal ${terminalId} created with PTY successfully`);
       return { id: terminalId };
     } catch (error) {

@@ -67,6 +67,51 @@ const AppInner: React.FC = () => {
     };
   }, []);
 
+  // Set up global terminal exit listener to auto-close tabs when shell exits
+  useEffect(() => {
+    if (!window.api?.terminalOnExit || !window.api?.terminalRemoveExitListener) {
+      console.warn('[App] Terminal exit API not available');
+      return;
+    }
+
+    console.log('[App] Setting up terminal exit listener');
+    
+    // Remove any existing listeners first to prevent duplicates
+    window.api.terminalRemoveExitListener();
+    
+    window.api.terminalOnExit((terminalId: string, exitCode: number) => {
+      console.log('[App] Terminal', terminalId, 'exited with code', exitCode, '- closing tab');
+      
+      // Find and close the terminal tab
+      const tabBarAPI = (window as any).__tabBarAPI;
+      if (tabBarAPI) {
+        // Close the tab - this will trigger the normal cleanup
+        tabBarAPI.closeTab(terminalId);
+        
+        // Also remove from terminalTabs state
+        setTerminalTabs((prev) => prev.filter((tab) => tab.id !== terminalId));
+        
+        // If this was the active tab, activate another tab
+        const tabs = tabBarAPI.getTabs();
+        if (tabs.length > 0 && activeTab?.id === terminalId) {
+          setActiveTab(tabs[0]);
+          tabBarAPI.setActiveTab(tabs[0].id);
+        } else if (tabs.length === 0) {
+          // No more tabs, show welcome screen
+          setShowWelcome(true);
+          setActiveTab(null);
+        }
+      }
+    });
+
+    return () => {
+      if (window.api?.terminalRemoveExitListener) {
+        console.log('[App] Cleaning up terminal exit listener');
+        window.api.terminalRemoveExitListener();
+      }
+    };
+  }, [activeTab]);
+
   // Create action handlers
   const actionContext: ActionContext = useMemo(() => ({
     onOpenFile: async () => {
