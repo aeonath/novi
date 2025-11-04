@@ -9,10 +9,25 @@
         margin: 0;
         height: 100vh;
         display: flex;
+        flex-direction: column;
         background-color: #1e1e1e;
         color: #fff;
         font-family: 'Segoe UI', Roboto, sans-serif;
         overflow: hidden;
+      }
+      
+      #title-bar-container {
+        flex-shrink: 0;
+      }
+      
+      .app-content {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+      
+      #status-bar-container {
+        flex-shrink: 0;
       }
 
       .file-tree-panel {
@@ -74,23 +89,27 @@
     />
   </head>
   <body>
-    <div class="file-tree-panel">
-      <div class="file-tree-header">Explorer</div>
-      <div class="file-tree-content" id="file-tree-container"></div>
-    </div>
-    <div class="main-content">
-      <div class="container">
-        <img
-          src="./assets/miranova_studios.png"
-          alt="Miranova Studios"
-          style="max-width: 220px; width: 22vw; height: auto"
-        />
-        <h1 style="margin-top: 1.25rem">Nova</h1>
-        <p style="margin: 0.25rem 0 0; opacity: 0.9">Build. Learn. Iterate.</p>
-        <div class="version" id="version" style="display: none">Loading version...</div>
-        <button id="copy-diagnostics" style="display: none; margin-top: 2rem; padding: 0.5rem 1rem; background: #00d4ff; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem">Copy Diagnostics</button>
+    <div id="title-bar-container"></div>
+    <div class="app-content">
+      <div class="file-tree-panel">
+        <div class="file-tree-header">Explorer</div>
+        <div class="file-tree-content" id="file-tree-container"></div>
+      </div>
+      <div class="main-content">
+        <div class="container">
+          <img
+            src="./assets/miranova_studios.png"
+            alt="Miranova Studios"
+            style="max-width: 220px; width: 22vw; height: auto"
+          />
+          <h1 style="margin-top: 1.25rem">Nova</h1>
+          <p style="margin: 0.25rem 0 0; opacity: 0.9">Build. Learn. Iterate.</p>
+          <div class="version" id="version" style="display: none">Loading version...</div>
+          <button id="copy-diagnostics" style="display: none; margin-top: 2rem; padding: 0.5rem 1rem; background: #00d4ff; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem">Copy Diagnostics</button>
+        </div>
       </div>
     </div>
+    <div id="status-bar-container"></div>
     <script src="./index.js"></script>
   </body>
 </html>

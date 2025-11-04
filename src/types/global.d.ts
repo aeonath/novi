@@ -19,6 +19,10 @@ declare global {
       getCrashesDirectory: () => Promise<string>;
       readDirectory: (path: string) => Promise<DirectoryEntry[]>;
       selectDirectory: () => Promise<string | null>;
+      windowMinimize: () => void;
+      windowMaximize: () => void;
+      windowClose: () => void;
+      windowIsMaximized: () => Promise<boolean>;
     };
   }
 }

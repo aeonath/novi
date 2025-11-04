@@ -21,6 +21,7 @@ function createWindow(): void {
     x: typeof savedBounds.x === 'number' ? savedBounds.x : undefined,
     y: typeof savedBounds.y === 'number' ? savedBounds.y : undefined,
     resizable: true,
+    frame: false, // Enable frameless window for custom title bar
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,
@@ -123,6 +124,36 @@ void app.whenReady().then(() => {
       return null;
     }
     return result.filePaths[0];
+  });
+  
+  // Window control IPC handlers
+  ipcMain.on('window-minimize', () => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.minimize();
+    }
+  });
+  
+  ipcMain.on('window-maximize', () => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      if (mainWindowRef.isMaximized()) {
+        mainWindowRef.unmaximize();
+      } else {
+        mainWindowRef.maximize();
+      }
+    }
+  });
+  
+  ipcMain.on('window-close', () => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.close();
+    }
+  });
+  
+  ipcMain.handle('window-is-maximized', () => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      return mainWindowRef.isMaximized();
+    }
+    return false;
   });
   
   createWindow();

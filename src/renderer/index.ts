@@ -3,9 +3,36 @@ import { ActionHUD } from './components/action-hud';
 import { createDefaultActions, ActionContext } from './components/actions';
 import { FileTree } from './components/file-tree';
 import { SettingsPanel } from './components/settings-panel';
+import { TitleBar } from './components/title-bar';
+import { StatusBar } from './components/status-bar';
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
+    // Initialize Title Bar
+    const titleBar = new TitleBar({ title: 'Nova IDE' });
+    const titleBarContainer = document.getElementById('title-bar-container');
+    if (titleBarContainer) {
+      titleBarContainer.appendChild(titleBar.getElement());
+    }
+
+    // Initialize Status Bar
+    const statusBar = new StatusBar();
+    const statusBarContainer = document.getElementById('status-bar-container');
+    if (statusBarContainer) {
+      statusBarContainer.appendChild(statusBar.getElement());
+    }
+
+    // Add version info to status bar
+    if (window.api) {
+      try {
+        const version = await window.api.getVersion();
+        statusBar.addItem({ id: 'version', text: `v${version}`, tooltip: `Nova IDE version ${version}` }, 'right');
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to get version:', error);
+      }
+    }
+
     const versionElement = document.getElementById('version');
 
     if (versionElement && window.api) {

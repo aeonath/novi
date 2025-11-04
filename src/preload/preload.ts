@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('api', {
   getCrashesDirectory: () => ipcRenderer.invoke('get-crashes-directory'),
   readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  // Window controls
+  windowMinimize: () => ipcRenderer.send('window-minimize'),
+  windowMaximize: () => ipcRenderer.send('window-maximize'),
+  windowClose: () => ipcRenderer.send('window-close'),
+  windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
 });
 
 // Type definitions for the exposed API
