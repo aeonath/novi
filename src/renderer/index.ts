@@ -327,6 +327,13 @@ document.addEventListener('DOMContentLoaded', (): void => {
 
 // Renderer error handling: log to main and notify user
 window.addEventListener('error', (ev) => {
+  // Ignore Monaco loader errors - they're handled internally
+  if (ev.message?.includes('monaco') || ev.filename?.includes('vs/')) {
+    console.warn('[Nova] Monaco loader error (handled):', ev.message);
+    return;
+  }
+  
+  console.error('[Nova] Renderer error:', ev.message, ev.error);
   if (window.api) {
     const stack = ev.error instanceof Error ? ev.error.stack : undefined;
     window.api.reportError(ev.message ?? 'Unknown renderer error', stack);
@@ -335,10 +342,18 @@ window.addEventListener('error', (ev) => {
 });
 
 window.addEventListener('unhandledrejection', (ev) => {
+  // Ignore Monaco-related promise rejections
+  const reason = ev.reason instanceof Error ? ev.reason.message : String(ev.reason);
+  if (reason?.includes('monaco') || reason?.includes('vs/')) {
+    console.warn('[Nova] Monaco promise rejection (handled):', reason);
+    return;
+  }
+  
+  console.error('[Nova] Unhandled rejection:', reason, ev.reason);
   if (window.api) {
-    const reason =
+    const fullReason =
       ev.reason instanceof Error ? `${ev.reason.message}\n${ev.reason.stack}` : String(ev.reason);
-    window.api.reportError('Unhandled rejection', reason);
+    window.api.reportError('Unhandled rejection', fullReason);
   }
   alert('An unexpected error occurred. Please check logs for details.');
 });

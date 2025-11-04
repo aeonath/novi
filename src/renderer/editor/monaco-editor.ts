@@ -32,54 +32,59 @@ export class MonacoEditorView {
   }
 
   private initializeMonaco(options: EditorOptions): void {
-    // Set up Monaco environment for web workers
-    self.MonacoEnvironment = {
-      getWorkerUrl: function (_moduleId: string, label: string) {
-        if (label === 'json') {
-          return './vs/language/json/json.worker.js';
-        }
-        if (label === 'css' || label === 'scss' || label === 'less') {
-          return './vs/language/css/css.worker.js';
-        }
-        if (label === 'html' || label === 'handlebars' || label === 'razor') {
-          return './vs/language/html/html.worker.js';
-        }
-        if (label === 'typescript' || label === 'javascript') {
-          return './vs/language/typescript/ts.worker.js';
-        }
-        return './vs/editor/editor.worker.js';
-      },
-    };
+    try {
+      // Set up Monaco environment for web workers
+      self.MonacoEnvironment = {
+        getWorkerUrl: function (_moduleId: string, label: string) {
+          if (label === 'json') {
+            return './vs/language/json/json.worker.js';
+          }
+          if (label === 'css' || label === 'scss' || label === 'less') {
+            return './vs/language/css/css.worker.js';
+          }
+          if (label === 'html' || label === 'handlebars' || label === 'razor') {
+            return './vs/language/html/html.worker.js';
+          }
+          if (label === 'typescript' || label === 'javascript') {
+            return './vs/language/typescript/ts.worker.js';
+          }
+          return './vs/editor/editor.worker.js';
+        },
+      };
 
-    // Determine theme
-    const novaTheme = options.theme || 'dark';
-    this.currentTheme = novaTheme === 'light' ? 'light' : 'dark';
+      // Determine theme
+      const novaTheme = options.theme || 'dark';
+      this.currentTheme = novaTheme === 'light' ? 'light' : 'dark';
 
-    // Create editor instance
-    this.editor = monaco.editor.create(this.container, {
-      value: this.getWelcomeContent(),
-      language: options.language || 'plaintext',
-      theme: this.currentTheme === 'light' ? 'vs-light' : 'vs-dark',
-      fontSize: options.fontSize || 14,
-      wordWrap: options.wordWrap || 'on',
-      minimap: {
-        enabled: options.minimap !== undefined ? options.minimap : true,
-      },
-      lineNumbers: options.lineNumbers || 'on',
-      readOnly: options.readOnly || false,
-      automaticLayout: true,
-      scrollBeyondLastLine: false,
-      renderWhitespace: 'selection',
-      bracketPairColorization: {
-        enabled: true,
-      },
-      guides: {
-        bracketPairs: true,
-        indentation: true,
-      },
-    });
+      // Create editor instance
+      this.editor = monaco.editor.create(this.container, {
+        value: this.getWelcomeContent(),
+        language: options.language || 'plaintext',
+        theme: this.currentTheme === 'light' ? 'vs-light' : 'vs-dark',
+        fontSize: options.fontSize || 14,
+        wordWrap: options.wordWrap || 'on',
+        minimap: {
+          enabled: options.minimap !== undefined ? options.minimap : true,
+        },
+        lineNumbers: options.lineNumbers || 'on',
+        readOnly: options.readOnly || false,
+        automaticLayout: true,
+        scrollBeyondLastLine: false,
+        renderWhitespace: 'selection',
+        bracketPairColorization: {
+          enabled: true,
+        },
+        guides: {
+          bracketPairs: true,
+          indentation: true,
+        },
+      });
 
-    console.log('[MonacoEditor] Initialized successfully');
+      console.log('[MonacoEditor] Initialized successfully');
+    } catch (error) {
+      console.error('[MonacoEditor] Failed to initialize:', error);
+      throw error; // Re-throw so caller can handle
+    }
   }
 
   private getWelcomeContent(): string {
