@@ -16,6 +16,7 @@ export interface TitleBarProps {
 export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  const [activeButton, setActiveButton] = useState<string | null>(null);
 
   useEffect(() => {
     // Get initial maximize state
@@ -71,32 +72,54 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
       </div>
 
       <div style={styles.controls}>
-        <button
-          className="title-bar-button title-bar-minimize"
+        <div
+          className="window-btn window-btn-minimize"
           style={{
             ...styles.button,
             ...(hoveredButton === 'minimize' ? styles.buttonHover : {}),
+            ...(activeButton === 'minimize' ? styles.buttonActive : {}),
           }}
           onMouseEnter={() => setHoveredButton('minimize')}
           onMouseLeave={() => setHoveredButton(null)}
+          onMouseDown={() => setActiveButton('minimize')}
+          onMouseUp={() => setActiveButton(null)}
           onClick={handleMinimize}
+          role="button"
           aria-label="Minimize"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleMinimize();
+            }
+          }}
         >
           <svg width="10" height="1" viewBox="0 0 10 1" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="10" height="1" fill="#cccccc"/>
           </svg>
-        </button>
+        </div>
 
-        <button
-          className="title-bar-button title-bar-maximize"
+        <div
+          className="window-btn window-btn-maximize"
           style={{
             ...styles.button,
             ...(hoveredButton === 'maximize' ? styles.buttonHover : {}),
+            ...(activeButton === 'maximize' ? styles.buttonActive : {}),
           }}
           onMouseEnter={() => setHoveredButton('maximize')}
           onMouseLeave={() => setHoveredButton(null)}
+          onMouseDown={() => setActiveButton('maximize')}
+          onMouseUp={() => setActiveButton(null)}
           onClick={handleMaximize}
+          role="button"
           aria-label={isMaximized ? 'Restore' : 'Maximize'}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              void handleMaximize();
+            }
+          }}
         >
           {isMaximized ? (
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -107,23 +130,34 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
               <rect x="0" y="0" width="10" height="10" stroke="#cccccc" strokeWidth="1" fill="none"/>
             </svg>
           )}
-        </button>
+        </div>
 
-        <button
-          className="title-bar-button title-bar-close"
+        <div
+          className="window-btn window-btn-close"
           style={{
             ...styles.button,
             ...(hoveredButton === 'close' ? styles.buttonHoverClose : {}),
+            ...(activeButton === 'close' ? styles.buttonActiveClose : {}),
           }}
           onMouseEnter={() => setHoveredButton('close')}
           onMouseLeave={() => setHoveredButton(null)}
+          onMouseDown={() => setActiveButton('close')}
+          onMouseUp={() => setActiveButton(null)}
           onClick={handleClose}
+          role="button"
           aria-label="Close"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleClose();
+            }
+          }}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M0.5 0L0 0.5L4.5 5L0 9.5L0.5 10L5 5.5L9.5 10L10 9.5L5.5 5L10 0.5L9.5 0L5 4.5L0.5 0Z" fill="#cccccc"/>
           </svg>
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -133,7 +167,7 @@ const styles = {
   container: {
     display: 'flex',
     height: '32px',
-    backgroundColor: '#2d2d30',
+    backgroundColor: '#1e1e1e',
     color: '#cccccc',
     // WebKit-specific property for window dragging
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -157,6 +191,9 @@ const styles = {
   },
   controls: {
     display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    backgroundColor: '#1e1e1e',
     // WebKit-specific property
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -167,8 +204,7 @@ const styles = {
     height: '32px',
     border: 'none',
     background: 'transparent',
-    color: '#cccccc',
-    fontSize: '16px',
+    color: '#ccc',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -178,12 +214,18 @@ const styles = {
     outline: 'none',
   } as React.CSSProperties,
   buttonHover: {
-    backgroundColor: '#3e3e42',
-    color: '#cccccc !important' as any,
+    backgroundColor: '#2a2a2a',
+    color: '#fff',
+  } as React.CSSProperties,
+  buttonActive: {
+    backgroundColor: '#333',
   } as React.CSSProperties,
   buttonHoverClose: {
     backgroundColor: '#e81123',
-    color: '#cccccc !important' as any,
+    color: '#fff',
+  } as React.CSSProperties,
+  buttonActiveClose: {
+    backgroundColor: '#c50f1f',
   } as React.CSSProperties,
 };
 
