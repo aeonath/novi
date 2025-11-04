@@ -30,6 +30,23 @@ function createWindow(): void {
     },
   });
 
+  // Configure CSP for Monaco Editor
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "font-src 'self' data:; " +
+          "worker-src 'self' blob:; " +
+          "child-src 'self' blob:;"
+        ]
+      }
+    });
+  });
+
   // Always load local built HTML file
   void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   mainWindow.setMinimumSize(800, 600);

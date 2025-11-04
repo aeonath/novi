@@ -111,9 +111,11 @@ export class ActionHUD {
       }
       
       // Ctrl/Cmd + Space to toggle (or Ctrl/Cmd + K as alternative)
-      if ((e.ctrlKey || e.metaKey) && (e.key === ' ' || e.key === 'k')) {
+      // Use lowercase comparison and check both 'k' and 'K'
+      if ((e.ctrlKey || e.metaKey) && (e.key === ' ' || e.key.toLowerCase() === 'k')) {
         console.log('[ActionHUD] Toggle triggered!');
         e.preventDefault();
+        e.stopPropagation(); // Prevent Monaco from consuming the event
         this.toggle();
         return;
       }
