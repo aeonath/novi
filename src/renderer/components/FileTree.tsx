@@ -4,10 +4,11 @@
  */
 
 /**
- * FileTree - File system browser (React)
+ * FileTree - Interactive File System Browser (React)
+ * Supports create, rename, delete, and context menus
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 
 export interface FileTreeProps {
   onFileOpen?: (filePath: string) => void;
@@ -18,26 +19,45 @@ interface FileNode {
   path: string;
   isDirectory: boolean;
   children?: FileNode[];
+  isLoaded?: boolean;
 }
 
+interface ContextMenu {
+  x: number;
+  y: number;
+  node: FileNode | null;
+}
+
+interface FileTreeContextValue {
+  expandedDirs: Set<string>;
+  toggleDirectory: (node: FileNode) => Promise<void>;
+  handleFileClick: (node: FileNode) => void;
+  handleContextMenu: (e: React.MouseEvent, node: FileNode) => void;
+}
+
+const FileTreeContext = createContext<FileTreeContextValue | null>(null);
+
 export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen }) => {
-  const [rootPath] = useState<string | null>(null);
+  const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
 
   const openDirectory = useCallback(async () => {
-    if (!window.api) return;
+    if (!window.api?.selectDirectory) return;
 
     try {
-      // Use Electron's dialog to open a directory
-      // For now, this is a placeholder - we'll implement full directory browsing later
-      console.log('[FileTree] Directory picker not yet implemented');
+      const dirPath = await window.api.selectDirectory();
+      if (!dirPath) return;
+
+      setRootPath(dirPath);
+      await loadDirectory(dirPath);
     } catch (error) {
       console.error('[FileTree] Failed to open directory:', error);
     }
   }, []);
 
-  const loadDirectory = async (path: string) => {
+  const loadDirectory = async (path: string, parentPath?: string) => {
     if (!window.api?.readDirectory) return;
 
     try {
@@ -47,33 +67,175 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen }) => {
         path: entry.path,
         isDirectory: entry.isDirectory,
         children: entry.isDirectory ? [] : undefined,
+        isLoaded: false,
       }));
 
-      setTree(nodes);
+      if (parentPath) {
+        // Update specific directory's children
+        setTree((prev) => updateNodeChildren(prev, parentPath, nodes));
+      } else {
+        // Update root
+        setTree(nodes);
+      }
     } catch (error) {
       console.error('[FileTree] Failed to load directory:', error);
     }
   };
 
-  const toggleDirectory = useCallback(async (path: string) => {
+  const updateNodeChildren = (nodes: FileNode[], targetPath: string, children: FileNode[]): FileNode[] => {
+    return nodes.map((node) => {
+      if (node.path === targetPath) {
+        return { ...node, children, isLoaded: true };
+      }
+      if (node.children) {
+        return { ...node, children: updateNodeChildren(node.children, targetPath, children) };
+      }
+      return node;
+    });
+  };
+
+  const toggleDirectory = useCallback(async (node: FileNode) => {
+    const isExpanded = expandedDirs.has(node.path);
+
     setExpandedDirs((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (isExpanded) {
+        next.delete(node.path);
       } else {
-        next.add(path);
+        next.add(node.path);
       }
       return next;
     });
-  }, []);
 
-  const handleFileClick = useCallback(async (node: FileNode) => {
+    // Load children if not loaded yet
+    if (!isExpanded && !node.isLoaded) {
+      await loadDirectory(node.path, node.path);
+    }
+  }, [expandedDirs]);
+
+  const handleFileClick = useCallback((node: FileNode) => {
     if (node.isDirectory) {
-      await toggleDirectory(node.path);
+      void toggleDirectory(node);
     } else {
       onFileOpen?.(node.path);
     }
   }, [toggleDirectory, onFileOpen]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, node });
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const createNewFile = useCallback(async (parentNode: FileNode | null) => {
+    if (!window.api?.createFile) return;
+    closeContextMenu();
+
+    const parentPath = parentNode ? parentNode.path : rootPath;
+    if (!parentPath) return;
+
+    const fileName = prompt('Enter file name:');
+    if (!fileName) return;
+
+    try {
+      const filePath = `${parentPath}${parentPath.endsWith('/') ? '' : '/'}${fileName}`;
+      await window.api.createFile(filePath);
+      
+      // Reload parent directory
+      await loadDirectory(parentPath, parentNode ? parentPath : undefined);
+      
+      // Expand parent if it's a directory
+      if (parentNode && !expandedDirs.has(parentPath)) {
+        setExpandedDirs((prev) => new Set(prev).add(parentPath));
+      }
+    } catch (error) {
+      console.error('[FileTree] Failed to create file:', error);
+      alert(`Failed to create file: ${(error as Error).message}`);
+    }
+  }, [rootPath, expandedDirs, closeContextMenu]);
+
+  const createNewFolder = useCallback(async (parentNode: FileNode | null) => {
+    if (!window.api?.createDirectory) return;
+    closeContextMenu();
+
+    const parentPath = parentNode ? parentNode.path : rootPath;
+    if (!parentPath) return;
+
+    const folderName = prompt('Enter folder name:');
+    if (!folderName) return;
+
+    try {
+      const folderPath = `${parentPath}${parentPath.endsWith('/') ? '' : '/'}${folderName}`;
+      await window.api.createDirectory(folderPath);
+      
+      // Reload parent directory
+      await loadDirectory(parentPath, parentNode ? parentPath : undefined);
+      
+      // Expand parent if it's a directory
+      if (parentNode && !expandedDirs.has(parentPath)) {
+        setExpandedDirs((prev) => new Set(prev).add(parentPath));
+      }
+    } catch (error) {
+      console.error('[FileTree] Failed to create folder:', error);
+      alert(`Failed to create folder: ${(error as Error).message}`);
+    }
+  }, [rootPath, expandedDirs, closeContextMenu]);
+
+  const renameNode = useCallback(async (node: FileNode) => {
+    if (!window.api?.renameFile) return;
+    closeContextMenu();
+
+    const newName = prompt('Enter new name:', node.name);
+    if (!newName || newName === node.name) return;
+
+    try {
+      const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
+      const newPath = `${parentPath}/${newName}`;
+      
+      await window.api.renameFile(node.path, newPath);
+      
+      // Reload parent directory
+      await loadDirectory(parentPath, rootPath === parentPath ? undefined : parentPath);
+    } catch (error) {
+      console.error('[FileTree] Failed to rename:', error);
+      alert(`Failed to rename: ${(error as Error).message}`);
+    }
+  }, [rootPath, closeContextMenu]);
+
+  const deleteNode = useCallback(async (node: FileNode) => {
+    if (!window.api?.deleteFile) return;
+    closeContextMenu();
+
+    const confirmMsg = node.isDirectory
+      ? `Delete folder "${node.name}" and all its contents?`
+      : `Delete file "${node.name}"?`;
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      await window.api.deleteFile(node.path, node.isDirectory);
+      
+      // Reload parent directory
+      const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
+      await loadDirectory(parentPath, rootPath === parentPath ? undefined : parentPath);
+    } catch (error) {
+      console.error('[FileTree] Failed to delete:', error);
+      alert(`Failed to delete: ${(error as Error).message}`);
+    }
+  }, [rootPath, closeContextMenu]);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (contextMenu) {
+      const handleClick = () => closeContextMenu();
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [contextMenu, closeContextMenu]);
 
   // Expose methods for compatibility
   useEffect(() => {
@@ -86,48 +248,68 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen }) => {
     };
   }, [openDirectory, rootPath]);
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <span style={styles.title}>FILES</span>
-        <button style={styles.button} onClick={openDirectory} title="Open Folder">
-          📁
-        </button>
-      </div>
+  const contextValue: FileTreeContextValue = {
+    expandedDirs,
+    toggleDirectory,
+    handleFileClick,
+    handleContextMenu,
+  };
 
-      {tree.length === 0 ? (
-        <div style={styles.emptyState}>
-          <p>No folder open</p>
-          <button style={styles.openButton} onClick={openDirectory}>
-            Open Folder
+  return (
+    <FileTreeContext.Provider value={contextValue}>
+      <div style={styles.container} onContextMenu={(e) => handleContextMenu(e, null)}>
+        <div style={styles.header}>
+          <span style={styles.title}>FILES</span>
+          <button style={styles.button} onClick={openDirectory} title="Open Folder">
+            📁
           </button>
         </div>
-      ) : (
-        <div style={styles.tree}>
-          {tree.map((node) => (
-            <FileTreeNode
-              key={node.path}
-              node={node}
-              level={0}
-              isExpanded={expandedDirs.has(node.path)}
-              onClick={() => handleFileClick(node)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+
+        {tree.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p>No folder open</p>
+            <button style={styles.openButton} onClick={openDirectory}>
+              Open Folder
+            </button>
+          </div>
+        ) : (
+          <div style={styles.tree}>
+            {tree.map((node) => (
+              <FileTreeNode key={node.path} node={node} level={0} />
+            ))}
+          </div>
+        )}
+
+        {contextMenu && (
+          <ContextMenuComponent
+            x={contextMenu.x}
+            y={contextMenu.y}
+            node={contextMenu.node}
+            onNewFile={() => createNewFile(contextMenu.node)}
+            onNewFolder={() => createNewFolder(contextMenu.node)}
+            onRename={() => contextMenu.node && renameNode(contextMenu.node)}
+            onDelete={() => contextMenu.node && deleteNode(contextMenu.node)}
+            onClose={closeContextMenu}
+          />
+        )}
+      </div>
+    </FileTreeContext.Provider>
   );
 };
 
 interface FileTreeNodeProps {
   node: FileNode;
   level: number;
-  isExpanded: boolean;
-  onClick: () => void;
 }
 
-const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, isExpanded, onClick }) => {
+const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const context = useContext(FileTreeContext);
+  
+  if (!context) return null;
+
+  const { expandedDirs, handleFileClick, handleContextMenu } = context;
+  const isExpanded = expandedDirs.has(node.path);
 
   return (
     <div>
@@ -137,7 +319,8 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, isExpanded, on
           paddingLeft: `${level * 16 + 8}px`,
           backgroundColor: isHovered ? '#2a2d2e' : 'transparent',
         }}
-        onClick={onClick}
+        onClick={() => handleFileClick(node)}
+        onContextMenu={(e) => handleContextMenu(e, node)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -145,27 +328,86 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, isExpanded, on
           <span style={styles.arrow}>{isExpanded ? '▼' : '▶'}</span>
         )}
         <span style={styles.icon}>
-          {node.isDirectory ? '📁' : '📄'}
+          {node.isDirectory ? (isExpanded ? '📂' : '📁') : getFileIcon(node.name)}
         </span>
         <span style={styles.name}>{node.name}</span>
       </div>
 
-      {node.isDirectory && isExpanded && node.children && (
+      {node.isDirectory && isExpanded && node.children && node.children.length > 0 && (
         <div>
           {node.children.map((child) => (
-            <FileTreeNode
-              key={child.path}
-              node={child}
-              level={level + 1}
-              isExpanded={false}
-              onClick={() => {/* handled by parent */}}
-            />
+            <FileTreeNode key={child.path} node={child} level={level + 1} />
           ))}
         </div>
       )}
     </div>
   );
 };
+
+interface ContextMenuProps {
+  x: number;
+  y: number;
+  node: FileNode | null;
+  onNewFile: () => void;
+  onNewFolder: () => void;
+  onRename: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}
+
+const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, onClose }) => {
+  return (
+    <div style={{ ...styles.contextMenu, left: x, top: y }} onClick={(e) => e.stopPropagation()}>
+      <div style={styles.menuItem} onClick={onNewFile}>
+        📄 New File
+      </div>
+      <div style={styles.menuItem} onClick={onNewFolder}>
+        📁 New Folder
+      </div>
+      {node && (
+        <>
+          <div style={styles.menuDivider} />
+          <div style={styles.menuItem} onClick={onRename}>
+            ✏️ Rename
+          </div>
+          <div style={styles.menuItem} onClick={onDelete}>
+            🗑️ Delete
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+function getFileIcon(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'js':
+    case 'jsx':
+    case 'ts':
+    case 'tsx':
+      return '📜';
+    case 'json':
+      return '📋';
+    case 'md':
+      return '📝';
+    case 'html':
+    case 'htm':
+      return '🌐';
+    case 'css':
+    case 'scss':
+    case 'less':
+      return '🎨';
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'svg':
+      return '🖼️';
+    default:
+      return '📄';
+  }
+}
 
 const styles = {
   container: {
@@ -243,5 +485,25 @@ const styles = {
     textOverflow: 'ellipsis' as const,
     whiteSpace: 'nowrap' as const,
   },
+  contextMenu: {
+    position: 'fixed' as const,
+    backgroundColor: '#2d2d30',
+    border: '1px solid #3e3e42',
+    borderRadius: '4px',
+    padding: '4px 0',
+    minWidth: '150px',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.4)',
+    zIndex: 1000,
+  },
+  menuItem: {
+    padding: '8px 16px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    color: '#cccccc',
+  },
+  menuDivider: {
+    height: '1px',
+    backgroundColor: '#3e3e42',
+    margin: '4px 0',
+  },
 };
-

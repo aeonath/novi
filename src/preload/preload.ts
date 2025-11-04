@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('api', {
   getRecoveryFiles: () => ipcRenderer.invoke('get-recovery-files'),
   deleteRecoveryFile: (id: string) => ipcRenderer.invoke('delete-recovery-file', id),
   clearRecoveryFiles: () => ipcRenderer.invoke('clear-recovery-files'),
+  // File system operations
+  createFile: (filePath: string) => ipcRenderer.invoke('create-file', filePath),
+  createDirectory: (dirPath: string) => ipcRenderer.invoke('create-directory', dirPath),
+  renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
+  deleteFile: (filePath: string, isDirectory: boolean) => ipcRenderer.invoke('delete-file', filePath, isDirectory),
   // Window controls
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),

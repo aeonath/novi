@@ -48,6 +48,10 @@ declare global {
       getRecoveryFiles: () => Promise<RecoveryFile[]>;
       deleteRecoveryFile: (id: string) => Promise<{ success: boolean }>;
       clearRecoveryFiles: () => Promise<{ success: boolean }>;
+      createFile: (filePath: string) => Promise<{ success: boolean; path: string }>;
+      createDirectory: (dirPath: string) => Promise<{ success: boolean; path: string }>;
+      renameFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; oldPath: string; newPath: string }>;
+      deleteFile: (filePath: string, isDirectory: boolean) => Promise<{ success: boolean; path: string }>;
       windowMinimize: () => void;
       windowMaximize: () => void;
       windowClose: () => void;

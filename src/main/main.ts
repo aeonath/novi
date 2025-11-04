@@ -5,11 +5,12 @@
 
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join } from 'node:path';
-import { readdir, stat, readFile, writeFile } from 'node:fs/promises';
+import { readdir, stat, readFile, writeFile, mkdir, rm, rename as fsRename } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
 import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './crash-reporter';
 import { saveRecoveryFiles, getRecoveryFiles, deleteRecoveryFile, clearAllRecoveryFiles, cleanupOldRecoveryFiles } from './recovery';
+import { logSuccess, logError as logFSError } from './services/fs-logger';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -265,6 +266,55 @@ void app.whenReady().then(() => {
       return { success: true };
     } catch (error) {
       logError('Failed to clear recovery files', error);
+      throw error;
+    }
+  });
+
+  // File system operation IPC handlers with logging
+  ipcMain.handle('create-file', async (_e, filePath: string) => {
+    try {
+      await writeFile(filePath, '', 'utf-8');
+      await logSuccess('create-file', filePath);
+      return { success: true, path: filePath };
+    } catch (error) {
+      await logFSError('create-file', filePath, error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('create-directory', async (_e, dirPath: string) => {
+    try {
+      await mkdir(dirPath, { recursive: false });
+      await logSuccess('create-directory', dirPath);
+      return { success: true, path: dirPath };
+    } catch (error) {
+      await logFSError('create-directory', dirPath, error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('rename-file', async (_e, oldPath: string, newPath: string) => {
+    try {
+      await fsRename(oldPath, newPath);
+      await logSuccess('rename-file', oldPath, `-> ${newPath}`);
+      return { success: true, oldPath, newPath };
+    } catch (error) {
+      await logFSError('rename-file', oldPath, error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('delete-file', async (_e, filePath: string, isDirectory: boolean) => {
+    try {
+      if (isDirectory) {
+        await rm(filePath, { recursive: true, force: false });
+      } else {
+        await rm(filePath, { force: false });
+      }
+      await logSuccess('delete-file', filePath, isDirectory ? '(directory)' : '(file)');
+      return { success: true, path: filePath };
+    } catch (error) {
+      await logFSError('delete-file', filePath, error as Error);
       throw error;
     }
   });
