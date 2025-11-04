@@ -8,7 +8,7 @@
  * Main layout structure for Nova IDE
  */
 
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
@@ -32,9 +32,6 @@ const AppInner: React.FC = () => {
   const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const { setGitStatus } = useAppContext();
-  
-  // Ref for welcome screen to focus it immediately on mount
-  const welcomeRef = useRef<HTMLDivElement>(null);
 
   // Set up global terminal data listener
   useEffect(() => {
@@ -442,13 +439,13 @@ const AppInner: React.FC = () => {
     };
   }, []);
 
-  // Focus the welcome screen when it's visible so Ctrl+K works immediately
-  useEffect(() => {
-    if (showWelcome && welcomeRef.current) {
-      console.log('[App] Focusing welcome screen for keyboard shortcuts');
-      welcomeRef.current.focus();
-    }
-  }, [showWelcome, monacoReady]); // Re-focus when welcome state changes
+  // Focus logic disabled - ActionHUD (Ctrl+K) is currently disabled
+  // useEffect(() => {
+  //   if (showWelcome && welcomeRef.current) {
+  //     console.log('[App] Focusing welcome screen for keyboard shortcuts');
+  //     welcomeRef.current.focus();
+  //   }
+  // }, [showWelcome, monacoReady]);
 
   useEffect(() => {
     // Wait for Monaco to load
@@ -660,17 +657,14 @@ const AppInner: React.FC = () => {
             
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showWelcome && !monacoReady ? (
-                <div ref={welcomeRef} tabIndex={-1} style={styles.welcome}>
+                <div style={styles.welcome}>
                   <h1>Nova</h1>
                   <p>Loading editor...</p>
                 </div>
               ) : showWelcome ? (
-                <div ref={welcomeRef} tabIndex={-1} style={styles.welcome}>
+                <div style={styles.welcome}>
                   <h1>Nova</h1>
                   <p>Open a file to start editing</p>
-                  <p style={{ fontSize: '0.9em', opacity: 0.7 }}>
-                    Press <kbd>Ctrl+K</kbd> for commands
-                  </p>
                 </div>
               ) : null}
               
@@ -718,7 +712,8 @@ const AppInner: React.FC = () => {
         <StatusBar />
         
         {/* Modal components */}
-        <ActionHUD actions={actions} />
+        {/* ActionHUD disabled - Ctrl+K functionality not working reliably on startup */}
+        {/* <ActionHUD actions={actions} /> */}
         <SettingsPanel />
         <DiagnosticsPanel />
         <RecoveryDialog />
