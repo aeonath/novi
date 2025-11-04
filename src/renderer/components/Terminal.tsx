@@ -327,9 +327,16 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   const handleCopy = useCallback(() => {
     if (terminalRef.current) {
       const selection = terminalRef.current.getSelection();
-      if (selection && (window as any).api?.clipboardWriteText) {
-        (window as any).api.clipboardWriteText(selection);
-        console.log('[Terminal] Copied to clipboard:', selection.length, 'chars');
+      if (selection) {
+        const api = (window as any).api;
+        if (api && api.clipboardWriteText) {
+          api.clipboardWriteText(selection);
+          console.log('[Terminal] Copied to clipboard:', selection.length, 'chars');
+        } else {
+          console.error('[Terminal] Clipboard API not available');
+        }
+      } else {
+        console.log('[Terminal] No text selected');
       }
     }
     setContextMenu(null);
@@ -339,13 +346,14 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   const handlePaste = useCallback(() => {
     console.log('[Terminal] Paste triggered');
     if (terminalRef.current) {
-      if (!(window as any).api?.clipboardReadText) {
+      const api = (window as any).api;
+      if (!api || !api.clipboardReadText) {
         console.error('[Terminal] Clipboard API not available');
         setContextMenu(null);
         return;
       }
       
-      const text = (window as any).api.clipboardReadText();
+      const text = api.clipboardReadText();
       console.log('[Terminal] Read from clipboard:', text ? text.length : 0, 'chars');
       
       if (text) {
