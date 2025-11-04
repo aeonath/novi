@@ -62,6 +62,15 @@ Claude will:
 
 - **IMPORTANT**: When instructed to iterate on a specific task (e.g., "SPRINT3_PLAN.md Task 1"), only implement that specific task and its requirements. Do not implement other tasks from the sprint unless explicitly instructed.
 
+- **🚨 TEST DIRECTORY STRUCTURE 🚨**: Unit tests are organized by yield version:
+  - Sprint 1 (yield 0.1.0) → `src/tests/core-0.1.0/`
+  - Sprint 2 (yield 0.2.0) → `src/tests/core-0.2.0/`
+  - Sprint 3 (yield 0.3.0) → `src/tests/core-0.3.0/`
+  - **Sprint 4 (yield 0.4.0) → `src/tests/core-0.4.0/`** ← **CURRENT**
+  - Future sprints follow the same pattern
+  - **RULE**: Always create new tests in the directory matching the current yield version
+  - Do NOT move existing tests from previous directories
+
 - **TEST STRUCTURE**: Conform to the unit test structure defined in `nova/aeon/trajectory-1.0.0/TEST_STRUCTURE.md` if it exists. If no test structure exists, organize tests appropriately for the Nova Electron project (TypeScript/JavaScript).
 - **🚨 CRITICAL TEST REQUIREMENT 🚨**: **ALL UNIT TESTS MUST PASS 100% BEFORE TASK COMPLETION!** You must implement unit tests for all features you implement. If there are no unit tests yet, you need to pick a framework (e.g., Jest, Mocha, Vitest) and write them. If you cannot achieve 100% test pass rate in a reasonable amount of time (typically 3-5 attempts), PAUSE EXECUTION and ask the user what should be done next. Do not consider any task complete until all tests are passing.
 - **🚨 STUDIO DIRECTORY RESTRICTION 🚨**: **DO NOT MODIFY FILES IN THE `studio/` DIRECTORY!** The studio directory contains example scripts that should remain unchanged unless explicitly instructed otherwise. Focus development work on core Nova application files in `/src/`, `/src/tests/`, and related directories only.
