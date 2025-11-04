@@ -104,18 +104,25 @@ export class ActionHUD {
 
   private setupKeyboardListeners(): void {
     console.log('[ActionHUD] Setting up keyboard listeners');
+    
+    // Use capture phase to intercept events BEFORE Monaco sees them
     document.addEventListener('keydown', (e) => {
-      // Debug: log all Ctrl/Cmd keypresses
+      // Ignore modifier keys themselves (Control, Meta, Shift, Alt)
+      if (['Control', 'Meta', 'Shift', 'Alt'].includes(e.key)) {
+        return;
+      }
+      
+      // Debug: log actual key combinations
       if (e.ctrlKey || e.metaKey) {
-        console.log('[ActionHUD] Ctrl/Cmd key pressed:', e.key, 'ctrlKey:', e.ctrlKey, 'metaKey:', e.metaKey);
+        console.log('[ActionHUD] Key combo detected:', e.key, 'ctrlKey:', e.ctrlKey, 'metaKey:', e.metaKey);
       }
       
       // Ctrl/Cmd + Space to toggle (or Ctrl/Cmd + K as alternative)
-      // Use lowercase comparison and check both 'k' and 'K'
       if ((e.ctrlKey || e.metaKey) && (e.key === ' ' || e.key.toLowerCase() === 'k')) {
         console.log('[ActionHUD] Toggle triggered!');
         e.preventDefault();
-        e.stopPropagation(); // Prevent Monaco from consuming the event
+        e.stopPropagation();
+        e.stopImmediatePropagation(); // Stop all other handlers
         this.toggle();
         return;
       }
@@ -128,6 +135,7 @@ export class ActionHUD {
       // Escape to close
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
         this.hide();
         return;
       }
@@ -148,10 +156,11 @@ export class ActionHUD {
       // Enter to execute selected action
       if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
         this.executeSelected();
         return;
       }
-    });
+    }, { capture: true }); // Use capture phase to intercept before Monaco
   }
 
   public setActions(actions: Action[]): void {
