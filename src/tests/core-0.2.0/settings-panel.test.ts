@@ -1,3 +1,8 @@
+/**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
 import { SettingsPanel, SettingControl } from '../../renderer/components/settings-panel';
 
 // Mock window.api

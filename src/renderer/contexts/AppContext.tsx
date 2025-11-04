@@ -1,4 +1,9 @@
 /**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
  * AppContext - Global application state
  * Provides shared state for theme, active file, git status, and agent mode
  */

@@ -1,3 +1,8 @@
+/**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join } from 'node:path';
 import { readdir, stat, readFile, writeFile } from 'node:fs/promises';

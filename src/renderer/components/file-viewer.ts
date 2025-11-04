@@ -1,4 +1,9 @@
 /**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
  * File Viewer Component
  * Read-only text file viewer with syntax highlighting support
  */

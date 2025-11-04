@@ -51,6 +51,15 @@ USER_RESPONSE: YES
 Claude will:
 - Create or update files inside `/src/`, `/src/tests/`, `/src/main/`, `/src/preload/`, `/src/renderer/`.
 
+- **🚨 COPYRIGHT HEADER REQUIREMENT 🚨**: **ALL NEW SOURCE FILES MUST INCLUDE COPYRIGHT HEADER!**
+  ```typescript
+  /**
+   * © 2025 MiraNova Studios. All rights reserved.
+   * See the LICENSE file in the project root for full license text.
+   */
+  ```
+  This applies to all `.ts`, `.tsx`, and `.js` files. Do NOT add to `.d.ts` declaration files.
+
 - **IMPORTANT**: When instructed to iterate on a specific task (e.g., "SPRINT3_PLAN.md Task 1"), only implement that specific task and its requirements. Do not implement other tasks from the sprint unless explicitly instructed.
 
 - **TEST STRUCTURE**: Conform to the unit test structure defined in `nova/aeon/trajectory-1.0.0/TEST_STRUCTURE.md` if it exists. If no test structure exists, organize tests appropriately for the Nova Electron project (TypeScript/JavaScript).

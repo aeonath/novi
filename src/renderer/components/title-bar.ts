@@ -1,4 +1,9 @@
 /**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
  * Title Bar Component
  * Custom title bar with window controls for frameless window
  */

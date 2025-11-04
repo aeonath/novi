@@ -1,4 +1,9 @@
 /**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
  * Monaco Editor Integration for Nova
  * 
  * This component wraps the Monaco Editor and integrates it with Nova's theme system

@@ -1,4 +1,9 @@
 /**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
  * Command Palette Component (Placeholder)
  *
  * TODO: Implement command palette functionality

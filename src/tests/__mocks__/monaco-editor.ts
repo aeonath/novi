@@ -1,4 +1,9 @@
 /**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
  * Manual mock for monaco-editor
  * Used in unit tests to avoid loading the full Monaco library
  */

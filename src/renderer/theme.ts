@@ -1,4 +1,9 @@
 /**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
  * Nova Theme System
  * Provides a structured theme framework with color schemes, typography, and spacing
  */

@@ -1,3 +1,8 @@
+/**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
 // Action HUD Component - Contextual action interface
 // Replaces traditional command palette with simple, focused overlay
 
