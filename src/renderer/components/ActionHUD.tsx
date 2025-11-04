@@ -174,8 +174,10 @@ export const ActionHUD: React.FC<ActionHUDProps> = ({ actions: initialActions = 
                   ...styles.item,
                   ...(index === selectedIndex ? styles.itemSelected : {}),
                 }}
-                onClick={() => void executeAction(index)}
-                onMouseEnter={() => setSelectedIndex(index)}
+                onClick={() => {
+                  setSelectedIndex(index);
+                  void executeAction(index);
+                }}
               >
                 {action.label}
               </li>

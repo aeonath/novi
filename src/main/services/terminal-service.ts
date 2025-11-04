@@ -61,25 +61,22 @@ class TerminalService {
 
     logInfo(`[TerminalService] Creating terminal session ${id} with cwd: ${cwd || 'default'}`);
 
-    // Determine shell arguments based on shell type
-    const shellArgs: string[] = [];
-    if (bashPath.includes('bash.exe')) {
-      // Git bash or system bash: use non-interactive mode to avoid job control errors
-      // No --login or -i flags to prevent "inappropriate ioctl for device" errors
-      shellArgs.push('--norc'); // Don't read .bashrc to avoid extra messages
-    }
-
     // Spawn bash/cmd process
     const cwdPath = cwd || process.cwd();
-    const childProcess = spawn(bashPath, shellArgs, {
+    
+    // For bash, we need to provide a simple command that keeps it interactive
+    // Without -i flag to avoid job control errors, but with interactive prompt
+    const childProcess = spawn(bashPath, [], {
       cwd: cwdPath,
       env: {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
-        PS1: '$ ', // Simple prompt to avoid escape sequence issues
+        PS1: '$ ', // Simple prompt
+        BASH_ENV: '', // Don't source any startup files
       },
       stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false, // Don't wrap in another shell
     });
 
     const session: TerminalSession = {
