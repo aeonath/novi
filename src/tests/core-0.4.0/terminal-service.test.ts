@@ -75,7 +75,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(spawn).toHaveBeenCalledWith(
         'C:\\Program Files\\Git\\bin\\bash.exe',
-        ['--login', '-i'],
+        ['--norc'], // Non-interactive mode to avoid job control errors
         expect.any(Object)
       );
     });
@@ -88,7 +88,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(spawn).toHaveBeenCalledWith(
         'C:\\Windows\\System32\\bash.exe',
-        ['--login', '-i'],
+        ['--norc'], // Non-interactive mode to avoid job control errors
         expect.any(Object)
       );
     });
@@ -124,7 +124,7 @@ describe('TerminalService', () => {
 
       expect(spawn).toHaveBeenCalledWith(
         expect.any(String),
-        ['--login', '-i'], // Bash receives interactive login shell args
+        ['--norc'], // Bash receives --norc to avoid extra messages
         expect.objectContaining({
           cwd: cwd,
         })

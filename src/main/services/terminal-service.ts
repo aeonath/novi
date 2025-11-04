@@ -64,8 +64,9 @@ class TerminalService {
     // Determine shell arguments based on shell type
     const shellArgs: string[] = [];
     if (bashPath.includes('bash.exe')) {
-      // Git bash or system bash: use interactive login shell
-      shellArgs.push('--login', '-i');
+      // Git bash or system bash: use non-interactive mode to avoid job control errors
+      // No --login or -i flags to prevent "inappropriate ioctl for device" errors
+      shellArgs.push('--norc'); // Don't read .bashrc to avoid extra messages
     }
 
     // Spawn bash/cmd process
@@ -76,7 +77,7 @@ class TerminalService {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
-        PS1: '\\[\\033[1;32m\\]\\u@\\h\\[\\033[0m\\]:\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\$ ',
+        PS1: '$ ', // Simple prompt to avoid escape sequence issues
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     });

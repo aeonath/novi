@@ -86,9 +86,8 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
       fitAddonRef.current = fitAddon;
       setIsReady(true);
 
-      // Write welcome message
-      terminal.write('\x1b[1;32mNova Terminal\x1b[0m\r\n');
-      terminal.write('Type commands to execute...\r\n\r\n');
+      // Focus terminal immediately
+      terminal.focus();
 
       // Handle input
       terminal.onData((data) => {
