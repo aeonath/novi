@@ -343,6 +343,8 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   // Handle right-click
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    // Notify other components to close their context menus
+    window.dispatchEvent(new CustomEvent('nova-close-context-menus', { detail: { source: 'Terminal' } }));
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
@@ -354,6 +356,17 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       return () => document.removeEventListener('click', handleClick);
     }
   }, [contextMenu]);
+
+  // Close context menu when another component opens its menu
+  useEffect(() => {
+    const handleCloseContextMenus = (e: CustomEvent) => {
+      if (e.detail.source !== 'Terminal') {
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+    return () => window.removeEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+  }, []);
 
   return (
     <>
