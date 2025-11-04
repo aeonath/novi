@@ -226,7 +226,7 @@ const styles = {
     margin: 0,
     padding: 0,
     listStyle: 'none',
-    overflowY: 'auto' as const,
+    overflowY: 'hidden' as const,
     maxHeight: '50vh',
   },
   item: {

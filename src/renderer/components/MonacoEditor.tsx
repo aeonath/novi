@@ -92,6 +92,10 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
           right: 4,
         },
         scrollBeyondLastColumn: 5,
+        // Disable word-based completions
+        quickSuggestions: false,
+        wordBasedSuggestions: false,
+        suggestOnTriggerCharacters: false,
       });
 
       console.log('[MonacoEditor] Initialized successfully');
