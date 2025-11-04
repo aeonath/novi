@@ -160,15 +160,16 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 0,
-    transition: 'background-color 0.15s ease',
-  },
+    transition: 'background-color 0.15s ease, color 0.15s ease',
+    outline: 'none',
+  } as React.CSSProperties,
   buttonHover: {
     backgroundColor: '#3e3e42',
-    color: '#cccccc',
-  },
+    color: '#cccccc !important' as any,
+  } as React.CSSProperties,
   buttonHoverClose: {
     backgroundColor: '#e81123',
-    color: '#cccccc',
-  },
+    color: '#cccccc !important' as any,
+  } as React.CSSProperties,
 };
 
