@@ -222,7 +222,22 @@ export const App: React.FC = () => {
           </aside>
           
           <main style={styles.editorArea}>
-            <TabBar onAllTabsClosed={() => setShowWelcome(true)} />
+            <TabBar 
+              onAllTabsClosed={() => setShowWelcome(true)}
+              onTabSwitch={(tab) => {
+                console.log('[App] Tab switched to:', tab.fileName);
+                
+                // Load the tab's content into Monaco
+                if ((window as any).__monacoEditorAPI) {
+                  (window as any).__monacoEditorAPI.loadFile(tab.filePath, tab.content);
+                }
+                
+                // Update status bar
+                if ((window as any).__statusBarAPI) {
+                  (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
+                }
+              }}
+            />
             
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showWelcome && !monacoReady ? (
