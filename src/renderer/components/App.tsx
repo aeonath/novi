@@ -16,7 +16,7 @@ import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
-import { Terminal } from './terminal.js';
+import { Terminal } from './Terminal.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';

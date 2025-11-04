@@ -10,6 +10,8 @@ async function build() {
   try {
     console.log('[build-renderer] Starting renderer build...');
     
+    const fs = require('fs');
+    
     await esbuild.build({
       entryPoints: ['src/renderer/index.tsx'],
       bundle: true,
@@ -30,6 +32,15 @@ async function build() {
       jsx: 'automatic',
       jsxImportSource: 'react',
     });
+    
+    // Copy xterm.css to dist
+    const xtermCssSource = path.join(__dirname, '..', 'node_modules', '@xterm', 'xterm', 'css', 'xterm.css');
+    const xtermCssDest = path.join(__dirname, '..', 'dist', 'renderer', 'xterm.css');
+    
+    if (fs.existsSync(xtermCssSource)) {
+      fs.copyFileSync(xtermCssSource, xtermCssDest);
+      console.log('[build-renderer] ✓ xterm.css copied');
+    }
 
     console.log('[build-renderer] ✓ Renderer bundle created successfully');
   } catch (error) {

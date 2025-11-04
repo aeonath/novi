@@ -75,7 +75,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(spawn).toHaveBeenCalledWith(
         'C:\\Program Files\\Git\\bin\\bash.exe',
-        [],
+        ['--login', '-i'],
         expect.any(Object)
       );
     });
@@ -88,7 +88,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(spawn).toHaveBeenCalledWith(
         'C:\\Windows\\System32\\bash.exe',
-        [],
+        ['--login', '-i'],
         expect.any(Object)
       );
     });

@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import '@xterm/xterm/css/xterm.css';
+// Note: xterm.css is loaded in index.html
 
 export interface TerminalProps {
   terminalId: string;
@@ -154,9 +154,11 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
         width: '100%',
         height: '100%',
         backgroundColor: '#1e1e1e',
-        padding: '8px',
+        padding: '4px',
         boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
+      data-terminal-id={terminalId}
     />
   );
 };

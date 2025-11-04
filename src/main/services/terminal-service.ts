@@ -61,14 +61,22 @@ class TerminalService {
 
     logInfo(`[TerminalService] Creating terminal session ${id} with cwd: ${cwd || 'default'}`);
 
+    // Determine shell arguments based on shell type
+    const shellArgs: string[] = [];
+    if (bashPath.includes('bash.exe')) {
+      // Git bash or system bash: use interactive login shell
+      shellArgs.push('--login', '-i');
+    }
+
     // Spawn bash/cmd process
     const cwdPath = cwd || process.cwd();
-    const childProcess = spawn(bashPath, [], {
+    const childProcess = spawn(bashPath, shellArgs, {
       cwd: cwdPath,
       env: {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
+        PS1: '\\[\\033[1;32m\\]\\u@\\h\\[\\033[0m\\]:\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\$ ',
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
