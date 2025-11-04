@@ -82,7 +82,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
           onClick={handleMinimize}
           aria-label="Minimize"
         >
-          −
+          <svg width="10" height="1" viewBox="0 0 10 1" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="10" height="1" fill="#cccccc"/>
+          </svg>
         </button>
 
         <button
@@ -96,14 +98,21 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
           onClick={handleMaximize}
           aria-label={isMaximized ? 'Restore' : 'Maximize'}
         >
-          {isMaximized ? '❐' : '□'}
+          {isMaximized ? (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 2V0H10V8H8V10H0V2H2ZM8 2H2V8H8V2Z" fill="#cccccc"/>
+            </svg>
+          ) : (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="0" y="0" width="10" height="10" stroke="#cccccc" strokeWidth="1" fill="none"/>
+            </svg>
+          )}
         </button>
 
         <button
           className="title-bar-button title-bar-close"
           style={{
             ...styles.button,
-            fontSize: '20px',
             ...(hoveredButton === 'close' ? styles.buttonHoverClose : {}),
           }}
           onMouseEnter={() => setHoveredButton('close')}
@@ -111,7 +120,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
           onClick={handleClose}
           aria-label="Close"
         >
-          ×
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0.5 0L0 0.5L4.5 5L0 9.5L0.5 10L5 5.5L9.5 10L10 9.5L5.5 5L10 0.5L9.5 0L5 4.5L0.5 0Z" fill="#cccccc"/>
+          </svg>
         </button>
       </div>
     </div>
