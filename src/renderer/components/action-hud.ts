@@ -102,8 +102,8 @@ export class ActionHUD {
 
   private setupKeyboardListeners(): void {
     document.addEventListener('keydown', (e) => {
-      // Ctrl/Cmd + Space to toggle
-      if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
+      // Ctrl/Cmd + Space to toggle (or Ctrl/Cmd + K as alternative)
+      if ((e.ctrlKey || e.metaKey) && (e.key === ' ' || e.key === 'k')) {
         e.preventDefault();
         this.toggle();
         return;
