@@ -64,7 +64,16 @@ function createWindow(): void {
   // Show window when ready to prevent white screen
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    mainWindow.focus();
+    
+    // Force window to foreground on Windows
+    if (process.platform === 'win32') {
+      mainWindow.setAlwaysOnTop(true);
+      mainWindow.focus();
+      mainWindow.setAlwaysOnTop(false);
+    } else {
+      mainWindow.focus();
+    }
+    
     logInfo('Window shown and focused');
   });
 
