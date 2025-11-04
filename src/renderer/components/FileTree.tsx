@@ -421,9 +421,10 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '8px 12px',
-    minHeight: '35px',
+    height: '35px',
+    padding: '0 12px',
     borderBottom: '1px solid #3e3e42',
+    backgroundColor: '#252526',
   },
   title: {
     fontSize: '11px',
