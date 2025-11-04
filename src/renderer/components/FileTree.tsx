@@ -255,14 +255,23 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen }) => {
     handleContextMenu,
   };
 
+  // Extract directory name from rootPath
+  const getDirectoryName = (path: string | null): string => {
+    if (!path) return 'FILES';
+    const parts = path.replace(/\\/g, '/').split('/');
+    return parts[parts.length - 1] || 'FILES';
+  };
+
   return (
     <FileTreeContext.Provider value={contextValue}>
       <div style={styles.container} onContextMenu={(e) => handleContextMenu(e, null)}>
         <div style={styles.header}>
-          <span style={styles.title}>FILES</span>
-          <button style={styles.button} onClick={openDirectory} title="Open Folder">
-            📁
-          </button>
+          <span style={styles.title}>{getDirectoryName(rootPath)}</span>
+          {rootPath && (
+            <button style={styles.button} onClick={openDirectory} title="Open Folder">
+              📁
+            </button>
+          )}
         </div>
 
         {tree.length === 0 ? (
