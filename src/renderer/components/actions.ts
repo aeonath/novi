@@ -1,7 +1,7 @@
 // Action definitions and handlers
 // Centralized action system for reusability
 
-import { Action } from './action-hud';
+import { Action } from './action-hud.js';
 
 export interface ActionContext {
   onOpenFile?: () => void | Promise<void>;

@@ -1,13 +1,13 @@
 // Renderer process entry point
-import { ActionHUD } from './components/action-hud';
-import { createDefaultActions, ActionContext } from './components/actions';
-import { FileTree } from './components/file-tree';
-import { SettingsPanel } from './components/settings-panel';
-import { TitleBar } from './components/title-bar';
-import { StatusBar } from './components/status-bar';
-import { FileViewer } from './components/file-viewer';
-import { DiagnosticsPanel } from './components/diagnostics-panel';
-import { initializeThemeManager, themes } from './theme';
+import { ActionHUD } from './components/action-hud.js';
+import { createDefaultActions, ActionContext } from './components/actions.js';
+import { FileTree } from './components/file-tree.js';
+import { SettingsPanel } from './components/settings-panel.js';
+import { TitleBar } from './components/title-bar.js';
+import { StatusBar } from './components/status-bar.js';
+import { FileViewer } from './components/file-viewer.js';
+import { DiagnosticsPanel } from './components/diagnostics-panel.js';
+import { initializeThemeManager, themes } from './theme.js';
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
