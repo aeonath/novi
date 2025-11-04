@@ -10,6 +10,8 @@ import { DiagnosticsPanel } from './components/diagnostics-panel.js';
 import { initializeThemeManager, themes } from './theme.js';
 import { MonacoEditorView, detectLanguage } from './editor/index.js';
 import { TabBar, Tab } from './components/tab-bar.js';
+import { AutoSaveService } from './services/auto-save.js';
+import { RecoveryDialog } from './components/recovery-dialog.js';
 
 // Wait for Monaco to be loaded before initializing
 function waitForMonaco(): Promise<boolean> {
@@ -148,6 +150,7 @@ document.addEventListener('DOMContentLoaded', (): void => {
 
     // Handle setting changes (editor will be initialized later)
     let editorInstance: MonacoEditorView | null = null;
+    let autoSaveService: AutoSaveService | null = null;
     
     settingsPanel.onChange(async (id, value) => {
       // Save to storage
@@ -172,8 +175,11 @@ document.addEventListener('DOMContentLoaded', (): void => {
           }
           break;
         case 'autoSave':
-          // eslint-disable-next-line no-console
-          console.log(`Auto save ${value ? 'enabled' : 'disabled'}`);
+          // Update auto-save service
+          if (autoSaveService) {
+            autoSaveService.updateOptions({ enabled: Boolean(value) });
+            console.log(`[AutoSave] ${value ? 'enabled' : 'disabled'}`);
+          }
           break;
         case 'editorTabSize':
           // eslint-disable-next-line no-console
@@ -290,6 +296,91 @@ document.addEventListener('DOMContentLoaded', (): void => {
       
       return true;
     });
+
+    // Initialize Auto-Save Service
+    if (editorInstance && window.api) {
+      const autoSaveEnabled = await window.api.getSetting<boolean>('autoSave', true);
+      const autoSaveInterval = await window.api.getSetting<number>('autoSaveInterval', 30000);
+      
+      autoSaveService = new AutoSaveService({
+        enabled: autoSaveEnabled,
+        intervalMs: autoSaveInterval,
+      });
+      
+      // Provide callback to get dirty tabs
+      autoSaveService.onGetDirtyTabs(() => {
+        return tabBar.getTabs().filter(tab => tab.isDirty);
+      });
+      
+      // Notify when auto-save occurs
+      autoSaveService.onAutoSave((tabs) => {
+        console.log(`[AutoSave] Saved ${tabs.length} tab(s) to recovery`);
+        statusBar.setStatus('Auto-saved', 'Auto-save completed', 2000);
+      });
+      
+      // Start auto-save service
+      autoSaveService.start();
+      console.log('[AutoSave] Service started');
+    }
+
+    // Initialize Recovery Dialog
+    const recoveryDialog = new RecoveryDialog();
+    
+    // Check for recovery files on startup
+    if (window.api) {
+      try {
+        const recoveryFiles = await window.api.getRecoveryFiles();
+        if (recoveryFiles && recoveryFiles.length > 0) {
+          console.log(`[Recovery] Found ${recoveryFiles.length} recovery file(s) on startup`);
+          
+          // Handle restore action
+          recoveryDialog.onRestore(async (recoveryFile) => {
+            if (editorInstance) {
+              const fileName = recoveryFile.originalPath.split(/[\\/]/).pop() || 'Recovered File';
+              const language = detectLanguage(fileName);
+              
+              // Create tab for recovered file
+              const tab: Tab = {
+                id: recoveryFile.id,
+                filePath: recoveryFile.originalPath,
+                fileName: `${fileName} (Recovered)`,
+                isDirty: true, // Recovered files are dirty
+                content: recoveryFile.content,
+                language: language,
+              };
+              
+              tabBar.addTab(tab);
+              
+              // Delete the recovery file
+              await window.api?.deleteRecoveryFile(recoveryFile.id);
+              
+              console.log(`[Recovery] Restored: ${fileName}`);
+              statusBar.setStatus(`Restored: ${fileName}`);
+              
+              // Hide dialog after restore
+              recoveryDialog.hide();
+            }
+          });
+          
+          // Handle discard action
+          recoveryDialog.onDiscard(async (id) => {
+            await window.api?.deleteRecoveryFile(id);
+            console.log(`[Recovery] Discarded recovery file: ${id}`);
+          });
+          
+          // Handle discard all action
+          recoveryDialog.onDiscardAll(async () => {
+            await window.api?.clearRecoveryFiles();
+            console.log('[Recovery] Discarded all recovery files');
+          });
+          
+          // Show recovery dialog
+          void recoveryDialog.show();
+        }
+      } catch (error) {
+        console.error('[Recovery] Failed to check for recovery files:', error);
+      }
+    }
 
     // Initialize Action HUD
     const actionContext: ActionContext = {

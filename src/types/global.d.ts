@@ -18,6 +18,13 @@ export interface FileData {
   modified: Date;
 }
 
+export interface RecoveryFile {
+  id: string;
+  originalPath: string;
+  timestamp: number;
+  content: string;
+}
+
 declare global {
   // Monaco Editor AMD global
   const monaco: typeof import('monaco-editor');
@@ -37,6 +44,10 @@ declare global {
       readFile: (filePath: string) => Promise<FileData>;
       saveFile: (filePath: string, content: string) => Promise<{ path: string; size: number; modified: Date }>;
       saveFileAs: (content: string) => Promise<{ path: string; size: number; modified: Date } | null>;
+      saveRecoveryFiles: (tabs: Array<{ filePath: string; content: string }>) => Promise<{ success: boolean }>;
+      getRecoveryFiles: () => Promise<RecoveryFile[]>;
+      deleteRecoveryFile: (id: string) => Promise<{ success: boolean }>;
+      clearRecoveryFiles: () => Promise<{ success: boolean }>;
       windowMinimize: () => void;
       windowMaximize: () => void;
       windowClose: () => void;

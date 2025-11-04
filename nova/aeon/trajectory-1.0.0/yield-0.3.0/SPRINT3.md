@@ -127,6 +127,9 @@ Work is preserved even after interruption.
 **Objective:**  
 Verify performance after editor integration.
 
+Just do your best with this because Michael will be running the app.  Check what you can with 
+code.  Do not spend much time on this.  we can do performance tuning later.
+
 **Tasks:**  
 1. Measure startup time and editor load latency.  
 2. Confirm smooth performance for typical workloads.  
@@ -137,11 +140,11 @@ Nova remains lightweight and responsive.
 
 ## Task 10 — Documentation and Review
 **Objective:**  
-Finalize Sprint 3 and update all docs.
+Finalize Sprint 3 and update docs.
 
 **Tasks:**  
-1. Update README and CHANGELOG for version 0.2.0.  
-2. Document the editor system in DEV_NOTES.md.  
+1. Update README for version 0.3.0.  
+2. Document the editor system in docs/NOVA_EDITOR.md 
 **Result:**  
 Clear documentation reflecting a functional Nova editing environment.
 

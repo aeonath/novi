@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld('api', {
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
   saveFile: (filePath: string, content: string) => ipcRenderer.invoke('save-file', filePath, content),
   saveFileAs: (content: string) => ipcRenderer.invoke('save-file-as', content),
+  // Recovery operations
+  saveRecoveryFiles: (tabs: Array<{ filePath: string; content: string }>) => 
+    ipcRenderer.invoke('save-recovery-files', tabs),
+  getRecoveryFiles: () => ipcRenderer.invoke('get-recovery-files'),
+  deleteRecoveryFile: (id: string) => ipcRenderer.invoke('delete-recovery-file', id),
+  clearRecoveryFiles: () => ipcRenderer.invoke('clear-recovery-files'),
   // Window controls
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),

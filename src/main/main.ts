@@ -4,6 +4,7 @@ import { readdir, stat, readFile, writeFile } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
 import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './crash-reporter';
+import { saveRecoveryFiles, getRecoveryFiles, deleteRecoveryFile, clearAllRecoveryFiles, cleanupOldRecoveryFiles } from './recovery';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -79,6 +80,10 @@ function createWindow(): void {
 
 void app.whenReady().then(() => {
   logInfo('App ready');
+  
+  // Clean up old recovery files (older than 7 days)
+  void cleanupOldRecoveryFiles();
+  
   // IPC handler for app version
   ipcMain.handle('get-version', () => app.getVersion());
 
@@ -215,6 +220,46 @@ void app.whenReady().then(() => {
       };
     } catch (error) {
       logError(`Failed to save file as`, error);
+      throw error;
+    }
+  });
+
+  // Recovery file IPC handlers
+  ipcMain.handle('save-recovery-files', async (_e, tabs: Array<{ filePath: string; content: string }>) => {
+    try {
+      await saveRecoveryFiles(tabs);
+      return { success: true };
+    } catch (error) {
+      logError('Failed to save recovery files', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('get-recovery-files', async () => {
+    try {
+      return await getRecoveryFiles();
+    } catch (error) {
+      logError('Failed to get recovery files', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('delete-recovery-file', async (_e, id: string) => {
+    try {
+      await deleteRecoveryFile(id);
+      return { success: true };
+    } catch (error) {
+      logError(`Failed to delete recovery file ${id}`, error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('clear-recovery-files', async () => {
+    try {
+      await clearAllRecoveryFiles();
+      return { success: true };
+    } catch (error) {
+      logError('Failed to clear recovery files', error);
       throw error;
     }
   });
