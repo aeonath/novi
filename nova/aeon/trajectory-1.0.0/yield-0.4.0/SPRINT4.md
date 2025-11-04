@@ -146,11 +146,16 @@ The window will appear in a new tab window like an edited file
 
 The nova window can be opened by a right mouse click menu item New Nova Terminal
 
+Note the Nova terminal is not bash you will have to implement it in code
+
+it prompts with nova>  and reads in the command and then shows the output
+
 **Acceptance Criteria:**  
 - [ ] `nova> version` outputs correct build.  
 - [ ] `nova> open` opens the file open dialog box.
 - `nova> save` saves the current file open in the editor
-- `nova> help` displays a help message  
+- `nova> help` displays a help message 
+- `nova> list` shows the list of open tabs 
 
 
 **Notes for Claude:**    

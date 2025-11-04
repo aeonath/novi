@@ -281,6 +281,14 @@ const AppInner: React.FC = () => {
           // Switch to terminal tab
           setActiveTab({ id: terminalId, type: 'terminal' });
           console.log('[App] Switched to terminal tab:', terminalId);
+          
+          // Focus the terminal after a short delay to ensure it's rendered
+          setTimeout(() => {
+            if ((window as any).__terminalAPI && (window as any).__terminalAPI[terminalId]) {
+              console.log('[App] Focusing terminal:', terminalId);
+              (window as any).__terminalAPI[terminalId].focus();
+            }
+          }, 100);
         }
 
         // Update status bar
@@ -641,13 +649,7 @@ const AppInner: React.FC = () => {
                     (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
                   }
                 } else if (tab.type === 'terminal') {
-                  // Focus the terminal when switching to it
-                  setTimeout(() => {
-                    const terminalAPI = (window as any).__terminalAPI?.[tab.id];
-                    if (terminalAPI && terminalAPI.focus) {
-                      terminalAPI.focus();
-                    }
-                  }, 0);
+                  // Terminal component will handle focus via isActive prop
                   
                   // Update status bar for terminal
                   if ((window as any).__statusBarAPI) {
@@ -715,6 +717,7 @@ const AppInner: React.FC = () => {
                 >
                   <Terminal 
                     terminalId={tab.id}
+                    isActive={activeTab?.id === tab.id}
                     onData={async (data: string) => {
                       if (window.api?.terminalWrite) {
                         await window.api.terminalWrite(tab.id, data);

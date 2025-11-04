@@ -17,9 +17,10 @@ export interface TerminalProps {
   terminalId: string;
   onData?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
+  isActive?: boolean;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize }) => {
+export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize, isActive }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -163,6 +164,30 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
       }
     };
   }, [terminalId, isReady]);
+
+  // Refit and focus when terminal becomes active (visible)
+  useEffect(() => {
+    if (isActive && isReady && fitAddonRef.current && terminalRef.current) {
+      console.log('[Terminal] Terminal became active, refitting and focusing:', terminalId);
+      // Small delay to ensure display:flex has taken effect
+      setTimeout(() => {
+        if (fitAddonRef.current && terminalRef.current) {
+          fitAddonRef.current.fit();
+          const cols = terminalRef.current.cols;
+          const rows = terminalRef.current.rows;
+          console.log('[Terminal] Refitted to:', cols, 'x', rows);
+          
+          // Notify parent about new size
+          if (onResize && cols && rows) {
+            onResize(cols, rows);
+          }
+          
+          // Focus the terminal
+          terminalRef.current.focus();
+        }
+      }, 50);
+    }
+  }, [isActive, isReady, terminalId, onResize]);
 
   // Handle copy from terminal
   const handleCopy = useCallback(() => {
