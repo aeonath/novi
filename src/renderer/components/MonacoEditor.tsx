@@ -263,6 +263,12 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     editorServiceRef.current.clearDiagnostics();
   }, []);
 
+  const focus = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+  }, []);
+
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     loadFile,
@@ -281,6 +287,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     renameSymbol,
     runLinting,
     clearDiagnostics,
+    focus,
   }));
 
   // Expose to window for backward compatibility during migration
@@ -300,11 +307,12 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       renameSymbol,
       runLinting,
       clearDiagnostics,
+      focus,
     };
     return () => {
       delete (window as any).__monacoEditorAPI;
     };
-  }, [loadFile, getValue, setValue, isDirtyMethod, markAsSaved, getFilePath, updateOptions, formatDocument, goToDefinition, peekDefinition, findReferences, renameSymbol, runLinting, clearDiagnostics]);
+  }, [loadFile, getValue, setValue, isDirtyMethod, markAsSaved, getFilePath, updateOptions, formatDocument, goToDefinition, peekDefinition, findReferences, renameSymbol, runLinting, clearDiagnostics, focus]);
 
   return <div ref={containerRef} style={styles.container} />;
 });

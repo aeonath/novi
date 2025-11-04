@@ -74,20 +74,48 @@ async function initializeApp() {
 
     // Ensure document is always focusable and receives keyboard events
     const ensureFocus = () => {
-      console.log('[Renderer] Ensuring keyboard focus');
-      // Ensure body is focusable
+      console.log('[Renderer] Window gained focus, focusing active tab');
+      
+      // Try to focus the active tab (Monaco editor or terminal)
+      const tabBarAPI = (window as any).__tabBarAPI;
+      const monacoAPI = (window as any).__monacoEditorAPI;
+      const terminalAPI = (window as any).__terminalAPI;
+      
+      if (tabBarAPI) {
+        const activeTab = tabBarAPI.getActiveTab();
+        if (activeTab) {
+          // If it's a terminal tab, focus the terminal
+          if (activeTab.type === 'terminal' && terminalAPI && terminalAPI[activeTab.id]) {
+            console.log('[Renderer] Focusing terminal:', activeTab.id);
+            setTimeout(() => {
+              if (terminalAPI[activeTab.id]) {
+                terminalAPI[activeTab.id].focus();
+              }
+            }, 50);
+            return;
+          }
+          // If it's a file tab, focus Monaco editor
+          else if (activeTab.type === 'file' && monacoAPI && monacoAPI.focus) {
+            console.log('[Renderer] Focusing Monaco editor');
+            setTimeout(() => {
+              if (monacoAPI && monacoAPI.focus) {
+                monacoAPI.focus();
+              }
+            }, 50);
+            return;
+          }
+        }
+      }
+      
+      // Fallback: focus body if no active tab
+      console.log('[Renderer] No active tab, focusing body');
       if (!document.body.hasAttribute('tabindex')) {
         document.body.setAttribute('tabindex', '-1');
       }
-      // Focus body immediately and again after a short delay
       document.body.focus();
-      setTimeout(() => {
-        document.body.focus();
-        console.log('[Renderer] Body focused, Ctrl+K should work now');
-      }, 50);
     };
     
-    // Focus on window gaining focus
+    // Focus on window gaining focus (Alt+Tab back)
     window.addEventListener('focus', ensureFocus);
     
     // Focus on window becoming visible (after minimize/restore)
@@ -97,9 +125,6 @@ async function initializeApp() {
         ensureFocus();
       }
     });
-
-    // Trigger focus handler immediately on startup
-    ensureFocus();
 
     // Setup error handlers
     window.addEventListener('error', (ev) => {

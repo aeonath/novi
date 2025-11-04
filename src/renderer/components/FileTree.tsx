@@ -320,6 +320,12 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
             }}
             onRename={() => contextMenu.node && renameNode(contextMenu.node)}
             onDelete={() => contextMenu.node && deleteNode(contextMenu.node)}
+            onQuit={() => {
+              closeContextMenu();
+              if (window.api?.quit) {
+                window.api.quit();
+              }
+            }}
             onClose={closeContextMenu}
           />
         )}
@@ -393,10 +399,11 @@ interface ContextMenuProps {
   onNewTerminal: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onQuit: () => void;
   onClose: () => void;
 }
 
-const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onRename, onDelete, onClose }) => {
+const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onRename, onDelete, onQuit, onClose }) => {
   return (
     <div style={{ ...styles.contextMenu, left: x, top: y }} onClick={(e) => e.stopPropagation()}>
       <div style={styles.menuItem} onClick={onNewFile}>
@@ -419,6 +426,10 @@ const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFil
           </div>
         </>
       )}
+      <div style={styles.menuDivider} />
+      <div style={styles.menuItem} onClick={onQuit}>
+        🚪 Quit
+      </div>
     </div>
   );
 };
