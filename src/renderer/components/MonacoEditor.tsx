@@ -97,6 +97,24 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         suggestOnTriggerCharacters: false,
       });
 
+      // Hide specific context menu items
+      editorRef.current.onContextMenu(() => {
+        // Get the context menu and hide specific items
+        setTimeout(() => {
+          const menuItems = document.querySelectorAll('.monaco-menu-container .action-label');
+          menuItems.forEach((item: any) => {
+            const text = item.textContent || '';
+            // Hide "Change All Occurrences" and "Command Palette"
+            if (text.includes('Change All Occurrences') || text.includes('Command Palette')) {
+              const menuItem = item.closest('.action-item');
+              if (menuItem) {
+                (menuItem as HTMLElement).style.display = 'none';
+              }
+            }
+          });
+        }, 0);
+      });
+
       console.log('[MonacoEditor] Initialized successfully');
 
       // Initialize EditorService

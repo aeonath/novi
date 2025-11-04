@@ -471,7 +471,7 @@ const styles = {
     backgroundColor: '#252526',
   },
   title: {
-    fontSize: '11px',
+    fontSize: '13px',
     fontWeight: 'bold' as const,
     letterSpacing: '0.5px',
     color: '#858585',
