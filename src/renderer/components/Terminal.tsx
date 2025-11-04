@@ -1,0 +1,148 @@
+/**
+ * © 2025 MiraNova Studios. All rights reserved.
+ * See the LICENSE file in the project root for full license text.
+ */
+
+/**
+ * Terminal - Integrated terminal component using xterm.js
+ * Displays terminal output and handles user input
+ */
+
+import React, { useEffect, useRef, useState } from 'react';
+import { Terminal as XTerm } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
+
+export interface TerminalProps {
+  terminalId: string;
+  onData?: (data: string) => void;
+  onResize?: (cols: number, rows: number) => void;
+}
+
+export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<XTerm | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Initialize terminal session if not already created
+    // Note: Terminal session should be created before this component mounts
+    // This component assumes the session already exists
+
+    // Create xterm instance
+    const terminal = new XTerm({
+      theme: {
+        background: '#1e1e1e',
+        foreground: '#cccccc',
+        cursor: '#ffffff',
+        cursorAccent: '#000000',
+        selection: 'rgba(0, 122, 204, 0.3)',
+        black: '#000000',
+        red: '#cd3131',
+        green: '#0dbc79',
+        yellow: '#e5e510',
+        blue: '#2472c8',
+        magenta: '#bc3fbc',
+        cyan: '#11a8cd',
+        white: '#e5e5e5',
+        brightBlack: '#666666',
+        brightRed: '#f14c4c',
+        brightGreen: '#23d18b',
+        brightYellow: '#f5f543',
+        brightBlue: '#3b8eea',
+        brightMagenta: '#d670d6',
+        brightCyan: '#29b8db',
+        brightWhite: '#e5e5e5',
+      },
+      fontSize: 14,
+      fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
+      cursorBlink: true,
+      cursorStyle: 'block',
+      lineHeight: 1.2,
+      letterSpacing: 0,
+      scrollback: 1000,
+    });
+
+    // Create fit addon
+    const fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+
+    // Mount terminal to container
+    terminal.open(containerRef.current);
+    fitAddon.fit();
+
+    terminalRef.current = terminal;
+    fitAddonRef.current = fitAddon;
+    setIsReady(true);
+
+    // Handle input
+    terminal.onData((data) => {
+      onData?.(data);
+    });
+
+    // Handle resize
+    const handleResize = () => {
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+        const dimensions = terminalRef.current?.cols && terminalRef.current?.rows
+          ? { cols: terminalRef.current.cols, rows: terminalRef.current.rows }
+          : null;
+        if (dimensions) {
+          onResize?.(dimensions.cols, dimensions.rows);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      terminal.dispose();
+      terminalRef.current = null;
+      fitAddonRef.current = null;
+    };
+  }, [terminalId, onData, onResize]);
+
+  // Expose write method for incoming data
+  useEffect(() => {
+    if (terminalRef.current && isReady) {
+      (window as any).__terminalAPI = (window as any).__terminalAPI || {};
+      (window as any).__terminalAPI[terminalId] = {
+        write: (data: string) => {
+          if (terminalRef.current) {
+            terminalRef.current.write(data);
+          }
+        },
+        clear: () => {
+          if (terminalRef.current) {
+            terminalRef.current.clear();
+          }
+        },
+      };
+    }
+
+    return () => {
+      if ((window as any).__terminalAPI) {
+        delete (window as any).__terminalAPI[terminalId];
+      }
+    };
+  }, [terminalId, isReady]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#1e1e1e',
+        padding: '8px',
+        boxSizing: 'border-box',
+      }}
+    />
+  );
+};
+

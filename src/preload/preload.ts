@@ -48,6 +48,20 @@ contextBridge.exposeInMainWorld('api', {
   windowMaximize: () => ipcRenderer.send('window-maximize'),
   windowClose: () => ipcRenderer.send('window-close'),
   windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  // Terminal operations
+  terminalCreate: (cwd?: string, cols?: number, rows?: number) => ipcRenderer.invoke('terminal-create', cwd, cols, rows),
+  terminalWrite: (terminalId: string, data: string) => ipcRenderer.invoke('terminal-write', terminalId, data),
+  terminalResize: (terminalId: string, cols: number, rows: number) => ipcRenderer.invoke('terminal-resize', terminalId, cols, rows),
+  terminalKill: (terminalId: string) => ipcRenderer.invoke('terminal-kill', terminalId),
+  // Terminal event listener (for receiving data from main process)
+  terminalOnData: (callback: (terminalId: string, data: string) => void) => {
+    ipcRenderer.on('terminal-data', (_event, terminalId: string, data: string) => {
+      callback(terminalId, data);
+    });
+  },
+  terminalRemoveDataListener: () => {
+    ipcRenderer.removeAllListeners('terminal-data');
+  },
 });
 
 // Type definitions for the exposed API

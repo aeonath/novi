@@ -125,7 +125,7 @@ IF you need a shell you can use bash.exe in \program files\git\bin\bash.exe
 
 The terminal panel should be another TAB like an open file with title bash for now. 
 
-The terminal panel
+The terminal panel can be opened by new terminal on the right mouse click button.
 
 **Notes for Claude:**  
 - Use `xterm.js` in the renderer to create a terminal component that can be shown/hidden via a toggle control.  
@@ -141,6 +141,10 @@ Allow launching and operating Nova directly from the terminal.
 
 The window will be like a terminal window however the prompt *nova>* will appear before 
 each command input.
+
+The window will appear in a new tab window like an edited file
+
+The nova window can be opened by a right mouse click menu item New Nova Terminal
 
 **Acceptance Criteria:**  
 - [ ] `nova> version` outputs correct build.  

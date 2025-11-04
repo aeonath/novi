@@ -12,6 +12,7 @@ import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './cras
 import { saveRecoveryFiles, getRecoveryFiles, deleteRecoveryFile, clearAllRecoveryFiles, cleanupOldRecoveryFiles } from './recovery';
 import { logSuccess, logError as logFSError } from './services/fs-logger';
 import { gitService } from './services/git-service';
+import { terminalService } from './services/terminal-service';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -401,6 +402,68 @@ void app.whenReady().then(() => {
       throw error;
     }
   });
+
+  // Terminal IPC handlers
+  ipcMain.handle('terminal-create', async (_e, cwd?: string, cols = 80, rows = 24) => {
+    try {
+      const terminalId = terminalService.createSession(cwd, cols, rows);
+      const session = terminalService.getSession(terminalId);
+      
+      if (!session || !mainWindowRef) {
+        throw new Error('Failed to create terminal session');
+      }
+
+      // Forward stdout to renderer
+      session.process.stdout?.on('data', (data: Buffer) => {
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('terminal-data', terminalId, data.toString());
+        }
+      });
+
+      // Forward stderr to renderer
+      session.process.stderr?.on('data', (data: Buffer) => {
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('terminal-data', terminalId, data.toString());
+        }
+      });
+
+      logInfo(`[Main] Terminal ${terminalId} created successfully`);
+      return { id: terminalId };
+    } catch (error) {
+      logError('Failed to create terminal', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('terminal-write', async (_e, terminalId: string, data: string) => {
+    try {
+      const success = terminalService.writeToTerminal(terminalId, data);
+      return { success };
+    } catch (error) {
+      logError(`Failed to write to terminal ${terminalId}`, error as Error);
+      return { success: false };
+    }
+  });
+
+  ipcMain.handle('terminal-resize', async (_e, terminalId: string, cols: number, rows: number) => {
+    try {
+      const success = terminalService.resizeTerminal(terminalId, cols, rows);
+      return { success };
+    } catch (error) {
+      logError(`Failed to resize terminal ${terminalId}`, error as Error);
+      return { success: false };
+    }
+  });
+
+  ipcMain.handle('terminal-kill', async (_e, terminalId: string) => {
+    try {
+      const success = terminalService.killSession(terminalId);
+      return { success };
+    } catch (error) {
+      logError(`Failed to kill terminal ${terminalId}`, error as Error);
+      return { success: false };
+    }
+  });
   
   // Window control IPC handlers
   ipcMain.on('window-minimize', () => {
@@ -444,6 +507,8 @@ void app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   logInfo('All windows closed');
+  // Cleanup terminal sessions
+  terminalService.cleanup();
   if (mainWindowRef && !mainWindowRef.isDestroyed()) {
     const b = mainWindowRef.getBounds();
     setSetting('windowBounds', { width: b.width, height: b.height, x: b.x, y: b.y });

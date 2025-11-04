@@ -82,6 +82,13 @@ declare global {
       windowMaximize: () => void;
       windowClose: () => void;
       windowIsMaximized: () => Promise<boolean>;
+      // Terminal operations
+      terminalCreate: (cwd?: string, cols?: number, rows?: number) => Promise<{ id: string }>;
+      terminalWrite: (terminalId: string, data: string) => Promise<{ success: boolean }>;
+      terminalResize: (terminalId: string, cols: number, rows: number) => Promise<{ success: boolean }>;
+      terminalKill: (terminalId: string) => Promise<{ success: boolean }>;
+      terminalOnData: (callback: (terminalId: string, data: string) => void) => void;
+      terminalRemoveDataListener: () => void;
     };
   }
 }

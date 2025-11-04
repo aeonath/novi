@@ -11,11 +11,12 @@ import React, { useState, useCallback } from 'react';
 
 export interface Tab {
   id: string;
-  filePath: string;
+  type: 'file' | 'terminal';
+  filePath: string; // For files: actual path, for terminals: terminal ID
   fileName: string;
   isDirty: boolean;
-  content: string;
-  language: string;
+  content: string; // For files: file content, for terminals: not used
+  language: string; // For files: language mode, for terminals: 'terminal'
 }
 
 export interface TabBarProps {
@@ -30,12 +31,15 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
 
   const addTab = useCallback((tab: Tab) => {
     setTabs((prevTabs) => {
-      // Check if tab already exists
-      const existingTab = prevTabs.find((t) => t.filePath === tab.filePath);
-      if (existingTab) {
-        setActiveTabId(existingTab.id);
-        onTabSwitch?.(existingTab);
-        return prevTabs;
+      // For file tabs, check if tab already exists by filePath
+      // For terminal tabs, always create new (allow multiple terminals)
+      if (tab.type === 'file') {
+        const existingTab = prevTabs.find((t) => t.type === 'file' && t.filePath === tab.filePath);
+        if (existingTab) {
+          setActiveTabId(existingTab.id);
+          onTabSwitch?.(existingTab);
+          return prevTabs;
+        }
       }
 
       const newTabs = [...prevTabs, tab];
@@ -165,7 +169,7 @@ const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose }) =
     >
       <span style={styles.tabLabel}>
         {tab.fileName}
-        {tab.isDirty && <span style={styles.dirtyIndicator}> ●</span>}
+        {tab.type === 'file' && tab.isDirty && <span style={styles.dirtyIndicator}> ●</span>}
       </span>
       <button
         style={{

@@ -16,6 +16,7 @@ import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
+import { Terminal } from './Terminal.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
@@ -28,6 +29,7 @@ const AppInner: React.FC = () => {
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
   const { setGitStatus } = useAppContext();
 
   // Create action handlers
@@ -66,6 +68,7 @@ const AppInner: React.FC = () => {
           const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
           (window as any).__tabBarAPI.addTab({
             id: `tab-${Date.now()}`,
+            type: 'file',
             filePath: filePath,
             fileName: fileName,
             isDirty: false,
@@ -180,6 +183,7 @@ const AppInner: React.FC = () => {
           const fileName = result.path.split(/[\\/]/).pop() || 'untitled';
           (window as any).__tabBarAPI.addTab({
             id: `tab-${Date.now()}`,
+            type: 'file',
             filePath: result.path,
             fileName: fileName,
             isDirty: false,
@@ -335,6 +339,24 @@ const AppInner: React.FC = () => {
     };
   }, [actionContext.onOpenFile, actionContext.onSaveFile]);
 
+  // Set up terminal data listener
+  useEffect(() => {
+    if (!window.api?.terminalOnData) return;
+
+    window.api.terminalOnData((terminalId: string, data: string) => {
+      // Write data to the terminal component
+      if ((window as any).__terminalAPI && (window as any).__terminalAPI[terminalId]) {
+        (window as any).__terminalAPI[terminalId].write(data);
+      }
+    });
+
+    return () => {
+      if (window.api?.terminalRemoveDataListener) {
+        window.api.terminalRemoveDataListener();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     // Wait for Monaco to load
     console.log('[App] Setting up Monaco loader check');
@@ -390,6 +412,50 @@ const AppInner: React.FC = () => {
             <div style={{ display: showGitPanel ? 'none' : 'flex', flexDirection: 'column', height: '100%' }}>
               <FileTree
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
+                onNewTerminal={async () => {
+                  console.log('[App] New Terminal requested');
+                  
+                  if (!window.api?.terminalCreate) {
+                    console.error('[App] Terminal API not available');
+                    return;
+                  }
+
+                  try {
+                    // Create terminal session
+                    const result = await window.api.terminalCreate(workspaceRoot || undefined, 80, 24);
+                    const terminalId = result.id;
+
+                    // Hide welcome screen
+                    setShowWelcome(false);
+
+                    // Add terminal tab
+                    if ((window as any).__tabBarAPI) {
+                      const tabId = `terminal-${Date.now()}`;
+                      (window as any).__tabBarAPI.addTab({
+                        id: tabId,
+                        type: 'terminal',
+                        filePath: terminalId, // Use terminalId as filePath for terminals
+                        fileName: 'bash',
+                        isDirty: false,
+                        content: '',
+                        language: 'terminal',
+                      });
+                      
+                      // Switch to terminal tab
+                      setActiveTab({ id: tabId, type: 'terminal' });
+                    }
+
+                    // Update status bar
+                    if ((window as any).__statusBarAPI) {
+                      (window as any).__statusBarAPI.setStatus('Terminal: bash');
+                    }
+
+                    console.log('[App] Terminal created successfully');
+                  } catch (error) {
+                    console.error('[App] Failed to create terminal:', error);
+                    alert(`Failed to create terminal: ${(error as Error).message}`);
+                  }
+                }}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
                   setWorkspaceRoot(dirPath);
@@ -436,6 +502,7 @@ const AppInner: React.FC = () => {
                       const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
                       (window as any).__tabBarAPI.addTab({
                         id: `tab-${Date.now()}`,
+                        type: 'file',
                         filePath: filePath,
                         fileName: fileName,
                         isDirty: false,
@@ -478,19 +545,54 @@ const AppInner: React.FC = () => {
           
           <main style={styles.editorArea}>
             <TabBar 
-              onAllTabsClosed={() => setShowWelcome(true)}
+              onAllTabsClosed={() => {
+                setShowWelcome(true);
+                setActiveTab(null);
+              }}
               onTabSwitch={(tab) => {
-                console.log('[App] Tab switched to:', tab.fileName);
+                console.log('[App] Tab switched to:', tab.fileName, 'type:', tab.type);
+                setActiveTab({ id: tab.id, type: tab.type });
                 
-                // Load the tab's content into Monaco
-                if ((window as any).__monacoEditorAPI) {
-                  (window as any).__monacoEditorAPI.loadFile(tab.filePath, tab.content);
+                if (tab.type === 'file') {
+                  // Load the tab's content into Monaco
+                  if ((window as any).__monacoEditorAPI) {
+                    (window as any).__monacoEditorAPI.loadFile(tab.filePath, tab.content);
+                  }
+                  
+                  // Update status bar
+                  if ((window as any).__statusBarAPI) {
+                    (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
+                  }
+                } else if (tab.type === 'terminal') {
+                  // Update status bar for terminal
+                  if ((window as any).__statusBarAPI) {
+                    (window as any).__statusBarAPI.setStatus(`Terminal: ${tab.fileName}`);
+                  }
+                }
+              }}
+              onTabClose={async (tabId: string) => {
+                // Get the tab to check if it's a terminal
+                if ((window as any).__tabBarAPI) {
+                  const tabs = (window as any).__tabBarAPI.getTabs();
+                  const tab = tabs.find((t: any) => t.id === tabId);
+                  
+                  if (tab && tab.type === 'terminal') {
+                    // Kill terminal session
+                    if (window.api?.terminalKill) {
+                      await window.api.terminalKill(tab.filePath); // filePath is terminalId for terminals
+                    }
+                  }
+                  
+                  // For file tabs, check if they're dirty (unsaved changes)
+                  if (tab && tab.type === 'file' && tab.isDirty) {
+                    const shouldClose = confirm(`File "${tab.fileName}" has unsaved changes. Close anyway?`);
+                    if (!shouldClose) {
+                      return false;
+                    }
+                  }
                 }
                 
-                // Update status bar
-                if ((window as any).__statusBarAPI) {
-                  (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
-                }
+                return true;
               }}
             />
             
@@ -510,14 +612,42 @@ const AppInner: React.FC = () => {
                 </div>
               ) : null}
               
-              {/* Always render Monaco, but hide it when showing welcome */}
-              <div style={{ 
-                flex: 1, 
-                display: showWelcome ? 'none' : 'flex',
-                overflow: 'hidden',
-              }}>
-                <MonacoEditor />
-              </div>
+              {/* Show Monaco for file tabs, Terminal for terminal tabs */}
+              {activeTab?.type === 'terminal' ? (() => {
+                // Get terminalId from tab's filePath (which stores terminalId for terminal tabs)
+                const tab = (window as any).__tabBarAPI?.getTabs()?.find((t: any) => t.id === activeTab.id);
+                const terminalId = tab?.filePath || activeTab.id;
+                
+                return (
+                  <div style={{ 
+                    flex: 1, 
+                    display: 'flex',
+                    overflow: 'hidden',
+                  }}>
+                    <Terminal 
+                      terminalId={terminalId}
+                      onData={async (data: string) => {
+                        if (window.api?.terminalWrite) {
+                          await window.api.terminalWrite(terminalId, data);
+                        }
+                      }}
+                      onResize={async (cols: number, rows: number) => {
+                        if (window.api?.terminalResize) {
+                          await window.api.terminalResize(terminalId, cols, rows);
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })() : (
+                <div style={{ 
+                  flex: 1, 
+                  display: showWelcome ? 'none' : 'flex',
+                  overflow: 'hidden',
+                }}>
+                  <MonacoEditor />
+                </div>
+              )}
             </div>
           </main>
         </div>
