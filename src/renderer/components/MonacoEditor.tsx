@@ -92,42 +92,30 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         lineDecorationsWidth: 5,
         lineNumbersMinChars: 3,
         // Disable word-based completions
-        quickSuggestions: false,
-        wordBasedSuggestions: false,
+        quickSuggestions: {
+          other: false,
+          comments: false,
+          strings: false,
+        },
+        wordBasedSuggestions: 'off',
         suggestOnTriggerCharacters: false,
       });
 
-      // Hide specific context menu items more aggressively
-      editorRef.current.onContextMenu(() => {
-        // Use MutationObserver to catch menu when it appears
-        const observer = new MutationObserver(() => {
-          const menuContainer = document.querySelector('.monaco-menu-container');
-          if (menuContainer) {
-            const menuItems = menuContainer.querySelectorAll('.action-label');
-            menuItems.forEach((item: any) => {
-              const text = (item.textContent || '').trim();
-              // Hide unwanted items - check multiple variations
-              if (text === 'Change All Occurrences' || 
-                  text === 'Command Palette' ||
-                  text.includes('Change All Occurrence') ||
-                  text.includes('Command Palette')) {
-                const actionItem = item.closest('.action-item');
-                if (actionItem) {
-                  (actionItem as HTMLElement).style.display = 'none';
-                }
-              }
-            });
-            observer.disconnect();
-          }
-        });
-        
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true
-        });
-        
-        // Fallback timeout cleanup
-        setTimeout(() => observer.disconnect(), 500);
+      // Remove unwanted context menu actions at Monaco's internal level
+      // This filters them before the menu DOM is created, preventing re-insertion
+      const unwantedActionIds = [
+        'editor.action.changeAll',        // Change All Occurrences  
+        'editor.action.quickCommand',     // Command Palette
+      ];
+
+      // Get all editor actions and remove unwanted ones
+      const editorActions = editorRef.current.getSupportedActions();
+      unwantedActionIds.forEach(actionId => {
+        const action = editorActions.find((a: any) => a.id === actionId);
+        if (action) {
+          // Mark action as not supported to remove from context menu
+          (action as any).isSupported = () => false;
+        }
       });
 
       console.log('[MonacoEditor] Initialized successfully');

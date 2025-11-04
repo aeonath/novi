@@ -135,27 +135,27 @@ The terminal panel can be opened by new terminal on the right mouse click button
 - When the terminal panel is closed, tear down the pty session and any associated IPC listeners to avoid leaks.  
 
 
-# 🧩 Task 6 — Command-Line Interface (Nova CLI)
+# 🧩 Task 6 — Nova Prompt Command-Line Interface (Nova CLI)
 **Description:**  
-Allow launching and operating Nova directly from the terminal.
-
-The window will be like a terminal window however the prompt *nova>* will appear before 
+The Nova Prompt window will be like a terminal window however the prompt *nova>* will appear before 
 each command input.
 
-The window will appear in a new tab window like an edited file
+The Nova Prompt window will appear in a new tab window like an edited file
 
-The nova window can be opened by a right mouse click menu item New Nova Terminal
+The Nova window can be opened by a right mouse click menu item Nova Prompt
 
-Note the Nova terminal is not bash you will have to implement it in code
+Note the Nova Prompt is not bash you will have to implement it in code, it probably does not
+need full pty support
 
-it prompts with nova>  and reads in the command and then shows the output
+it prompts with nova>  and reads the command and then shows the output
 
 **Acceptance Criteria:**  
 - [ ] `nova> version` outputs correct build.  
 - [ ] `nova> open` opens the file open dialog box.
 - `nova> save` saves the current file open in the editor
 - `nova> help` displays a help message 
-- `nova> list` shows the list of open tabs 
+- `nova> list` shows the list of open tabs
+- `nova> ` waiting for input 
 
 
 
