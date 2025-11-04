@@ -30,6 +30,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     if (!workspaceRoot || !window.api?.gitGetStatus) return;
 
     try {
+      console.log('[GitPanel] Fetching Git status for:', workspaceRoot);
       const status = await window.api.gitGetStatus(workspaceRoot);
       setGitStatus(status);
       setError(null);
@@ -40,12 +41,24 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     }
   }, [workspaceRoot, onRefreshStatus]);
 
+  // Initial load and polling - FIXED: removed refreshStatus from deps to prevent infinite loop
   useEffect(() => {
+    if (!workspaceRoot) return;
+    
+    console.log('[GitPanel] Setting up Git status polling for:', workspaceRoot);
     refreshStatus();
-    // Refresh every 5 seconds
-    const interval = setInterval(refreshStatus, 5000);
-    return () => clearInterval(interval);
-  }, [refreshStatus]);
+    
+    // Poll every 30 seconds (reduced from 5s to prevent system overload)
+    const interval = setInterval(() => {
+      console.log('[GitPanel] Polling Git status');
+      refreshStatus();
+    }, 30000);
+    
+    return () => {
+      console.log('[GitPanel] Cleaning up Git status polling');
+      clearInterval(interval);
+    };
+  }, [workspaceRoot]); // Only depend on workspaceRoot, not refreshStatus
 
   const handleStageFile = useCallback(async (filePath: string) => {
     if (!workspaceRoot || !window.api?.gitStageFile) return;
