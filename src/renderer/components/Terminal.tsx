@@ -86,9 +86,6 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
       fitAddonRef.current = fitAddon;
       setIsReady(true);
 
-      // Focus terminal immediately
-      terminal.focus();
-
       // Handle input
       terminal.onData((data) => {
         onData?.(data);
@@ -121,7 +118,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
     };
   }, [terminalId, onData, onResize]);
 
-  // Expose write method for incoming data
+  // Expose write and focus methods for incoming data and tab switching
   useEffect(() => {
     if (terminalRef.current && isReady) {
       (window as any).__terminalAPI = (window as any).__terminalAPI || {};
@@ -134,6 +131,11 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
         clear: () => {
           if (terminalRef.current) {
             terminalRef.current.clear();
+          }
+        },
+        focus: () => {
+          if (terminalRef.current) {
+            terminalRef.current.focus();
           }
         },
       };

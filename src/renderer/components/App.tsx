@@ -572,6 +572,14 @@ const AppInner: React.FC = () => {
                     (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
                   }
                 } else if (tab.type === 'terminal') {
+                  // Focus the terminal when switching to it
+                  setTimeout(() => {
+                    const terminalAPI = (window as any).__terminalAPI?.[tab.id];
+                    if (terminalAPI && terminalAPI.focus) {
+                      terminalAPI.focus();
+                    }
+                  }, 0);
+                  
                   // Update status bar for terminal
                   if ((window as any).__statusBarAPI) {
                     (window as any).__statusBarAPI.setStatus(`Terminal: ${tab.fileName}`);
@@ -620,38 +628,51 @@ const AppInner: React.FC = () => {
                 </div>
               ) : null}
               
-              {/* Show Monaco for file tabs, Terminal for terminal tabs */}
-              {activeTab?.type === 'terminal' ? (
-                <div style={{ 
-                  flex: 1, 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                  backgroundColor: '#1e1e1e',
-                }}>
-                  <Terminal 
-                    terminalId={activeTab.id}
-                    onData={async (data: string) => {
-                      if (window.api?.terminalWrite) {
-                        await window.api.terminalWrite(activeTab.id, data);
-                      }
-                    }}
-                    onResize={async (cols: number, rows: number) => {
-                      if (window.api?.terminalResize) {
-                        await window.api.terminalResize(activeTab.id, cols, rows);
-                      }
-                    }}
-                  />
-                </div>
-              ) : (
-                <div style={{ 
-                  flex: 1, 
-                  display: showWelcome ? 'none' : 'flex',
-                  overflow: 'hidden',
-                }}>
-                  <MonacoEditor />
-                </div>
-              )}
+              {/* Render all terminals (hidden when not active) to preserve state */}
+              {(() => {
+                const allTabs = (window as any).__tabBarAPI?.getTabs() || [];
+                const terminalTabs = allTabs.filter((t: any) => t.type === 'terminal');
+                
+                return (
+                  <>
+                    {terminalTabs.map((tab: any) => (
+                      <div
+                        key={tab.id}
+                        style={{ 
+                          flex: 1, 
+                          display: activeTab?.id === tab.id ? 'flex' : 'none',
+                          flexDirection: 'column',
+                          overflow: 'hidden',
+                          backgroundColor: '#1e1e1e',
+                        }}
+                      >
+                        <Terminal 
+                          terminalId={tab.id}
+                          onData={async (data: string) => {
+                            if (window.api?.terminalWrite) {
+                              await window.api.terminalWrite(tab.id, data);
+                            }
+                          }}
+                          onResize={async (cols: number, rows: number) => {
+                            if (window.api?.terminalResize) {
+                              await window.api.terminalResize(tab.id, cols, rows);
+                            }
+                          }}
+                        />
+                      </div>
+                    ))}
+                    
+                    {/* Monaco Editor */}
+                    <div style={{ 
+                      flex: 1, 
+                      display: activeTab?.type === 'file' && !showWelcome ? 'flex' : 'none',
+                      overflow: 'hidden',
+                    }}>
+                      <MonacoEditor />
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </main>
         </div>
