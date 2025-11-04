@@ -306,8 +306,8 @@ document.addEventListener('DOMContentLoaded', (): void => {
 
     // Initialize Auto-Save Service
     if (editorInstance && window.api) {
-      const autoSaveEnabled = await window.api.getSetting<boolean>('autoSave', true);
-      const autoSaveInterval = await window.api.getSetting<number>('autoSaveInterval', 30000);
+      const autoSaveEnabled = (await window.api.getSetting<boolean>('autoSave', true)) ?? true;
+      const autoSaveInterval = (await window.api.getSetting<number>('autoSaveInterval', 30000)) ?? 30000;
       
       autoSaveService = new AutoSaveService({
         enabled: autoSaveEnabled,
@@ -322,7 +322,17 @@ document.addEventListener('DOMContentLoaded', (): void => {
       // Notify when auto-save occurs
       autoSaveService.onAutoSave((tabs) => {
         console.log(`[AutoSave] Saved ${tabs.length} tab(s) to recovery`);
-        statusBar.setStatus('Auto-saved', 'Auto-save completed', 2000);
+        statusBar.setStatus('Auto-saved', 'Auto-save completed');
+        // Reset status after 2 seconds
+        setTimeout(() => {
+          const activeTab = tabBar.getActiveTab();
+          if (activeTab) {
+            const dirtyMarker = activeTab.isDirty ? ' *' : '';
+            statusBar.setStatus(`Editing: ${activeTab.fileName}${dirtyMarker}`);
+          } else {
+            statusBar.setStatus('Ready');
+          }
+        }, 2000);
       });
       
       // Start auto-save service

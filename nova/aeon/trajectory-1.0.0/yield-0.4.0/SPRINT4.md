@@ -29,6 +29,18 @@ Introduce React as Nova’s renderer framework to support dynamic UI components,
 - Configure Vite/Webpack (whichever Nova is using) to support `.tsx` files and enable hot module reloading for renderer changes.  
 - Ensure `contextIsolation: true` remains enabled; React components should communicate with the main process exclusively via the preload IPC bridge.  
 - Verify that converting to React does **not** break existing preload usage, logging, or window creation logic.  
+- Implement a minimal `App.tsx` container that manages layout:  
+  ```tsx
+  <div className="nova-layout">
+    <FileBrowser />
+    <EditorView />
+    <StatusBar />
+  </div>
+  ```
+- Do not worry about hot reload now, do NOT implement Vite
+- Keep contextIsolation: true and ensure IPC preload still functions.
+
+
 
 ---
 
