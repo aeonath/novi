@@ -248,13 +248,83 @@ const AppInner: React.FC = () => {
   // Create actions
   const actions = useMemo(() => createDefaultActions(actionContext), [actionContext]);
 
-  // Global Ctrl+S keybinding for save
+  // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+O: Open file
+      if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
+        console.log('[App] Ctrl+O pressed, triggering open file');
+        void actionContext.onOpenFile?.();
+      }
+      
+      // Ctrl+S: Save file
       if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
         console.log('[App] Ctrl+S pressed, triggering save');
         void actionContext.onSaveFile?.();
+      }
+      
+      // Ctrl+D: Close file
+      if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        console.log('[App] Ctrl+D pressed, triggering close file');
+        
+        // Close the active tab
+        if ((window as any).__tabBarAPI) {
+          const activeTab = (window as any).__tabBarAPI.getActiveTab();
+          if (activeTab) {
+            void (window as any).__tabBarAPI.removeTab(activeTab.id);
+          }
+        }
+      }
+      
+      // Ctrl+R: Reload file from disk
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        console.log('[App] Ctrl+R pressed, triggering reload file');
+        
+        // Get current file path from Monaco
+        const monacoAPI = (window as any).__monacoEditorAPI;
+        if (monacoAPI && window.api?.readFile) {
+          const filePath = monacoAPI.getFilePath();
+          if (filePath) {
+            window.api.readFile(filePath)
+              .then((fileData: { content: string; encoding: string }) => {
+                console.log('[App] File reloaded from disk:', filePath);
+                monacoAPI.loadFile(filePath, fileData.content);
+                monacoAPI.markAsSaved();
+                
+                // Update tab content - find the tab by filePath first
+                if ((window as any).__tabBarAPI) {
+                  const tabs = (window as any).__tabBarAPI.getTabs();
+                  const matchingTab = tabs.find((t: any) => t.filePath === filePath);
+                  if (matchingTab) {
+                    (window as any).__tabBarAPI.updateTabContent(matchingTab.id, fileData.content);
+                    (window as any).__tabBarAPI.updateTabDirty(filePath, false);
+                  }
+                }
+                
+                // Update status bar
+                if ((window as any).__statusBarAPI) {
+                  (window as any).__statusBarAPI.setStatus('File reloaded');
+                  setTimeout(() => {
+                    if ((window as any).__statusBarAPI) {
+                      (window as any).__statusBarAPI.setStatus(`Editing: ${filePath.split(/[\\/]/).pop()}`);
+                    }
+                  }, 2000);
+                }
+              })
+              .catch((error: Error) => {
+                console.error('[App] Failed to reload file:', error);
+                if ((window as any).__statusBarAPI) {
+                  (window as any).__statusBarAPI.setStatus('Reload failed');
+                }
+              });
+          } else {
+            console.log('[App] No file open to reload');
+          }
+        }
       }
     };
 
@@ -262,7 +332,7 @@ const AppInner: React.FC = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
-  }, [actionContext.onSaveFile]);
+  }, [actionContext.onOpenFile, actionContext.onSaveFile]);
 
   useEffect(() => {
     // Wait for Monaco to load
