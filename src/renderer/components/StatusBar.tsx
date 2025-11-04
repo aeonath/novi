@@ -8,7 +8,6 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { useAppContext } from '../contexts/AppContext.js';
 
 export interface StatusBarItem {
   id: string;
@@ -23,7 +22,6 @@ export const StatusBar: React.FC = () => {
   const [items, setItems] = useState<Map<string, { item: StatusBarItem; section: StatusBarSection }>>(
     new Map([['main-status', { item: { id: 'main-status', text: 'Ready', priority: 100 }, section: 'left' }]])
   );
-  const { gitStatus } = useAppContext();
 
   // Public API exposed via ref (if needed by parent components)
   const setStatus = useCallback((text: string, tooltip?: string) => {
@@ -92,11 +90,6 @@ export const StatusBar: React.FC = () => {
         {itemsBySection.center.map((item) => (
           <StatusBarItemComponent key={item.id} item={item} />
         ))}
-        {gitStatus && (
-          <span style={styles.gitBranch} title={`Branch: ${gitStatus.branch}`}>
-            {gitStatus.branch}
-          </span>
-        )}
       </div>
 
       <div style={{ ...styles.section, justifyContent: 'flex-end' }}>
@@ -150,11 +143,6 @@ const styles = {
     cursor: 'default',
     whiteSpace: 'nowrap' as const,
     transition: 'background-color 0.15s ease',
-  },
-  gitBranch: {
-    padding: '2px 6px',
-    fontSize: '11px',
-    opacity: 0.9,
   },
 };
 

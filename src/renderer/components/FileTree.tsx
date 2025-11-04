@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useAppContext } from '../contexts/AppContext.js';
 
 export interface FileTreeProps {
   onFileOpen?: (filePath: string) => void;
@@ -45,6 +46,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const { gitStatus } = useAppContext();
 
   const openDirectory = useCallback(async () => {
     if (!window.api?.selectDirectory) return;
@@ -316,6 +318,15 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
             onClose={closeContextMenu}
           />
         )}
+
+        {gitStatus && gitStatus.isRepo && (
+          <div style={styles.footer}>
+            <span style={styles.gitIcon}>⎇</span>
+            <span style={styles.branchName}>{gitStatus.branch || 'detached'}</span>
+            {gitStatus.ahead > 0 && <span style={styles.badge}>↑{gitStatus.ahead}</span>}
+            {gitStatus.behind > 0 && <span style={styles.badge}>↓{gitStatus.behind}</span>}
+          </div>
+        )}
       </div>
     </FileTreeContext.Provider>
   );
@@ -535,5 +546,30 @@ const styles = {
     height: '1px',
     backgroundColor: '#3e3e42',
     margin: '4px 0',
+  },
+  footer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    borderTop: '1px solid #3e3e42',
+    backgroundColor: '#252526',
+    fontSize: '12px',
+    color: '#cccccc',
+  },
+  gitIcon: {
+    fontSize: '14px',
+    opacity: 0.9,
+  },
+  branchName: {
+    fontSize: '12px',
+    color: '#cccccc',
+  },
+  badge: {
+    fontSize: '11px',
+    padding: '2px 4px',
+    backgroundColor: '#007acc',
+    color: '#ffffff',
+    borderRadius: '3px',
   },
 };
