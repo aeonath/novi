@@ -423,10 +423,19 @@ void app.whenReady().then(() => {
         }
       });
 
-      // Forward stderr to renderer (convert LF to CRLF for proper terminal display)
+      // Forward stderr to renderer (filter error messages and convert LF to CRLF)
       session.process.stderr?.on('data', (data: Buffer) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
           let output = data.toString();
+          
+          // Filter out bash job control errors
+          if (output.includes('cannot set terminal process group') ||
+              output.includes('inappropriate ioctl for device') ||
+              output.includes('no job control in this shell')) {
+            // Suppress these errors - they're expected with piped I/O
+            return;
+          }
+          
           // Convert \n to \r\n for proper terminal line breaks
           output = output.replace(/\r?\n/g, '\r\n');
           mainWindowRef.webContents.send('terminal-data', terminalId, output);

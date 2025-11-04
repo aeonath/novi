@@ -64,19 +64,25 @@ class TerminalService {
     // Spawn bash/cmd process
     const cwdPath = cwd || process.cwd();
     
-    // For bash, we need to provide a simple command that keeps it interactive
-    // Without -i flag to avoid job control errors, but with interactive prompt
-    const childProcess = spawn(bashPath, [], {
+    // Determine shell arguments
+    const shellArgs: string[] = [];
+    const isCmdExe = bashPath.toLowerCase().includes('cmd.exe');
+    
+    if (!isCmdExe) {
+      // For bash: use -i for interactive mode
+      shellArgs.push('-i');
+    }
+    
+    const childProcess = spawn(bashPath, shellArgs, {
       cwd: cwdPath,
       env: {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
-        PS1: '$ ', // Simple prompt
-        BASH_ENV: '', // Don't source any startup files
+        PS1: '$ ', // Simple prompt for bash
       },
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false, // Don't wrap in another shell
+      shell: false,
     });
 
     const session: TerminalSession = {

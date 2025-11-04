@@ -75,7 +75,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(spawn).toHaveBeenCalledWith(
         'C:\\Program Files\\Git\\bin\\bash.exe',
-        [], // No args - let bash run normally
+        ['-i'], // Interactive mode for proper prompt
         expect.any(Object)
       );
     });
@@ -88,7 +88,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(spawn).toHaveBeenCalledWith(
         'C:\\Windows\\System32\\bash.exe',
-        [], // No args - let bash run normally
+        ['-i'], // Interactive mode for proper prompt
         expect.any(Object)
       );
     });
@@ -124,7 +124,7 @@ describe('TerminalService', () => {
 
       expect(spawn).toHaveBeenCalledWith(
         expect.any(String),
-        [], // No args - let bash run normally
+        ['-i'], // Interactive mode for proper prompt
         expect.objectContaining({
           cwd: cwd,
         })
