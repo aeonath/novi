@@ -182,6 +182,7 @@ const AppInner: React.FC = () => {
             {showGitPanel ? (
               <GitPanel
                 workspaceRoot={workspaceRoot}
+                onToggleFiles={() => setShowGitPanel(false)}
                 onRefreshStatus={async () => {
                   if (!workspaceRoot || !window.api?.gitGetStatus) return;
                   try {
@@ -197,28 +198,28 @@ const AppInner: React.FC = () => {
             ) : (
               <FileTree
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
-                onFileOpen={async (filePath: string) => {
-                  console.log('[App] FileTree file open:', filePath);
+                onDirectoryOpen={async (dirPath: string) => {
+                  console.log('[App] Directory opened:', dirPath);
+                  setWorkspaceRoot(dirPath);
                   
-                  // Extract workspace root from file path (parent directory)
-                  const pathParts = filePath.replace(/\\/g, '/').split('/');
-                  pathParts.pop(); // Remove filename
-                  const newWorkspaceRoot = pathParts.join('/');
-                  if (newWorkspaceRoot && newWorkspaceRoot !== workspaceRoot) {
-                    setWorkspaceRoot(newWorkspaceRoot);
-                    
-                    // Fetch git status for new workspace
-                    if (window.api?.gitGetStatus) {
-                      try {
-                        const status = await window.api.gitGetStatus(newWorkspaceRoot);
-                        if (status.isRepo) {
-                          setGitStatus(status);
-                        }
-                      } catch (error) {
-                        console.error('[App] Failed to get git status:', error);
+                  // Fetch git status for workspace
+                  if (window.api?.gitGetStatus) {
+                    try {
+                      const status = await window.api.gitGetStatus(dirPath);
+                      console.log('[App] Git status fetched:', status);
+                      if (status.isRepo) {
+                        setGitStatus(status);
+                      } else {
+                        setGitStatus(null);
                       }
+                    } catch (error) {
+                      console.error('[App] Failed to get git status:', error);
+                      setGitStatus(null);
                     }
                   }
+                }}
+                onFileOpen={async (filePath: string) => {
+                  console.log('[App] FileTree file open:', filePath);
                   
                   if (!window.api?.readFile) {
                     console.error('[App] File API not available');

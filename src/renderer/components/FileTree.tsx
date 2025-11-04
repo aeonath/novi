@@ -14,6 +14,7 @@ export interface FileTreeProps {
   onFileOpen?: (filePath: string) => void;
   onToggleGit?: () => void;
   showGitToggle?: boolean;
+  onDirectoryOpen?: (dirPath: string) => void;
 }
 
 interface FileNode {
@@ -39,7 +40,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -54,10 +55,15 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
 
       setRootPath(dirPath);
       await loadDirectory(dirPath);
+      
+      // Notify parent of directory change
+      if (onDirectoryOpen) {
+        onDirectoryOpen(dirPath);
+      }
     } catch (error) {
       console.error('[FileTree] Failed to open directory:', error);
     }
-  }, []);
+  }, [onDirectoryOpen]);
 
   const loadDirectory = async (path: string, parentPath?: string) => {
     if (!window.api?.readDirectory) return;

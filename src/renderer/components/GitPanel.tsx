@@ -14,9 +14,10 @@ import type { GitStatus, GitFileStatus } from '../../types/global';
 export interface GitPanelProps {
   workspaceRoot: string | null;
   onRefreshStatus?: () => void;
+  onToggleFiles?: () => void;
 }
 
-export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStatus }) => {
+export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStatus, onToggleFiles }) => {
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [commitMessage, setCommitMessage] = useState('');
   const [isCommitting, setIsCommitting] = useState(false);
@@ -188,9 +189,16 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
           {gitStatus.ahead > 0 && <span style={styles.badge}>↑{gitStatus.ahead}</span>}
           {gitStatus.behind > 0 && <span style={styles.badge}>↓{gitStatus.behind}</span>}
         </div>
-        <button style={styles.refreshButton} onClick={refreshStatus} title="Refresh">
-          ⟳
-        </button>
+        <div style={styles.headerButtons}>
+          {onToggleFiles && (
+            <button style={styles.refreshButton} onClick={onToggleFiles} title="Show Files">
+              📁
+            </button>
+          )}
+          <button style={styles.refreshButton} onClick={refreshStatus} title="Refresh">
+            ⟳
+          </button>
+        </div>
       </div>
 
       {/* Status messages */}
@@ -375,6 +383,10 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
     fontSize: '12px',
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: '4px',
   },
   branchIcon: {
     fontSize: '14px',
