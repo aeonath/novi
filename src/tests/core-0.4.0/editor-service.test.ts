@@ -149,6 +149,9 @@ describe('EditorService', () => {
     });
 
     it('should handle command errors gracefully', async () => {
+      // Suppress console.error for this test
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
       mockEditor.getAction = jest.fn(() => ({
         run: jest.fn().mockRejectedValue(new Error('Command failed')),
       }));
@@ -156,6 +159,12 @@ describe('EditorService', () => {
       const result = await editorService.formatDocument();
 
       expect(result).toBe(false);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[EditorService] Format failed:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
