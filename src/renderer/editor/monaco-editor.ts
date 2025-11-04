@@ -409,30 +409,66 @@ export function detectLanguage(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase();
   
   const languageMap: Record<string, string> = {
+    // JavaScript/TypeScript
     'js': 'javascript',
+    'mjs': 'javascript',
+    'cjs': 'javascript',
     'ts': 'typescript',
+    'mts': 'typescript',
+    'cts': 'typescript',
     'jsx': 'javascript',
     'tsx': 'typescript',
+    
+    // Web
     'json': 'json',
     'html': 'html',
+    'htm': 'html',
     'css': 'css',
     'scss': 'scss',
+    'sass': 'scss',
     'less': 'less',
+    'xml': 'xml',
+    
+    // Markup/Documentation
     'md': 'markdown',
-    'py': 'python',
-    'java': 'java',
+    'markdown': 'markdown',
+    'yaml': 'yaml',
+    'yml': 'yaml',
+    
+    // Systems Programming
     'c': 'c',
+    'h': 'c',
     'cpp': 'cpp',
+    'cc': 'cpp',
+    'cxx': 'cpp',
+    'hpp': 'cpp',
+    'hxx': 'cpp',
     'cs': 'csharp',
     'go': 'go',
     'rs': 'rust',
-    'php': 'php',
+    
+    // Scripting
+    'py': 'python',
+    'pyw': 'python',
     'rb': 'ruby',
     'sh': 'shell',
-    'xml': 'xml',
-    'yaml': 'yaml',
-    'yml': 'yaml',
+    'bash': 'shell',
+    'zsh': 'shell',
+    'php': 'php',
+    
+    // JVM Languages
+    'java': 'java',
+    'kt': 'kotlin',
+    'kts': 'kotlin',
+    'scala': 'scala',
+    
+    // Database
     'sql': 'sql',
+    
+    // Other
+    'r': 'r',
+    'swift': 'swift',
+    'dart': 'dart',
   };
 
   return languageMap[ext || ''] || 'plaintext';

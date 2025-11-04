@@ -299,6 +299,48 @@ describe('detectLanguage', () => {
     expect(detectLanguage('Test.JS')).toBe('javascript');
     expect(detectLanguage('Test.TS')).toBe('typescript');
   });
+
+  it('should detect modern JavaScript variants', () => {
+    expect(detectLanguage('module.mjs')).toBe('javascript');
+    expect(detectLanguage('module.cjs')).toBe('javascript');
+  });
+
+  it('should detect modern TypeScript variants', () => {
+    expect(detectLanguage('module.mts')).toBe('typescript');
+    expect(detectLanguage('module.cts')).toBe('typescript');
+  });
+
+  it('should detect C/C++ files', () => {
+    expect(detectLanguage('file.c')).toBe('c');
+    expect(detectLanguage('file.h')).toBe('c');
+    expect(detectLanguage('file.cpp')).toBe('cpp');
+    expect(detectLanguage('file.hpp')).toBe('cpp');
+    expect(detectLanguage('file.cc')).toBe('cpp');
+  });
+
+  it('should detect shell scripts', () => {
+    expect(detectLanguage('script.sh')).toBe('shell');
+    expect(detectLanguage('script.bash')).toBe('shell');
+    expect(detectLanguage('script.zsh')).toBe('shell');
+  });
+
+  it('should detect YAML files', () => {
+    expect(detectLanguage('config.yaml')).toBe('yaml');
+    expect(detectLanguage('config.yml')).toBe('yaml');
+  });
+
+  it('should detect JVM languages', () => {
+    expect(detectLanguage('Main.java')).toBe('java');
+    expect(detectLanguage('Main.kt')).toBe('kotlin');
+    expect(detectLanguage('Main.scala')).toBe('scala');
+  });
+
+  it('should detect web files', () => {
+    expect(detectLanguage('page.html')).toBe('html');
+    expect(detectLanguage('page.htm')).toBe('html');
+    expect(detectLanguage('style.scss')).toBe('scss');
+    expect(detectLanguage('style.sass')).toBe('scss');
+  });
 });
 
 describe('Monaco Environment Configuration', () => {
