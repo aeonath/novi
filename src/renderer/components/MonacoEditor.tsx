@@ -100,7 +100,24 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         }
       });
 
+      // Set up keyboard shortcuts for Find and Replace
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Ctrl+F for Find
+        if (e.ctrlKey && e.key === 'f') {
+          e.preventDefault();
+          editorRef.current?.getAction('actions.find')?.run();
+        }
+        // Ctrl+H for Replace
+        if (e.ctrlKey && e.key === 'h') {
+          e.preventDefault();
+          editorRef.current?.getAction('editor.action.startFindReplaceAction')?.run();
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+
       return () => {
+        document.removeEventListener('keydown', handleKeyDown);
         disposable?.dispose();
         editorServiceRef.current?.dispose();
         editorRef.current?.dispose();

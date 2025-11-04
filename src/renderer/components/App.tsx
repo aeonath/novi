@@ -180,7 +180,7 @@ export const App: React.FC = () => {
           </aside>
           
           <main style={styles.editorArea}>
-            <TabBar />
+            <TabBar onAllTabsClosed={() => setShowWelcome(true)} />
             
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showWelcome && !monacoReady ? (

@@ -21,9 +21,10 @@ export interface Tab {
 export interface TabBarProps {
   onTabSwitch?: (tab: Tab) => void;
   onTabClose?: (tabId: string) => Promise<boolean>;
+  onAllTabsClosed?: () => void;
 }
 
-export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose }) => {
+export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTabsClosed }) => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
@@ -65,6 +66,8 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose }) => {
           onTabSwitch?.(newTabs[newActiveIndex]);
         } else {
           setActiveTabId(null);
+          // Notify parent that all tabs are closed
+          onAllTabsClosed?.();
         }
       }
 
@@ -72,7 +75,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose }) => {
     });
 
     return true;
-  }, [activeTabId, onTabClose, onTabSwitch]);
+  }, [activeTabId, onTabClose, onTabSwitch, onAllTabsClosed]);
 
   const switchTab = useCallback((tabId: string) => {
     const tab = tabs.find((t) => t.id === tabId);
