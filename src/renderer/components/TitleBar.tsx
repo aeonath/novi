@@ -72,6 +72,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
 
       <div style={styles.controls}>
         <button
+          className="title-bar-button title-bar-minimize"
           style={{
             ...styles.button,
             ...(hoveredButton === 'minimize' ? styles.buttonHover : {}),
@@ -85,6 +86,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
         </button>
 
         <button
+          className="title-bar-button title-bar-maximize"
           style={{
             ...styles.button,
             ...(hoveredButton === 'maximize' ? styles.buttonHover : {}),
@@ -98,6 +100,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE' }) => {
         </button>
 
         <button
+          className="title-bar-button title-bar-close"
           style={{
             ...styles.button,
             fontSize: '20px',
