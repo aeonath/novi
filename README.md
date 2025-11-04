@@ -2,7 +2,7 @@
 
 Nova is MiraNova Studios' flagship orchestration platform - a next-generation code editor built with Electron and TypeScript. Nova prioritizes clarity, discoverability, and elegance over traditional IDE complexity.
 
-**Version:** 0.2.0 (Sprint 2 - Interaction Layer)  
+**Version:** 0.3.0 (Sprint 3 - Editing Core)  
 **Status:** Active Development
 
 ## Project Structure
@@ -21,19 +21,27 @@ src/
 │   ├── index.ts            # Renderer entry point and initialization
 │   ├── theme.ts            # Theme system (Light/Dark themes)
 │   ├── assets/             # Static assets (images, icons)
-│   └── components/         # UI components
-│       ├── action-hud.ts   # Contextual action interface (Ctrl/Cmd+Space)
-│       ├── actions.ts      # Action definitions and handlers
-│       ├── file-tree.ts    # File system browser
-│       ├── file-viewer.ts  # Read-only file viewer with line numbers
-│       ├── settings-panel.ts # Visual settings UI (no JSON editing)
-│       ├── title-bar.ts    # Custom window chrome
-│       ├── status-bar.ts   # Bottom status bar
-│       └── diagnostics-panel.ts # System diagnostics viewer
-├── tests/                  # Unit tests (271 tests)
+│   ├── components/         # UI components
+│   │   ├── action-hud.ts   # Contextual action interface (Ctrl/Cmd+K or Space)
+│   │   ├── actions.ts      # Action definitions and handlers
+│   │   ├── file-tree.ts    # File system browser
+│   │   ├── file-viewer.ts  # Read-only file viewer with line numbers
+│   │   ├── settings-panel.ts # Visual settings UI (no JSON editing)
+│   │   ├── title-bar.ts    # Custom window chrome
+│   │   ├── status-bar.ts   # Bottom status bar
+│   │   ├── tab-bar.ts      # Multi-document tab management
+│   │   ├── recovery-dialog.ts # Auto-save recovery UI
+│   │   └── diagnostics-panel.ts # System diagnostics viewer
+│   ├── editor/             # Monaco Editor integration
+│   │   ├── index.ts        # Editor module exports
+│   │   └── monaco-editor.ts # Monaco Editor wrapper and configuration
+│   └── services/           # Application services
+│       └── auto-save.ts    # Auto-save and recovery service
+├── tests/                  # Unit tests (362 tests)
 │   ├── setup.ts            # Jest test setup and configuration
 │   ├── core-0.1.0/         # Sprint 1 tests (foundation)
-│   └── core-0.2.0/         # Sprint 2 tests (interaction layer)
+│   ├── core-0.2.0/         # Sprint 2 tests (interaction layer)
+│   └── core-0.3.0/         # Sprint 3 tests (editing core)
 └── types/                  # TypeScript type definitions
     └── global.d.ts         # Global API types and interfaces
 ```
@@ -125,9 +133,10 @@ npm run test:coverage
 - **Jest** with **ts-jest** for TypeScript support
 - **jsdom** environment for DOM testing
 - Tests organized by sprint version in `src/tests/`
-- **Current test coverage: 271 tests (13 test suites)**
+- **Current test coverage: 362 tests (17 test suites)**
   - Sprint 1 (core-0.1.0): Settings, Logger, Crash Reporter, Packaging
   - Sprint 2 (core-0.2.0): UI Components, Actions, Theme System, File Operations
+  - Sprint 3 (core-0.3.0): Monaco Editor, Tab Bar, Auto-Save, Recovery Dialog
 
 ## Windows Packaging
 
@@ -203,7 +212,8 @@ If packaging hangs or fails:
 
 - **preload.ts**: Secure IPC bridge exposing `window.api` with:
   - Settings: `getSetting()`, `setSetting()`
-  - Files: `openFile()`, `readFile()`, `readDirectory()`, `selectDirectory()`
+  - Files: `openFile()`, `readFile()`, `saveFile()`, `saveFileAs()`, `readDirectory()`, `selectDirectory()`
+  - Recovery: `saveRecoveryFiles()`, `getRecoveryFiles()`, `deleteRecoveryFile()`, `clearRecoveryFiles()`
   - Window: `windowMinimize()`, `windowMaximize()`, `windowClose()`
   - Diagnostics: `copyDiagnostics()`, `getCrashesDirectory()`
   - Version: `getVersion()`, `ping()`
@@ -223,6 +233,56 @@ If packaging hangs or fails:
 - **Content Security Policy**: Configured in HTML
 
 ## Features
+
+### Sprint 3 (v0.3.0) - Editing Core ✅
+
+**Monaco Editor Integration:**
+- ✅ **Text Editing** - Full-featured code editor powered by Monaco
+  - Syntax highlighting for 30+ languages (JS/TS, HTML, CSS, Python, etc.)
+  - IntelliSense for JavaScript/TypeScript
+  - Multi-cursor editing (Alt+Click)
+  - Find/Replace with regex support (Ctrl+F / Ctrl+H)
+  - Code folding and bracket matching
+  - Auto-indentation and formatting
+- ✅ **Tabbed Document System** - Multi-file editing
+  - Multiple files open simultaneously
+  - Visual tabs with close buttons
+  - Dirty state indicators (*) for unsaved changes
+  - Seamless tab switching
+- ✅ **File Operations** - Complete I/O layer
+  - Open files (various text formats)
+  - Save and Save As functionality
+  - Unsaved changes confirmation
+  - Auto-save with recovery
+- ✅ **Theme Synchronization** - Unified appearance
+  - Nova Dark/Light themes apply to Monaco
+  - Custom syntax highlighting colors
+  - Seamless theme switching
+- ✅ **Editor Settings** - Persistent preferences
+  - Font size control (10-24px)
+  - Word wrap toggle
+  - Minimap disabled for clean interface
+  - Settings persist between sessions
+- ✅ **Auto-Save & Recovery** - Never lose work
+  - Automatic backup every 30 seconds
+  - Recovery dialog on startup
+  - Restore or discard unsaved work
+  - 7-day retention with automatic cleanup
+- ✅ **Performance** - Fast and responsive
+  - Startup time tracking
+  - Monaco loads in < 500ms
+  - Total startup < 1 second
+  - Non-blocking operations
+
+**Testing:**
+- ✅ **362 unit tests** passing (100% pass rate)
+- ✅ **91 new tests** for Sprint 3 features
+- ✅ Comprehensive coverage:
+  - Monaco editor integration
+  - Tab bar management
+  - Auto-save service
+  - Recovery dialog
+  - File save operations
 
 ### Sprint 2 (v0.2.0) - Interaction Layer ✅
 
@@ -275,7 +335,7 @@ If packaging hangs or fails:
 - ✅ Date-based logging system
 - ✅ Crash reporting and error handling
 - ✅ Window state persistence
-- ✅ Comprehensive unit test coverage (271 tests)
+- ✅ Comprehensive unit test coverage (362 tests)
 - ✅ Windows packaging (portable EXE and NSIS installer)
 
 ### Logging
@@ -297,8 +357,10 @@ Settings are stored in:
 
 **Available Settings:**
 - `theme`: "light" or "dark"
-- `fontSize`: 12-24px
+- `fontSize`: 10-24px (applies to editor)
 - `tabSize`: 2-8 spaces
+- `autoSave`: true/false (default: true)
+- `wordWrap`: true/false (editor word wrap)
 - Window bounds and position
 
 ### Theme System
@@ -315,9 +377,11 @@ Nova includes a comprehensive theme system:
 ### Quick Start
 
 1. **Open Nova** - Launch the application
-2. **Action HUD** - Press `Ctrl+Space` (Windows/Linux) or `Cmd+Space` (macOS)
+2. **Action HUD** - Press `Ctrl+K` or `Ctrl+Space` (Windows/Linux) or `Cmd+K`/`Cmd+Space` (macOS)
 3. **Available Actions:**
-   - **Open File** - Browse and open text files
+   - **Open File** - Browse and open files for editing
+   - **Save File** - Save current file
+   - **Save File As...** - Save with new name/location
    - **Reload File** - Refresh current file from disk
    - **Close File** - Close the file viewer
    - **Toggle Theme** - Switch between Light and Dark themes
@@ -336,38 +400,51 @@ Nova includes a comprehensive theme system:
 ### File Operations
 
 1. **Open a File:**
-   - Press `Ctrl/Cmd + Space`
+   - Press `Ctrl/Cmd + K`
    - Select "Open File"
-   - Choose a text file from the dialog
-   - View file contents with line numbers
+   - Choose a file from the dialog
+   - File opens in a new tab with syntax highlighting
 
-2. **Reload File:**
-   - Press `Ctrl/Cmd + Space`
-   - Select "Reload File"
-   - Current file refreshes from disk
+2. **Edit and Save:**
+   - Type to edit the file
+   - File is auto-saved every 30 seconds
+   - Press `Ctrl/Cmd + K` → "Save File" to save manually
+   - Or use "Save File As..." for new location
 
-3. **Close File:**
-   - Press `Ctrl/Cmd + Space`
-   - Select "Close File"
+3. **Multiple Files:**
+   - Open additional files to create tabs
+   - Click tabs to switch between files
+   - Close tabs with the X button
+   - Unsaved changes marked with *
+
+4. **Search in File:**
+   - Press `Ctrl/Cmd + F` to find
+   - Press `Ctrl/Cmd + H` to find and replace
+   - Use regex, case-sensitive, or whole word options
 
 ### Customization
 
 1. **Change Theme:**
-   - Press `Ctrl/Cmd + Space` → Settings
+   - Press `Ctrl/Cmd + K` → Settings
    - Select theme from dropdown
    - Or use "Toggle Theme" action for quick switching
 
-2. **Adjust Settings:**
-   - Press `Ctrl/Cmd + Space` → Settings
-   - Adjust font size, tab size, theme
-   - Changes apply immediately
+2. **Adjust Editor Settings:**
+   - Press `Ctrl/Cmd + K` → Settings
+   - Adjust font size, word wrap, auto-save, tab size
+   - Changes apply immediately to all open files
+
+3. **Auto-Save:**
+   - Enabled by default (30-second interval)
+   - Toggle in Settings Panel
+   - Recovery dialog appears on crash/restart with unsaved work
 
 ## Development Workflow
 
 1. **Make changes** to source files in `src/`
-2. **Run tests** to verify: `npm test` (271 tests should pass)
+2. **Run tests** to verify: `npm test` (362 tests should pass)
 3. **Build and run**: `npm start`
-4. **Test UI components** manually in the application
+4. **Test features** manually in the application
 5. **Package** (when ready): `npm run pack:win`
 
 ## Configuration
@@ -420,14 +497,14 @@ Nova includes a comprehensive theme system:
 1. Create feature branch from `dev-core`
 2. Write unit tests first (TDD approach)
 3. Implement feature following Nova's design principles
-4. Ensure **all 271+ tests pass**
+4. Ensure **all 362+ tests pass** (100% pass rate required)
 5. Update README if user-facing changes
 6. Create detailed changelog entry with:
    - Technical changes
    - User-facing impact
    - Test results
 7. Create sprint task summary
-8. Commit with descriptive message
+8. Commit with descriptive message (< 80 characters)
 
 ### Adding New Components
 
@@ -450,13 +527,7 @@ For issues and questions:
 
 ## Roadmap
 
-### Sprint 3 (v0.3.0) - Editor Foundation (Planned)
-- Text editing capabilities
-- Syntax highlighting
-- Multi-file tabs
-- Save/Save As functionality
-
-### Sprint 4 (v0.4.0) - Intelligence Layer (Planned)
+### Sprint 4 (v0.4.0) - Intelligence Layer (Next)
 - Code completion
 - IntelliSense
 - Linting integration
