@@ -413,17 +413,23 @@ void app.whenReady().then(() => {
         throw new Error('Failed to create terminal session');
       }
 
-      // Forward stdout to renderer
+      // Forward stdout to renderer (convert LF to CRLF for proper terminal display)
       session.process.stdout?.on('data', (data: Buffer) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          mainWindowRef.webContents.send('terminal-data', terminalId, data.toString());
+          let output = data.toString();
+          // Convert \n to \r\n for proper terminal line breaks
+          output = output.replace(/\r?\n/g, '\r\n');
+          mainWindowRef.webContents.send('terminal-data', terminalId, output);
         }
       });
 
-      // Forward stderr to renderer
+      // Forward stderr to renderer (convert LF to CRLF for proper terminal display)
       session.process.stderr?.on('data', (data: Buffer) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          mainWindowRef.webContents.send('terminal-data', terminalId, data.toString());
+          let output = data.toString();
+          // Convert \n to \r\n for proper terminal line breaks
+          output = output.replace(/\r?\n/g, '\r\n');
+          mainWindowRef.webContents.send('terminal-data', terminalId, output);
         }
       });
 

@@ -248,7 +248,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 0,
-    opacity: 0,
+    opacity: 1,
     transition: 'opacity 0.15s ease',
   },
   closeButtonVisible: {
