@@ -124,7 +124,7 @@ describe('TerminalService', () => {
 
       expect(spawn).toHaveBeenCalledWith(
         expect.any(String),
-        [],
+        ['--login', '-i'], // Bash receives interactive login shell args
         expect.objectContaining({
           cwd: cwd,
         })
