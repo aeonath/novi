@@ -184,13 +184,64 @@
     </style>
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; clipboard-read 'self'; clipboard-write 'self';"
+      content="default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:;"
+    />
+    <meta
+      http-equiv="Permissions-Policy"
+      content="clipboard-read=*, clipboard-write=*"
     />
     <!-- Note: unsafe-eval required for Monaco's AMD loader -->
   </head>
   <body>
     <!-- React Root -->
     <div id="root"></div>
+    
+    <!-- Clipboard polyfill for Electron -->
+    <script>
+      // Override navigator.clipboard to use Electron's clipboard API
+      if (window.api && window.api.clipboardReadText && window.api.clipboardWriteText) {
+        Object.defineProperty(navigator, 'clipboard', {
+          value: {
+            readText: async () => {
+              return window.api.clipboardReadText();
+            },
+            writeText: async (text) => {
+              window.api.clipboardWriteText(text);
+              return Promise.resolve();
+            },
+            read: async () => {
+              // Minimal implementation for compatibility
+              const text = window.api.clipboardReadText();
+              return Promise.resolve([{
+                types: ['text/plain'],
+                getType: async (type) => {
+                  if (type === 'text/plain') {
+                    return new Blob([text], { type: 'text/plain' });
+                  }
+                  throw new Error('Unsupported type');
+                }
+              }]);
+            },
+            write: async (data) => {
+              // Minimal implementation for compatibility
+              if (data && data.length > 0) {
+                const item = data[0];
+                if (item && item.types.includes('text/plain')) {
+                  const blob = await item.getType('text/plain');
+                  const text = await blob.text();
+                  window.api.clipboardWriteText(text);
+                }
+              }
+              return Promise.resolve();
+            }
+          },
+          writable: false,
+          configurable: false
+        });
+        console.log('[Clipboard] Polyfill installed using Electron clipboard API');
+      }
+    </script>
+    
     <!-- Load Monaco Editor via AMD loader -->
     <script src="./monaco-loader.js"></script>
     <script src="./vs/loader.js"></script>
