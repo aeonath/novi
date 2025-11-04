@@ -74,11 +74,13 @@ Consistent appearance across all UI elements.
 
 ## Task 5 — Editor Settings Persistence
 **Objective:**  
-Preserve editor-specific preferences.
+Preserve editor-specific preferences and disale minimap for now
 
 **Tasks:**  
-1. Store font size, minimap, and wrap settings via Settings Panel.  
-2. Apply instantly and persist on exit.  
+1. Store font size, and wrap settings via Settings Panel. 
+Font size already seems to be working 
+2. Apply instantly and persist on exit.
+3. Disable the minimap in the app for now.  
 **Result:**  
 A personalized editing experience that “just works.”
 
@@ -89,7 +91,7 @@ A personalized editing experience that “just works.”
 Enable syntax highlighting and minimal IntelliSense.
 
 **Tasks:**  
-1. Activate Monaco’s JS/TS/JSON modes.  
+1. Activate Monaco’s JS/TS/JSON, md, etc.  modes.  
 2. Load proper syntax automatically by file extension.  
 **Result:**  
 Intelligent, context-aware editing.

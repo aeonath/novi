@@ -177,7 +177,7 @@ export class MonacoEditorView {
         fontSize: options.fontSize || 14,
         wordWrap: options.wordWrap || 'on',
         minimap: {
-          enabled: options.minimap !== undefined ? options.minimap : true,
+          enabled: false, // Disabled for Sprint 3 Task 5
         },
         lineNumbers: options.lineNumbers || 'on',
         readOnly: options.readOnly || false,

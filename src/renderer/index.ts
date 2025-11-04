@@ -136,6 +136,13 @@ document.addEventListener('DOMContentLoaded', (): void => {
       step: 1,
     });
 
+    settingsPanel.addSetting({
+      id: 'wordWrap',
+      label: 'Word Wrap',
+      type: 'toggle',
+      value: true,
+    });
+
     // Load settings from storage
     await settingsPanel.loadFromStorage();
 
@@ -172,6 +179,12 @@ document.addEventListener('DOMContentLoaded', (): void => {
           // eslint-disable-next-line no-console
           console.log(`Tab size set to ${value}`);
           break;
+        case 'wordWrap':
+          // Update Monaco word wrap
+          if (editorInstance) {
+            editorInstance.updateOptions({ wordWrap: value ? 'on' : 'off' });
+          }
+          break;
       }
     });
 
@@ -197,12 +210,15 @@ document.addEventListener('DOMContentLoaded', (): void => {
     
     if (monacoLoaded && editorContainer) {
       try {
+        // Get saved settings for editor initialization
+        const savedFontSize = await window.api?.getSetting<number>('fontSize', 14) || 14;
+        const savedWordWrap = await window.api?.getSetting<boolean>('wordWrap', true);
+        
         // Show editor by default with welcome content
         editorInstance = new MonacoEditorView(editorContainer, {
           theme: currentTheme.id === 'light' ? 'light' : 'dark',
-          fontSize: 14,
-          wordWrap: 'on',
-          minimap: true,
+          fontSize: savedFontSize,
+          wordWrap: savedWordWrap ? 'on' : 'off',
           lineNumbers: 'on',
         });
         
