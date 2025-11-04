@@ -16,8 +16,10 @@ export class ActionHUD {
 
   constructor(actions: Action[] = []) {
     this.actions = actions;
+    console.log('[ActionHUD] Initializing with', actions.length, 'actions');
     this.createOverlay();
     this.setupKeyboardListeners();
+    console.log('[ActionHUD] Initialized successfully');
   }
 
   private createOverlay(): void {
@@ -101,9 +103,16 @@ export class ActionHUD {
   }
 
   private setupKeyboardListeners(): void {
+    console.log('[ActionHUD] Setting up keyboard listeners');
     document.addEventListener('keydown', (e) => {
+      // Debug: log all Ctrl/Cmd keypresses
+      if (e.ctrlKey || e.metaKey) {
+        console.log('[ActionHUD] Ctrl/Cmd key pressed:', e.key, 'ctrlKey:', e.ctrlKey, 'metaKey:', e.metaKey);
+      }
+      
       // Ctrl/Cmd + Space to toggle (or Ctrl/Cmd + K as alternative)
       if ((e.ctrlKey || e.metaKey) && (e.key === ' ' || e.key === 'k')) {
+        console.log('[ActionHUD] Toggle triggered!');
         e.preventDefault();
         this.toggle();
         return;
