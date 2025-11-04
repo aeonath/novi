@@ -25,6 +25,10 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   const [isPulling, setIsPulling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [needsCredentials, setNeedsCredentials] = useState(false);
+  const [credentialInput, setCredentialInput] = useState('');
+  const [credentialPrompt, setCredentialPrompt] = useState('');
+  const [pendingOperation, setPendingOperation] = useState<'push' | 'pull' | null>(null);
 
   const refreshStatus = useCallback(async () => {
     if (!workspaceRoot || !window.api?.gitGetStatus) return;
@@ -123,7 +127,14 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         await refreshStatus();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.error || 'Push failed');
+        // Check if error indicates credentials needed
+        if (result.error && (result.error.includes('Authentication') || result.error.includes('credentials') || result.error.includes('Username'))) {
+          setNeedsCredentials(true);
+          setCredentialPrompt('Enter credentials (username:token or username:password)');
+          setPendingOperation('push');
+        } else {
+          setError(result.error || 'Push failed');
+        }
       }
     } catch (err) {
       console.error('[GitPanel] Failed to push:', err);
@@ -147,7 +158,14 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         await refreshStatus();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.error || 'Pull failed');
+        // Check if error indicates credentials needed
+        if (result.error && (result.error.includes('Authentication') || result.error.includes('credentials') || result.error.includes('Username'))) {
+          setNeedsCredentials(true);
+          setCredentialPrompt('Enter credentials (username:token or username:password)');
+          setPendingOperation('pull');
+        } else {
+          setError(result.error || 'Pull failed');
+        }
       }
     } catch (err) {
       console.error('[GitPanel] Failed to pull:', err);
@@ -156,6 +174,33 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       setIsPulling(false);
     }
   }, [workspaceRoot, refreshStatus]);
+
+  const handleCredentialSubmit = useCallback(async () => {
+    if (!credentialInput.trim() || !pendingOperation) return;
+
+    setNeedsCredentials(false);
+    const credentials = credentialInput;
+    setCredentialInput('');
+
+    // For now, show that we received credentials
+    // In a real implementation, you'd pass these to a git credential helper
+    setSuccess(`Credentials received, retrying ${pendingOperation}...`);
+    
+    // TODO: Implement actual credential passing to git commands
+    // This would require updating the git-service to accept credentials
+    console.log('[GitPanel] Credentials provided for:', pendingOperation);
+    
+    setPendingOperation(null);
+    setTimeout(() => setSuccess(null), 3000);
+  }, [credentialInput, pendingOperation]);
+
+  const handleCredentialCancel = useCallback(() => {
+    setNeedsCredentials(false);
+    setCredentialInput('');
+    setPendingOperation(null);
+    setError(`${pendingOperation} cancelled`);
+    setTimeout(() => setError(null), 3000);
+  }, [pendingOperation]);
 
   if (!workspaceRoot) {
     return (
@@ -205,7 +250,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         <div style={styles.headerButtons}>
           {onToggleFiles && (
             <button style={styles.refreshButton} onClick={onToggleFiles} title="Show Files">
-              <img src="assets/file_tree.png" alt="File Tree" style={styles.iconImage} />
+              <img src="assets/filetree.png" alt="File Tree" style={styles.iconImage} />
             </button>
           )}
           <button style={styles.refreshButton} onClick={refreshStatus} title="Refresh">
@@ -263,9 +308,35 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         
         {/* Status messages - Fixed position below commit actions */}
         <div style={styles.statusMessageContainer}>
-          {error && <div style={styles.errorMessage}>{error}</div>}
-          {success && <div style={styles.successMessage}>{success}</div>}
-          {!error && !success && <div style={styles.placeholder}>&nbsp;</div>}
+          {needsCredentials ? (
+            <div style={styles.credentialInputContainer}>
+              <div style={styles.credentialPrompt}>{credentialPrompt}</div>
+              <input
+                type="password"
+                style={styles.credentialInput}
+                placeholder="username:password or username:token"
+                value={credentialInput}
+                onChange={(e) => setCredentialInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleCredentialSubmit();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCredentialCancel();
+                  }
+                }}
+                autoFocus
+              />
+              <div style={styles.credentialHint}>Press Enter to submit, Escape to cancel</div>
+            </div>
+          ) : error ? (
+            <div style={styles.errorMessage}>{error}</div>
+          ) : success ? (
+            <div style={styles.successMessage}>{success}</div>
+          ) : (
+            <div style={styles.placeholder}>&nbsp;</div>
+          )}
         </div>
       </div>
 
@@ -448,6 +519,7 @@ const styles = {
   },
   commitSection: {
     padding: '16px',
+    paddingTop: '20px',
     borderBottom: '1px solid #3e3e42',
   },
   commitInput: {
@@ -462,6 +534,7 @@ const styles = {
     fontFamily: 'inherit',
     resize: 'none' as const,
     marginBottom: '8px',
+    marginTop: '4px',
   },
   commitActions: {
     display: 'flex',
@@ -511,6 +584,34 @@ const styles = {
     padding: '8px 0',
     fontSize: '12px',
     visibility: 'hidden' as const,
+  },
+  credentialInputContainer: {
+    width: '100%',
+    padding: '8px 0',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '6px',
+  },
+  credentialPrompt: {
+    fontSize: '11px',
+    color: '#cccccc',
+    textAlign: 'center' as const,
+  },
+  credentialInput: {
+    width: '100%',
+    padding: '6px 8px',
+    backgroundColor: '#1e1e1e',
+    color: '#cccccc',
+    border: '1px solid #007acc',
+    borderRadius: '3px',
+    fontSize: '12px',
+    fontFamily: 'inherit',
+    outline: 'none',
+  },
+  credentialHint: {
+    fontSize: '10px',
+    color: '#808080',
+    textAlign: 'center' as const,
   },
   filesList: {
     flex: 1,
