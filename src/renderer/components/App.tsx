@@ -8,7 +8,7 @@
  * Main layout structure for Nova IDE
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
@@ -32,6 +32,9 @@ const AppInner: React.FC = () => {
   const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const { setGitStatus } = useAppContext();
+  
+  // Ref for welcome screen to focus it immediately on mount
+  const welcomeRef = useRef<HTMLDivElement>(null);
 
   // Set up global terminal data listener
   useEffect(() => {
@@ -439,75 +442,13 @@ const AppInner: React.FC = () => {
     };
   }, []);
 
-  // AGGRESSIVE multi-stage focus strategy to ensure Ctrl+K works immediately
+  // Focus the welcome screen when it's visible so Ctrl+K works immediately
   useEffect(() => {
-    console.log('[App] Starting aggressive focus strategy');
-    
-    // Ensure body is focusable from the start
-    if (!document.body.hasAttribute('tabindex')) {
-      document.body.setAttribute('tabindex', '-1');
+    if (showWelcome && welcomeRef.current) {
+      console.log('[App] Focusing welcome screen for keyboard shortcuts');
+      welcomeRef.current.focus();
     }
-    
-    // Stage 1: Immediate focus
-    document.body.focus();
-    console.log('[App] Focus stage 1: Immediate (0ms)');
-    
-    // Stage 2: Early focus (after initial render)
-    const timer1 = setTimeout(() => {
-      document.body.focus();
-      console.log('[App] Focus stage 2: Early (100ms)');
-    }, 100);
-    
-    // Stage 3: Mid focus (after most components mount)
-    const timer2 = setTimeout(() => {
-      document.body.focus();
-      console.log('[App] Focus stage 3: Mid (300ms)');
-    }, 300);
-    
-    // Stage 4: Late focus (after all components definitely mounted)
-    const timer3 = setTimeout(() => {
-      document.body.focus();
-      console.log('[App] Focus stage 4: Late (600ms)');
-    }, 600);
-    
-    // Stage 5: Final focus (safety net)
-    const timer4 = setTimeout(() => {
-      document.body.focus();
-      console.log('[App] Focus stage 5: Final (1000ms) - Ctrl+K should definitely work now');
-    }, 1000);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-    };
-  }, []); // Only run once on mount
-
-  // DEBUG: Log keyboard events to diagnose Ctrl+K issues
-  useEffect(() => {
-    const debugKeyDown = (e: KeyboardEvent) => {
-      // Only log Ctrl+K attempts
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        console.log('[App] DEBUG: Ctrl+K detected!', {
-          target: e.target,
-          currentTarget: e.currentTarget,
-          activeElement: document.activeElement,
-          bodyHasTabindex: document.body.hasAttribute('tabindex'),
-          ctrlKey: e.ctrlKey,
-          metaKey: e.metaKey,
-          key: e.key
-        });
-      }
-    };
-    
-    document.addEventListener('keydown', debugKeyDown, { capture: true });
-    console.log('[App] Keyboard debug listener installed');
-    
-    return () => {
-      document.removeEventListener('keydown', debugKeyDown, { capture: true });
-    };
-  }, []);
+  }, [showWelcome, monacoReady]); // Re-focus when welcome state changes
 
   useEffect(() => {
     // Wait for Monaco to load
@@ -554,20 +495,8 @@ const AppInner: React.FC = () => {
     };
   }, []);
 
-  // Click handler to ensure focus is set when user clicks anywhere
-  const handleRootClick = useCallback(() => {
-    if (!document.body.hasAttribute('tabindex')) {
-      document.body.setAttribute('tabindex', '-1');
-    }
-    document.body.focus();
-  }, []);
-
   return (
-      <div 
-        className="nova-layout" 
-        style={styles.layout}
-        onClick={handleRootClick}
-      >
+      <div className="nova-layout" style={styles.layout}>
         <TitleBar />
         
         <div style={styles.mainContent}>
@@ -731,12 +660,12 @@ const AppInner: React.FC = () => {
             
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showWelcome && !monacoReady ? (
-                <div style={styles.welcome}>
+                <div ref={welcomeRef} tabIndex={-1} style={styles.welcome}>
                   <h1>Nova</h1>
                   <p>Loading editor...</p>
                 </div>
               ) : showWelcome ? (
-                <div style={styles.welcome}>
+                <div ref={welcomeRef} tabIndex={-1} style={styles.welcome}>
                   <h1>Nova</h1>
                   <p>Open a file to start editing</p>
                   <p style={{ fontSize: '0.9em', opacity: 0.7 }}>
@@ -840,6 +769,7 @@ const styles = {
     justifyContent: 'center',
     fontSize: '1.2em',
     textAlign: 'center' as const,
+    outline: 'none', // No focus ring when focused for keyboard shortcuts
   },
 };
 
