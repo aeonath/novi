@@ -30,6 +30,7 @@ const AppInner: React.FC = () => {
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
+  const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const { setGitStatus } = useAppContext();
 
   // Set up global terminal data listener
@@ -263,6 +264,10 @@ const AppInner: React.FC = () => {
             content: '',
             language: 'terminal',
           });
+          
+          // Add to terminal tabs state to trigger re-render
+          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: 'bash' }]);
+          console.log('[App] Added terminal to state:', terminalId);
           
           // Switch to terminal tab
           setActiveTab({ id: terminalId, type: 'terminal' });
@@ -623,6 +628,10 @@ const AppInner: React.FC = () => {
                     if (window.api?.terminalKill) {
                       await window.api.terminalKill(tab.filePath); // filePath is terminalId for terminals
                     }
+                    
+                    // Remove from terminal tabs state
+                    setTerminalTabs(prev => prev.filter(t => t.id !== tabId));
+                    console.log('[App] Removed terminal from state:', tabId);
                   }
                   
                   // For file tabs, check if they're dirty (unsaved changes)
@@ -655,50 +664,41 @@ const AppInner: React.FC = () => {
               ) : null}
               
               {/* Render all terminals (hidden when not active) to preserve state */}
-              {(() => {
-                const allTabs = (window as any).__tabBarAPI?.getTabs() || [];
-                const terminalTabs = allTabs.filter((t: any) => t.type === 'terminal');
-                
-                return (
-                  <>
-                    {terminalTabs.map((tab: any) => (
-                      <div
-                        key={tab.id}
-                        style={{ 
-                          flex: 1, 
-                          display: activeTab?.id === tab.id ? 'flex' : 'none',
-                          flexDirection: 'column',
-                          overflow: 'hidden',
-                          backgroundColor: '#1e1e1e',
-                        }}
-                      >
-                        <Terminal 
-                          terminalId={tab.id}
-                          onData={async (data: string) => {
-                            if (window.api?.terminalWrite) {
-                              await window.api.terminalWrite(tab.id, data);
-                            }
-                          }}
-                          onResize={async (cols: number, rows: number) => {
-                            if (window.api?.terminalResize) {
-                              await window.api.terminalResize(tab.id, cols, rows);
-                            }
-                          }}
-                        />
-                      </div>
-                    ))}
-                    
-                    {/* Monaco Editor */}
-                    <div style={{ 
-                      flex: 1, 
-                      display: activeTab?.type === 'file' && !showWelcome ? 'flex' : 'none',
-                      overflow: 'hidden',
-                    }}>
-                      <MonacoEditor />
-                    </div>
-                  </>
-                );
-              })()}
+              {terminalTabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  style={{ 
+                    flex: 1, 
+                    display: activeTab?.id === tab.id ? 'flex' : 'none',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    backgroundColor: '#1e1e1e',
+                  }}
+                >
+                  <Terminal 
+                    terminalId={tab.id}
+                    onData={async (data: string) => {
+                      if (window.api?.terminalWrite) {
+                        await window.api.terminalWrite(tab.id, data);
+                      }
+                    }}
+                    onResize={async (cols: number, rows: number) => {
+                      if (window.api?.terminalResize) {
+                        await window.api.terminalResize(tab.id, cols, rows);
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+              
+              {/* Monaco Editor */}
+              <div style={{ 
+                flex: 1, 
+                display: activeTab?.type === 'file' && !showWelcome ? 'flex' : 'none',
+                overflow: 'hidden',
+              }}>
+                <MonacoEditor />
+              </div>
             </div>
           </main>
         </div>
