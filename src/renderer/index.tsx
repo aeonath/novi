@@ -65,15 +65,26 @@ async function initializeApp() {
     // Render React app
     const root = ReactDOM.createRoot(rootElement);
     root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
+      <App />
     );
 
     console.log('[Nova] React app rendered successfully');
 
+    // Track last focus time to debounce rapid focus events
+    let lastFocusTime = 0;
+    
     // Ensure document is always focusable and receives keyboard events
     const ensureFocus = () => {
+      const now = Date.now();
+      const timeSinceLastFocus = now - lastFocusTime;
+      
+      // Debounce: Don't process focus events more than once every 200ms
+      if (timeSinceLastFocus < 200) {
+        console.log('[Renderer] Focus event debounced (too soon)');
+        return;
+      }
+      
+      lastFocusTime = now;
       console.log('[Renderer] Window gained focus, focusing active tab');
       
       // Try to focus the active tab (Monaco editor or terminal)
@@ -87,21 +98,23 @@ async function initializeApp() {
           // If it's a terminal tab, focus the terminal
           if (activeTab.type === 'terminal' && terminalAPI && terminalAPI[activeTab.id]) {
             console.log('[Renderer] Focusing terminal:', activeTab.id);
-            setTimeout(() => {
+            // Use requestAnimationFrame instead of setTimeout for smoother focus
+            requestAnimationFrame(() => {
               if (terminalAPI[activeTab.id]) {
                 terminalAPI[activeTab.id].focus();
               }
-            }, 50);
+            });
             return;
           }
           // If it's a file tab, focus Monaco editor
           else if (activeTab.type === 'file' && monacoAPI && monacoAPI.focus) {
             console.log('[Renderer] Focusing Monaco editor');
-            setTimeout(() => {
+            // Use requestAnimationFrame instead of setTimeout for smoother focus
+            requestAnimationFrame(() => {
               if (monacoAPI && monacoAPI.focus) {
                 monacoAPI.focus();
               }
-            }, 50);
+            });
             return;
           }
         }

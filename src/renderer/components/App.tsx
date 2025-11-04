@@ -484,49 +484,13 @@ const AppInner: React.FC = () => {
     }
   }, [welcomeContextMenu]);
 
+  // Monaco loading is handled in index.tsx, just check if it's available
   useEffect(() => {
-    // Wait for Monaco to load
-    console.log('[App] Setting up Monaco loader check');
-    
-    const checkMonaco = () => {
-      if (typeof (window as any).monaco !== 'undefined') {
-        console.log('[App] Monaco loaded successfully');
-        setMonacoReady(true);
-        return true;
-      }
-      return false;
-    };
-
-    // Check immediately
-    if (checkMonaco()) {
-      console.log('[App] Monaco already available, skipping polling');
-      return undefined;
+    // Check immediately if Monaco is available
+    if (typeof (window as any).monaco !== 'undefined') {
+      console.log('[App] Monaco is available');
+      setMonacoReady(true);
     }
-
-    console.log('[App] Monaco not ready, starting polling');
-    let interval: NodeJS.Timeout | undefined;
-    let timeout: NodeJS.Timeout | undefined;
-    
-    // Poll if not ready
-    interval = setInterval(() => {
-      console.log('[App] Checking for Monaco...');
-      if (checkMonaco()) {
-        console.log('[App] Monaco detected, stopping polling');
-        if (interval) clearInterval(interval);
-        if (timeout) clearTimeout(timeout);
-      }
-    }, 100); // Increased from 50ms to 100ms to reduce CPU load
-    
-    timeout = setTimeout(() => {
-      console.warn('[App] Monaco failed to load after 10s, stopping polling');
-      if (interval) clearInterval(interval);
-    }, 10000);
-
-    return () => {
-      console.log('[App] Cleaning up Monaco loader check');
-      if (interval) clearInterval(interval);
-      if (timeout) clearTimeout(timeout);
-    };
   }, []);
 
   return (
