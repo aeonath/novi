@@ -220,6 +220,9 @@ describe('AutoSaveService', () => {
 
   describe('error handling', () => {
     it('should handle save errors gracefully', async () => {
+      // Suppress console.error for this test to avoid polluting logger tests
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      
       const service = new AutoSaveService({ enabled: true, intervalMs: 1000 });
       
       const dirtyTab: Tab = {
@@ -239,6 +242,13 @@ describe('AutoSaveService', () => {
       // Should not throw
       await expect(service.triggerAutoSave()).resolves.not.toThrow();
       
+      // Verify error was logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[AutoSave] Failed to save recovery files:',
+        expect.any(Error)
+      );
+      
+      consoleErrorSpy.mockRestore();
       service.stop();
     });
 

@@ -252,6 +252,9 @@ describe('RecoveryDialog', () => {
 
   describe('error handling', () => {
     it('should handle API errors gracefully', async () => {
+      // Suppress console.error for this test to avoid polluting logger tests
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      
       mockWindowApi.getRecoveryFiles.mockRejectedValueOnce(new Error('API error'));
       
       const dialog = new RecoveryDialog();
@@ -259,6 +262,13 @@ describe('RecoveryDialog', () => {
       // Should not throw
       await expect(dialog.show()).resolves.not.toThrow();
       
+      // Verify error was logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[Recovery] Failed to load recovery files:',
+        expect.any(Error)
+      );
+      
+      consoleErrorSpy.mockRestore();
       dialog.destroy();
     });
 
