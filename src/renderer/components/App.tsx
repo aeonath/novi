@@ -429,23 +429,8 @@ const AppInner: React.FC = () => {
     };
   }, [actionContext.onOpenFile, actionContext.onSaveFile]);
 
-  // Set up terminal data listener
-  useEffect(() => {
-    if (!window.api?.terminalOnData) return;
-
-    window.api.terminalOnData((terminalId: string, data: string) => {
-      // Write data to the terminal component
-      if ((window as any).__terminalAPI && (window as any).__terminalAPI[terminalId]) {
-        (window as any).__terminalAPI[terminalId].write(data);
-      }
-    });
-
-    return () => {
-      if (window.api?.terminalRemoveDataListener) {
-        window.api.terminalRemoveDataListener();
-      }
-    };
-  }, []);
+  // Terminal data listener is set up globally at the top of this component (line 40)
+  // Removed duplicate listener that was causing periodic redraws
 
   // Focus logic disabled - ActionHUD (Ctrl+K) is currently disabled
   // useEffect(() => {
@@ -471,6 +456,23 @@ const AppInner: React.FC = () => {
       window.api.quit();
     }
     setWelcomeContextMenu(null);
+  }, []);
+
+  // Memoize terminal callbacks to prevent unnecessary re-renders and periodic redraws
+  // CRITICAL: These callbacks were being recreated inline on every render,
+  // causing Terminal component's useEffect dependencies to change,
+  // triggering refits and redraws every 5-10 seconds
+  const handleTerminalData = useCallback(async (terminalId: string, data: string) => {
+    if (window.api?.terminalWrite) {
+      await window.api.terminalWrite(terminalId, data);
+    }
+  }, []);
+
+  const handleTerminalResize = useCallback(async (terminalId: string, cols: number, rows: number) => {
+    console.log(`[App] Terminal ${terminalId} resize: ${cols}x${rows}`);
+    if (window.api?.terminalResize) {
+      await window.api.terminalResize(terminalId, cols, rows);
+    }
   }, []);
 
   // Close context menu on click outside
@@ -701,35 +703,33 @@ const AppInner: React.FC = () => {
               ) : null}
               
               {/* Render all terminals (hidden when not active) to preserve state */}
-              {terminalTabs.map((tab) => (
-                <div
-                  key={tab.id}
-                  style={{ 
-                    flex: 1, 
-                    display: activeTab?.id === tab.id ? 'flex' : 'none',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                    backgroundColor: '#1e1e1e',
-                  }}
-                >
-                  <Terminal 
-                    terminalId={tab.id}
-                    workspaceRoot={tab.workspaceRoot || undefined}
-                    isActive={activeTab?.id === tab.id}
-                    onData={async (data: string) => {
-                      if (window.api?.terminalWrite) {
-                        await window.api.terminalWrite(tab.id, data);
-                      }
+              {terminalTabs.map((tab) => {
+                // Create stable callback references for this specific terminal
+                // Prevents Terminal useEffect from re-running on every parent render
+                const terminalOnData = (data: string) => handleTerminalData(tab.id, data);
+                const terminalOnResize = (cols: number, rows: number) => handleTerminalResize(tab.id, cols, rows);
+                
+                return (
+                  <div
+                    key={tab.id}
+                    style={{ 
+                      flex: 1, 
+                      display: activeTab?.id === tab.id ? 'flex' : 'none',
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                      backgroundColor: '#1e1e1e',
                     }}
-                    onResize={async (cols: number, rows: number) => {
-                      console.log(`[App] Terminal ${tab.id} resize: ${cols}x${rows}`);
-                      if (window.api?.terminalResize) {
-                        await window.api.terminalResize(tab.id, cols, rows);
-                      }
-                    }}
-                  />
-                </div>
-              ))}
+                  >
+                    <Terminal 
+                      terminalId={tab.id}
+                      workspaceRoot={tab.workspaceRoot || undefined}
+                      isActive={activeTab?.id === tab.id}
+                      onData={terminalOnData}
+                      onResize={terminalOnResize}
+                    />
+                  </div>
+                );
+              })}
               
               {/* Monaco Editor */}
               <div style={{ 

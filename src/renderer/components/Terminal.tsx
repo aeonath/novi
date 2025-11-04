@@ -29,6 +29,17 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   const [ptyCreated, setPtyCreated] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const hasInitialFitRef = useRef(false); // Track if initial fit has completed
+  
+  // Store callbacks in refs to prevent useEffect re-runs when they change
+  // CRITICAL: This prevents periodic redraws caused by parent component re-renders
+  const onDataRef = useRef(onData);
+  const onResizeRef = useRef(onResize);
+  
+  // Update refs when callbacks change
+  useEffect(() => {
+    onDataRef.current = onData;
+    onResizeRef.current = onResize;
+  }, [onData, onResize]);
 
   // PHASE 1: Create PTY with measured dimensions BEFORE opening xterm
   useEffect(() => {
@@ -187,7 +198,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
 
       // Handle input
       terminal.onData((data) => {
-        onData?.(data);
+        onDataRef.current?.(data);
       });
     } catch (error) {
       console.error('[Terminal] Failed to open terminal:', error);
@@ -209,7 +220,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
             ? { cols: terminalRef.current.cols, rows: terminalRef.current.rows }
             : null;
           if (dimensions) {
-            onResize?.(dimensions.cols, dimensions.rows);
+            onResizeRef.current?.(dimensions.cols, dimensions.rows);
           }
         }
         resizeTimeout = null;
@@ -228,7 +239,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [terminalId, ptyCreated, onData, onResize, isActive]);
+  }, [terminalId, ptyCreated, isActive]);
 
   // Expose write and focus methods for incoming data and tab switching
   useEffect(() => {
@@ -286,8 +297,8 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           const newRows = terminalRef.current.rows;
           
           // Only notify if dimensions actually changed (avoids unnecessary PTY updates)
-          if (onResize && (newCols !== oldCols || newRows !== oldRows) && newCols > 0 && newRows > 0) {
-            onResize(newCols, newRows);
+          if (onResizeRef.current && (newCols !== oldCols || newRows !== oldRows) && newCols > 0 && newRows > 0) {
+            onResizeRef.current(newCols, newRows);
           }
           
           // Focus the terminal without flashing
@@ -297,7 +308,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       
       return () => clearTimeout(timeout);
     }
-  }, [isActive, isReady, terminalId, onResize]);
+  }, [isActive, isReady, terminalId]);
 
   // Handle copy from terminal
   const handleCopy = useCallback(() => {
