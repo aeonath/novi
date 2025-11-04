@@ -146,11 +146,6 @@ export class MonacoEditorView {
 
   private initializeMonaco(options: EditorOptions): void {
     try {
-      // Configure AMD loader for Monaco
-      if (typeof (window as any).require !== 'undefined') {
-        (window as any).require.config({ paths: { vs: './vs' } });
-      }
-
       // Set up Monaco environment for web workers
       self.MonacoEnvironment = {
         getWorkerUrl: function (_moduleId: string, label: string) {
@@ -266,8 +261,13 @@ function helloNova() {
     if (this.editor) {
       const model = this.editor.getModel();
       if (model) {
+        console.log(`[MonacoEditor] Setting language to: ${language}`);
         monaco.editor.setModelLanguage(model, language);
+      } else {
+        console.warn('[MonacoEditor] No model available to set language');
       }
+    } else {
+      console.warn('[MonacoEditor] Editor not initialized, cannot set language');
     }
   }
 
@@ -335,6 +335,7 @@ function helloNova() {
     
     // Detect and set language
     const language = detectLanguage(filePath);
+    console.log(`[MonacoEditor] Loading file: ${filePath}, detected language: ${language}`);
     this.setLanguage(language);
     
     // Notify dirty state changed

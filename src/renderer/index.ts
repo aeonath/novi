@@ -22,17 +22,17 @@ function waitForMonaco(): Promise<boolean> {
     
     console.log('[Nova] Waiting for Monaco to load...');
     let attempts = 0;
-    const maxAttempts = 100; // 5 seconds max wait
+    const maxAttempts = 200; // 10 seconds max wait (increased for AMD loading)
     
     const checkInterval = setInterval(() => {
       attempts++;
       if (typeof monaco !== 'undefined') {
         clearInterval(checkInterval);
-        console.log('[Nova] Monaco loaded successfully');
+        console.log('[Nova] Monaco loaded successfully after', attempts * 50, 'ms');
         resolve(true);
       } else if (attempts >= maxAttempts) {
         clearInterval(checkInterval);
-        console.error('[Nova] Monaco failed to load after 5 seconds');
+        console.warn('[Nova] Monaco failed to load after 10 seconds, proceeding without editor');
         resolve(false);
       }
     }, 50);

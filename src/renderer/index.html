@@ -116,9 +116,21 @@
     </div>
     <div id="status-bar-container"></div>
     <!-- Load Monaco Editor via AMD loader -->
+    <script>
+      // Configure AMD loader before loading Monaco
+      var require = {
+        paths: { 'vs': './vs' }
+      };
+    </script>
     <script src="./vs/loader.js"></script>
-    <script src="./vs/editor/editor.main.js"></script>
-    <!-- Load our app after Monaco is ready -->
+    <script>
+      // Load Monaco and expose it globally
+      require(['vs/editor/editor.main'], function() {
+        console.log('[Monaco] AMD modules loaded');
+        // Monaco is now available as global 'monaco'
+      });
+    </script>
+    <!-- Load our app -->
     <script type="module" src="./index.js"></script>
   </body>
 </html>
