@@ -30,18 +30,19 @@ function createWindow(): void {
     },
   });
 
-  // Configure CSP for Monaco Editor
+  // Configure CSP for Monaco Editor support
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-          "style-src 'self' 'unsafe-inline'; " +
-          "font-src 'self' data:; " +
-          "worker-src 'self' blob:; " +
-          "child-src 'self' blob:;"
+          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
+          "style-src 'self' 'unsafe-inline' data:; " +
+          "font-src 'self' data: blob:; " +
+          "img-src 'self' data: blob:; " +
+          "worker-src 'self' blob: data:; " +
+          "child-src 'self' blob: data:;"
         ]
       }
     });

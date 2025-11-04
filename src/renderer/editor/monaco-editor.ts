@@ -146,6 +146,11 @@ export class MonacoEditorView {
 
   private initializeMonaco(options: EditorOptions): void {
     try {
+      // Configure AMD loader for Monaco
+      if (typeof (window as any).require !== 'undefined') {
+        (window as any).require.config({ paths: { vs: './vs' } });
+      }
+
       // Set up Monaco environment for web workers
       self.MonacoEnvironment = {
         getWorkerUrl: function (_moduleId: string, label: string) {
