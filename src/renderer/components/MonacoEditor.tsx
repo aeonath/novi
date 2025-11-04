@@ -9,6 +9,7 @@
 
 import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { useAppContext } from '../contexts/AppContext.js';
+import { EditorService } from '../services/editor-service.js';
 
 declare const monaco: typeof import('monaco-editor');
 
@@ -21,6 +22,14 @@ export interface MonacoEditorHandle {
   getFilePath: () => string | null;
   updateOptions: (options: any) => void;
   dispose: () => void;
+  // New EditorService methods
+  formatDocument: () => Promise<boolean>;
+  goToDefinition: () => Promise<boolean>;
+  peekDefinition: () => Promise<boolean>;
+  findReferences: () => Promise<boolean>;
+  renameSymbol: () => Promise<boolean>;
+  runLinting: () => void;
+  clearDiagnostics: () => void;
 }
 
 export interface MonacoEditorProps {
@@ -33,6 +42,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   const { onDirtyChange, fontSize = 14, wordWrap = 'off' } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
+  const editorServiceRef = useRef<EditorService | null>(null);
   const { theme, setActiveFilePath } = useAppContext();
   
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
@@ -73,6 +83,10 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
 
       console.log('[MonacoEditor] Initialized successfully');
 
+      // Initialize EditorService
+      editorServiceRef.current = new EditorService(editorRef.current);
+      console.log('[MonacoEditor] EditorService initialized');
+
       // Set up change listener
       const disposable = editorRef.current.onDidChangeModelContent(() => {
         if (editorRef.current) {
@@ -88,6 +102,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
 
       return () => {
         disposable?.dispose();
+        editorServiceRef.current?.dispose();
         editorRef.current?.dispose();
       };
     } catch (error) {
@@ -113,21 +128,18 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
 
   // Public API methods
   const loadFile = useCallback((filePath: string, content: string) => {
-    if (!editorRef.current) return;
+    if (!editorServiceRef.current) return;
 
+    const language = detectLanguage(filePath);
+    
     setCurrentFilePath(filePath);
     setActiveFilePath(filePath);
     setSavedContent(content);
-    editorRef.current.setValue(content);
     setIsDirtyFlag(false);
     onDirtyChange?.(false);
 
-    // Detect and set language
-    const language = detectLanguage(filePath);
-    const model = editorRef.current.getModel();
-    if (model) {
-      monaco.editor.setModelLanguage(model, language);
-    }
+    // Use EditorService to load file
+    editorServiceRef.current.loadFile(filePath, content, language);
 
     console.log(`[MonacoEditor] Loaded file: ${filePath} (${language})`);
   }, [onDirtyChange, setActiveFilePath]);
@@ -164,6 +176,42 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     return isDirtyFlag;
   }, [isDirtyFlag]);
 
+  // EditorService command methods
+  const formatDocument = useCallback(async () => {
+    if (!editorServiceRef.current) return false;
+    return await editorServiceRef.current.formatDocument();
+  }, []);
+
+  const goToDefinition = useCallback(async () => {
+    if (!editorServiceRef.current) return false;
+    return await editorServiceRef.current.goToDefinition();
+  }, []);
+
+  const peekDefinition = useCallback(async () => {
+    if (!editorServiceRef.current) return false;
+    return await editorServiceRef.current.peekDefinition();
+  }, []);
+
+  const findReferences = useCallback(async () => {
+    if (!editorServiceRef.current) return false;
+    return await editorServiceRef.current.findReferences();
+  }, []);
+
+  const renameSymbol = useCallback(async () => {
+    if (!editorServiceRef.current) return false;
+    return await editorServiceRef.current.renameSymbol();
+  }, []);
+
+  const runLinting = useCallback(() => {
+    if (!editorServiceRef.current) return;
+    editorServiceRef.current.runMockLinting();
+  }, []);
+
+  const clearDiagnostics = useCallback(() => {
+    if (!editorServiceRef.current) return;
+    editorServiceRef.current.clearDiagnostics();
+  }, []);
+
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     loadFile,
@@ -174,6 +222,14 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     getFilePath,
     updateOptions,
     dispose,
+    // EditorService methods
+    formatDocument,
+    goToDefinition,
+    peekDefinition,
+    findReferences,
+    renameSymbol,
+    runLinting,
+    clearDiagnostics,
   }));
 
   // Expose to window for backward compatibility during migration
@@ -186,11 +242,18 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       markAsSaved,
       getFilePath,
       updateOptions,
+      formatDocument,
+      goToDefinition,
+      peekDefinition,
+      findReferences,
+      renameSymbol,
+      runLinting,
+      clearDiagnostics,
     };
     return () => {
       delete (window as any).__monacoEditorAPI;
     };
-  }, [loadFile, getValue, setValue, isDirtyMethod, markAsSaved, getFilePath, updateOptions]);
+  }, [loadFile, getValue, setValue, isDirtyMethod, markAsSaved, getFilePath, updateOptions, formatDocument, goToDefinition, peekDefinition, findReferences, renameSymbol, runLinting, clearDiagnostics]);
 
   return <div ref={containerRef} style={styles.container} />;
 });

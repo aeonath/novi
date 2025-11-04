@@ -21,7 +21,7 @@ describe('Actions', () => {
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(8);
+      expect(actions).toHaveLength(13); // 8 original + 5 editor commands
       expect(actions[0].id).toBe('open-file');
       expect(actions[0].label).toBe('Open File');
       expect(actions[1].id).toBe('save-file');
@@ -93,7 +93,7 @@ describe('Actions', () => {
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(8);
+      expect(actions).toHaveLength(13); // 8 original + 5 editor commands
       // Should not throw when handlers are missing
       actions.forEach((action) => {
         expect(() => {

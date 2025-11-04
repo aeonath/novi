@@ -99,6 +99,37 @@ export const App: React.FC = () => {
         (window as any).__diagnosticsPanelAPI.show();
       }
     },
+    // Editor commands
+    onFormatDocument: async () => {
+      console.log('[App] Format Document action triggered');
+      if ((window as any).__monacoEditorAPI) {
+        await (window as any).__monacoEditorAPI.formatDocument();
+      }
+    },
+    onGoToDefinition: async () => {
+      console.log('[App] Go to Definition action triggered');
+      if ((window as any).__monacoEditorAPI) {
+        await (window as any).__monacoEditorAPI.goToDefinition();
+      }
+    },
+    onFindReferences: async () => {
+      console.log('[App] Find References action triggered');
+      if ((window as any).__monacoEditorAPI) {
+        await (window as any).__monacoEditorAPI.findReferences();
+      }
+    },
+    onRenameSymbol: async () => {
+      console.log('[App] Rename Symbol action triggered');
+      if ((window as any).__monacoEditorAPI) {
+        await (window as any).__monacoEditorAPI.renameSymbol();
+      }
+    },
+    onRunLinting: () => {
+      console.log('[App] Run Linting action triggered');
+      if ((window as any).__monacoEditorAPI) {
+        (window as any).__monacoEditorAPI.runLinting();
+      }
+    },
   }), []);
 
   // Create actions

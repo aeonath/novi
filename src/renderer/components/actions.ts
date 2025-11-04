@@ -17,6 +17,12 @@ export interface ActionContext {
   onToggleTheme?: () => void | Promise<void>;
   onOpenSettings?: () => void | Promise<void>;
   onOpenDiagnostics?: () => void | Promise<void>;
+  // Editor commands
+  onFormatDocument?: () => void | Promise<void>;
+  onGoToDefinition?: () => void | Promise<void>;
+  onFindReferences?: () => void | Promise<void>;
+  onRenameSymbol?: () => void | Promise<void>;
+  onRunLinting?: () => void | Promise<void>;
 }
 
 function callHandler(handler: (() => void | Promise<void>) | undefined): void {
@@ -97,6 +103,51 @@ export function createDefaultActions(context: ActionContext): Action[] {
     label: 'System Diagnostics',
     handler: () => {
       callHandler(context.onOpenDiagnostics);
+    },
+  });
+
+  // Editor: Format Document
+  actions.push({
+    id: 'format-document',
+    label: 'Format Document',
+    handler: () => {
+      callHandler(context.onFormatDocument);
+    },
+  });
+
+  // Editor: Go to Definition
+  actions.push({
+    id: 'go-to-definition',
+    label: 'Go to Definition',
+    handler: () => {
+      callHandler(context.onGoToDefinition);
+    },
+  });
+
+  // Editor: Find References
+  actions.push({
+    id: 'find-references',
+    label: 'Find All References',
+    handler: () => {
+      callHandler(context.onFindReferences);
+    },
+  });
+
+  // Editor: Rename Symbol
+  actions.push({
+    id: 'rename-symbol',
+    label: 'Rename Symbol',
+    handler: () => {
+      callHandler(context.onRenameSymbol);
+    },
+  });
+
+  // Editor: Run Linting
+  actions.push({
+    id: 'run-linting',
+    label: 'Run Linting',
+    handler: () => {
+      callHandler(context.onRunLinting);
     },
   });
 
