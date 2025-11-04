@@ -6,6 +6,7 @@ import { SettingsPanel } from './components/settings-panel';
 import { TitleBar } from './components/title-bar';
 import { StatusBar } from './components/status-bar';
 import { FileViewer } from './components/file-viewer';
+import { DiagnosticsPanel } from './components/diagnostics-panel';
 import { initializeThemeManager, themes } from './theme';
 
 document.addEventListener('DOMContentLoaded', (): void => {
@@ -139,6 +140,9 @@ document.addEventListener('DOMContentLoaded', (): void => {
       },
     });
 
+    // Initialize Diagnostics Panel
+    const diagnosticsPanel = new DiagnosticsPanel();
+
     // Initialize Action HUD
     const actionContext: ActionContext = {
       onOpenFile: async () => {
@@ -184,6 +188,9 @@ document.addEventListener('DOMContentLoaded', (): void => {
       },
       onOpenSettings: () => {
         settingsPanel.show();
+      },
+      onOpenDiagnostics: () => {
+        void diagnosticsPanel.show();
       },
     };
 

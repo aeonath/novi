@@ -9,6 +9,7 @@ export interface ActionContext {
   onCloseFile?: () => void | Promise<void>;
   onToggleTheme?: () => void | Promise<void>;
   onOpenSettings?: () => void | Promise<void>;
+  onOpenDiagnostics?: () => void | Promise<void>;
 }
 
 function callHandler(handler: (() => void | Promise<void>) | undefined): void {
@@ -62,6 +63,15 @@ export function createDefaultActions(context: ActionContext): Action[] {
     label: 'Settings',
     handler: () => {
       callHandler(context.onOpenSettings);
+    },
+  });
+
+  // Diagnostics action
+  actions.push({
+    id: 'diagnostics',
+    label: 'System Diagnostics',
+    handler: () => {
+      callHandler(context.onOpenDiagnostics);
     },
   });
 

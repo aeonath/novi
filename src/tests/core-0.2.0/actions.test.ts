@@ -9,11 +9,12 @@ describe('Actions', () => {
         onCloseFile: jest.fn(),
         onToggleTheme: jest.fn(),
         onOpenSettings: jest.fn(),
+        onOpenDiagnostics: jest.fn(),
       };
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(5);
+      expect(actions).toHaveLength(6);
       expect(actions[0].id).toBe('open-file');
       expect(actions[0].label).toBe('Open File');
       expect(actions[1].id).toBe('reload-file');
@@ -24,6 +25,8 @@ describe('Actions', () => {
       expect(actions[3].label).toBe('Toggle Theme');
       expect(actions[4].id).toBe('settings');
       expect(actions[4].label).toBe('Settings');
+      expect(actions[5].id).toBe('diagnostics');
+      expect(actions[5].label).toBe('System Diagnostics');
     });
 
     it('should call onOpenFile handler when Open File action is executed', () => {
@@ -79,7 +82,7 @@ describe('Actions', () => {
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(5);
+      expect(actions).toHaveLength(6);
       // Should not throw when handlers are missing
       actions.forEach((action) => {
         expect(() => {
@@ -123,13 +126,14 @@ describe('Actions', () => {
       });
     });
 
-    it('should create all five default actions', () => {
+    it('should create all six default actions', () => {
       const context: ActionContext = {
         onOpenFile: jest.fn(),
         onReloadFile: jest.fn(),
         onCloseFile: jest.fn(),
         onToggleTheme: jest.fn(),
         onOpenSettings: jest.fn(),
+        onOpenDiagnostics: jest.fn(),
       };
 
       const actions = createDefaultActions(context);
@@ -140,6 +144,7 @@ describe('Actions', () => {
       expect(actionIds).toContain('close-file');
       expect(actionIds).toContain('toggle-theme');
       expect(actionIds).toContain('settings');
+      expect(actionIds).toContain('diagnostics');
     });
 
     it('should call onReloadFile handler when Reload File action is executed', () => {
@@ -171,6 +176,22 @@ describe('Actions', () => {
       if (closeFileAction) {
         void Promise.resolve(closeFileAction.handler());
         expect(onCloseFile).toHaveBeenCalled();
+      }
+    });
+
+    it('should call onOpenDiagnostics handler when System Diagnostics action is executed', () => {
+      const onOpenDiagnostics = jest.fn();
+      const context: ActionContext = {
+        onOpenDiagnostics,
+      };
+
+      const actions = createDefaultActions(context);
+      const diagnosticsAction = actions.find((a) => a.id === 'diagnostics');
+
+      expect(diagnosticsAction).toBeDefined();
+      if (diagnosticsAction) {
+        void Promise.resolve(diagnosticsAction.handler());
+        expect(onOpenDiagnostics).toHaveBeenCalled();
       }
     });
   });
