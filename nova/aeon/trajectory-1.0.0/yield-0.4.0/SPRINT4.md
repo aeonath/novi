@@ -37,7 +37,7 @@ Introduce React as Nova’s renderer framework to support dynamic UI components,
     <StatusBar />
   </div>
   ```
-- Do not worry about hot reload now, do NOT implement Vite
+- Do not worry about hot reload now, do NOT implement Vite, webpack is fine
 - Keep contextIsolation: true and ensure IPC preload still functions.
 
 
@@ -179,7 +179,43 @@ Implement persistence of workspace state, including open files, layout, and rece
 
 ---
 
-## 🧩 Task 8 — Performance & Stability Pass
+## 🧩 Task 8 — Application Menu Bar & Action HUD Refinement
+**Description:**  
+Implement Nova’s top-level **application menu bar** (`File`, `Edit`, `View`, `Agents`, `Workflow`, `Help`) using Electron’s `Menu` API, and update the **Action HUD** to display the top 8 most frequently used orchestration commands.
+
+**Acceptance Criteria:**  
+- [ ] A visible, functional menu bar appears in Nova’s window with all core categories:
+  - **File:** New, Open, Save, Close, Exit  
+  - **Edit:** Undo, Redo, Cut, Copy, Paste  
+  - **View:** Reload, Toggle Developer Tools, Toggle Sidebar  
+  - **Agents:** Assign Task to Architect / Claude / Coda, Open Agent Logs  
+  - **Workflow:** Plan Sprint, Add Acceptance Criteria, Create Trajectory, Review Sprint  
+  - **Help:** View Documentation, About Nova  
+- [ ] Menu shortcuts (`Ctrl+N`, `Ctrl+S`, `Ctrl+Shift+I`, etc.) function correctly across all platforms.  
+- [ ] The menu is defined in `src/main/menu.js` and initialized from `main.js` via `Menu.setApplicationMenu()`.  
+- [ ] The **Action HUD** displays the top 8 most frequently executed commands based on usage frequency (tracked in memory).  
+- [ ] Commands in the HUD are clickable or keyboard-triggerable, invoking their corresponding orchestration actions through IPC.  
+- [ ] The HUD refreshes automatically when command frequency ranking changes.  
+
+**Notes for Claude:**  
+- Create a `src/main/menu.js` file defining the Electron `Menu` template.  
+- Implement each top-level menu section as a separate constant array merged into the main template.  
+- Use IPC channels (e.g., `ipcMain.handle('menu-command', ...)`) to route menu actions to the renderer.  
+- For Action HUD frequency tracking:
+  - Maintain a lightweight JSON or in-memory counter (`commandStats.json`) storing execution counts per command.  
+  - Sort and display the top 8 commands in the HUD component (`ActionHUD.jsx`).
+  - Update counts whenever a command is executed from menu, HUD, or CLI.  
+- Keep the Action HUD’s UI minimal: one-line command labels, optional icons, and keyboard shortcut hints.  
+
+**Result:**  
+Nova now includes a fully functional application menu bar with organized orchestration categories and a streamlined Action HUD showing the eight most-used commands, improving usability and discoverability.
+
+
+
+
+---
+
+## 🧩 Task 9 — Performance & Stability Pass
 **Description:**  
 Profile all integration systems and ensure smooth cross-platform performance.
 
@@ -189,7 +225,7 @@ Just do your best with this but don't spend too much time on it.
 
 ---
 
-## 🧩 Task 9 — Documentation & Sprint Review
+## 🧩 Task 10 — Documentation & Sprint Review
 **Description:**  
 Finalize all sprint deliverables and ensure documentation reflects the new architecture.
 

@@ -151,22 +151,31 @@ export const App: React.FC = () => {
           <main style={styles.editorArea}>
             <TabBar />
             
-            {showWelcome && !monacoReady ? (
-              <div style={styles.welcome}>
-                <h1>Nova</h1>
-                <p>Loading editor...</p>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {showWelcome && !monacoReady ? (
+                <div style={styles.welcome}>
+                  <h1>Nova</h1>
+                  <p>Loading editor...</p>
+                </div>
+              ) : showWelcome ? (
+                <div style={styles.welcome}>
+                  <h1>Nova</h1>
+                  <p>Open a file to start editing</p>
+                  <p style={{ fontSize: '0.9em', opacity: 0.7 }}>
+                    Press <kbd>Ctrl+K</kbd> or <kbd>Ctrl+Space</kbd> for commands
+                  </p>
+                </div>
+              ) : null}
+              
+              {/* Always render Monaco, but hide it when showing welcome */}
+              <div style={{ 
+                flex: 1, 
+                display: showWelcome ? 'none' : 'flex',
+                overflow: 'hidden',
+              }}>
+                <MonacoEditor />
               </div>
-            ) : showWelcome ? (
-              <div style={styles.welcome}>
-                <h1>Nova</h1>
-                <p>Open a file to start editing</p>
-                <p style={{ fontSize: '0.9em', opacity: 0.7 }}>
-                  Press <kbd>Ctrl+K</kbd> or <kbd>Ctrl+Space</kbd> for commands
-                </p>
-              </div>
-            ) : (
-              <MonacoEditor />
-            )}
+            </div>
           </main>
         </div>
         
