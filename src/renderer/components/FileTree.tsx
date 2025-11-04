@@ -12,6 +12,8 @@ import React, { useState, useEffect, useCallback, createContext, useContext } fr
 
 export interface FileTreeProps {
   onFileOpen?: (filePath: string) => void;
+  onToggleGit?: () => void;
+  showGitToggle?: boolean;
 }
 
 interface FileNode {
@@ -37,7 +39,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -267,11 +269,18 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen }) => {
       <div style={styles.container} onContextMenu={(e) => handleContextMenu(e, null)}>
         <div style={styles.header}>
           <span style={styles.title}>{getDirectoryName(rootPath)}</span>
-          {rootPath && (
-            <button style={styles.button} onClick={openDirectory} title="Open Folder">
-              📁
-            </button>
-          )}
+          <div style={styles.headerButtons}>
+            {showGitToggle && rootPath && onToggleGit && (
+              <button style={styles.button} onClick={onToggleGit} title="Toggle Git View">
+                ⎇
+              </button>
+            )}
+            {rootPath && (
+              <button style={styles.button} onClick={openDirectory} title="Open Folder">
+                📁
+              </button>
+            )}
+          </div>
         </div>
 
         {tree.length === 0 ? (
@@ -440,6 +449,10 @@ const styles = {
     fontWeight: 'bold' as const,
     letterSpacing: '0.5px',
     color: '#858585',
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: '4px',
   },
   button: {
     background: 'transparent',

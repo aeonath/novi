@@ -9,21 +9,25 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { AppProvider } from '../contexts/AppContext.js';
+import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
 import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
 import { FileTree } from './FileTree.js';
+import { GitPanel } from './GitPanel.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
 import { createDefaultActions, ActionContext } from './actions.js';
 
-export const App: React.FC = () => {
+const AppInner: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(true);
   const [monacoReady, setMonacoReady] = useState(false);
+  const [showGitPanel, setShowGitPanel] = useState(false);
+  const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
+  const { setGitStatus } = useAppContext();
 
   // Create action handlers
   const actionContext: ActionContext = useMemo(() => ({
@@ -170,55 +174,95 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <AppProvider>
       <div className="nova-layout" style={styles.layout}>
         <TitleBar />
         
         <div style={styles.mainContent}>
           <aside style={styles.sidebar}>
-            <FileTree onFileOpen={async (filePath: string) => {
-              console.log('[App] FileTree file open:', filePath);
-              if (!window.api?.readFile) {
-                console.error('[App] File API not available');
-                return;
-              }
+            {showGitPanel ? (
+              <GitPanel
+                workspaceRoot={workspaceRoot}
+                onRefreshStatus={async () => {
+                  if (!workspaceRoot || !window.api?.gitGetStatus) return;
+                  try {
+                    const status = await window.api.gitGetStatus(workspaceRoot);
+                    if (status.isRepo) {
+                      setGitStatus(status);
+                    }
+                  } catch (error) {
+                    console.error('[App] Failed to refresh git status:', error);
+                  }
+                }}
+              />
+            ) : (
+              <FileTree
+                onToggleGit={() => setShowGitPanel(!showGitPanel)}
+                onFileOpen={async (filePath: string) => {
+                  console.log('[App] FileTree file open:', filePath);
+                  
+                  // Extract workspace root from file path (parent directory)
+                  const pathParts = filePath.replace(/\\/g, '/').split('/');
+                  pathParts.pop(); // Remove filename
+                  const newWorkspaceRoot = pathParts.join('/');
+                  if (newWorkspaceRoot && newWorkspaceRoot !== workspaceRoot) {
+                    setWorkspaceRoot(newWorkspaceRoot);
+                    
+                    // Fetch git status for new workspace
+                    if (window.api?.gitGetStatus) {
+                      try {
+                        const status = await window.api.gitGetStatus(newWorkspaceRoot);
+                        if (status.isRepo) {
+                          setGitStatus(status);
+                        }
+                      } catch (error) {
+                        console.error('[App] Failed to get git status:', error);
+                      }
+                    }
+                  }
+                  
+                  if (!window.api?.readFile) {
+                    console.error('[App] File API not available');
+                    return;
+                  }
 
-              try {
-                // Read file content
-                const fileData = await window.api.readFile(filePath);
-                console.log('[App] File loaded from tree, size:', fileData.content.length, 'bytes');
+                  try {
+                    // Read file content
+                    const fileData = await window.api.readFile(filePath);
+                    console.log('[App] File loaded from tree, size:', fileData.content.length, 'bytes');
 
-                // Hide welcome screen
-                setShowWelcome(false);
+                    // Hide welcome screen
+                    setShowWelcome(false);
 
-                // Load into Monaco editor
-                if ((window as any).__monacoEditorAPI) {
-                  (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
-                }
+                    // Load into Monaco editor
+                    if ((window as any).__monacoEditorAPI) {
+                      (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
+                    }
 
-                // Add tab
-                if ((window as any).__tabBarAPI) {
-                  const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
-                  (window as any).__tabBarAPI.addTab({
-                    id: `tab-${Date.now()}`,
-                    filePath: filePath,
-                    fileName: fileName,
-                    isDirty: false,
-                    content: fileData.content,
-                    language: 'typescript', // Will be auto-detected by Monaco
-                  });
-                }
+                    // Add tab
+                    if ((window as any).__tabBarAPI) {
+                      const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+                      (window as any).__tabBarAPI.addTab({
+                        id: `tab-${Date.now()}`,
+                        filePath: filePath,
+                        fileName: fileName,
+                        isDirty: false,
+                        content: fileData.content,
+                        language: 'typescript', // Will be auto-detected by Monaco
+                      });
+                    }
 
-                // Update status bar
-                if ((window as any).__statusBarAPI) {
-                  (window as any).__statusBarAPI.setStatus(`Editing: ${filePath.split(/[\\/]/).pop()}`);
-                }
+                    // Update status bar
+                    if ((window as any).__statusBarAPI) {
+                      (window as any).__statusBarAPI.setStatus(`Editing: ${filePath.split(/[\\/]/).pop()}`);
+                    }
 
-                console.log('[App] File opened from tree successfully');
-              } catch (error) {
-                console.error('[App] Failed to open file from tree:', error);
-              }
-            }} />
+                    console.log('[App] File opened from tree successfully');
+                  } catch (error) {
+                    console.error('[App] Failed to open file from tree:', error);
+                  }
+                }}
+              />
+            )}
           </aside>
           
           <main style={styles.editorArea}>
@@ -275,6 +319,13 @@ export const App: React.FC = () => {
         <DiagnosticsPanel />
         <RecoveryDialog />
       </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AppProvider>
+      <AppInner />
     </AppProvider>
   );
 };

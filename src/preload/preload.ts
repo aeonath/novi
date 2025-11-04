@@ -35,6 +35,14 @@ contextBridge.exposeInMainWorld('api', {
   createDirectory: (dirPath: string) => ipcRenderer.invoke('create-directory', dirPath),
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
   deleteFile: (filePath: string, isDirectory: boolean) => ipcRenderer.invoke('delete-file', filePath, isDirectory),
+  // Git operations
+  gitGetStatus: (cwd: string) => ipcRenderer.invoke('git-get-status', cwd),
+  gitStageFile: (cwd: string, filePath: string) => ipcRenderer.invoke('git-stage-file', cwd, filePath),
+  gitUnstageFile: (cwd: string, filePath: string) => ipcRenderer.invoke('git-unstage-file', cwd, filePath),
+  gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git-commit', cwd, message),
+  gitPush: (cwd: string) => ipcRenderer.invoke('git-push', cwd),
+  gitPull: (cwd: string) => ipcRenderer.invoke('git-pull', cwd),
+  gitGetDiff: (cwd: string, filePath?: string) => ipcRenderer.invoke('git-get-diff', cwd, filePath),
   // Window controls
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),

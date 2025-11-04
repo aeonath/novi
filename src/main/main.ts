@@ -11,6 +11,7 @@ import { logInfo, logError } from './logger';
 import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './crash-reporter';
 import { saveRecoveryFiles, getRecoveryFiles, deleteRecoveryFile, clearAllRecoveryFiles, cleanupOldRecoveryFiles } from './recovery';
 import { logSuccess, logError as logFSError } from './services/fs-logger';
+import { gitService } from './services/git-service';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -333,6 +334,70 @@ void app.whenReady().then(() => {
       return { success: true, path: filePath };
     } catch (error) {
       await logFSError('delete-file', filePath, error as Error);
+      throw error;
+    }
+  });
+
+  // Git IPC handlers
+  ipcMain.handle('git-get-status', async (_e, cwd: string) => {
+    try {
+      return await gitService.getStatus(cwd);
+    } catch (error) {
+      logError('Failed to get git status', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-stage-file', async (_e, cwd: string, filePath: string) => {
+    try {
+      return await gitService.stageFile(cwd, filePath);
+    } catch (error) {
+      logError('Failed to stage file', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-unstage-file', async (_e, cwd: string, filePath: string) => {
+    try {
+      return await gitService.unstageFile(cwd, filePath);
+    } catch (error) {
+      logError('Failed to unstage file', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-commit', async (_e, cwd: string, message: string) => {
+    try {
+      return await gitService.commit(cwd, message);
+    } catch (error) {
+      logError('Failed to commit', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-push', async (_e, cwd: string) => {
+    try {
+      return await gitService.push(cwd);
+    } catch (error) {
+      logError('Failed to push', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-pull', async (_e, cwd: string) => {
+    try {
+      return await gitService.pull(cwd);
+    } catch (error) {
+      logError('Failed to pull', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-get-diff', async (_e, cwd: string, filePath?: string) => {
+    try {
+      return await gitService.getDiff(cwd, filePath);
+    } catch (error) {
+      logError('Failed to get diff', error as Error);
       throw error;
     }
   });

@@ -25,6 +25,25 @@ export interface RecoveryFile {
   content: string;
 }
 
+export interface GitStatus {
+  isRepo: boolean;
+  branch: string | null;
+  files: GitFileStatus[];
+  ahead: number;
+  behind: number;
+}
+
+export interface GitFileStatus {
+  path: string;
+  status: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'staged';
+  staged: boolean;
+}
+
+export interface GitOperationResult {
+  success: boolean;
+  error?: string;
+}
+
 declare global {
   // Monaco Editor AMD global
   const monaco: typeof import('monaco-editor');
@@ -52,6 +71,13 @@ declare global {
       createDirectory: (dirPath: string) => Promise<{ success: boolean; path: string }>;
       renameFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; oldPath: string; newPath: string }>;
       deleteFile: (filePath: string, isDirectory: boolean) => Promise<{ success: boolean; path: string }>;
+      gitGetStatus: (cwd: string) => Promise<GitStatus>;
+      gitStageFile: (cwd: string, filePath: string) => Promise<boolean>;
+      gitUnstageFile: (cwd: string, filePath: string) => Promise<boolean>;
+      gitCommit: (cwd: string, message: string) => Promise<GitOperationResult>;
+      gitPush: (cwd: string) => Promise<GitOperationResult>;
+      gitPull: (cwd: string) => Promise<GitOperationResult>;
+      gitGetDiff: (cwd: string, filePath?: string) => Promise<string>;
       windowMinimize: () => void;
       windowMaximize: () => void;
       windowClose: () => void;

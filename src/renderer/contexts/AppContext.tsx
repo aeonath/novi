@@ -9,19 +9,13 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import type { GitStatus } from '../../types/global';
 
 export interface Theme {
   name: string;
   colors: Record<string, string>;
   fonts: Record<string, string>;
   spacing: Record<string, string>;
-}
-
-export interface GitStatus {
-  branch: string;
-  modified: string[];
-  staged: string[];
-  untracked: string[];
 }
 
 export interface AppState {
