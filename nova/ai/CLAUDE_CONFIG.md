@@ -158,17 +158,39 @@ nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md
 - Documentation changes
 - ANY filesystem modification
 
-**Final Step Process:**
-1. **REQUIRED**: Create DETAILED CHANGELOG (Step 3) with placeholder commit hash - **MUST BE DONE FIRST**
+**Final Step Process (FOLLOW THIS ORDER EXACTLY):**
+
+**🚨 CRITICAL ORDER 🚨**: CHANGELOG → TASK SUMMARY → GIT COMMIT
+
+1. **FIRST**: Create DETAILED CHANGELOG - **MUST BE DONE BEFORE ANY GIT OPERATIONS**
    - Location: `nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md`
    - Content: DETAILED technical documentation
-2. **REQUIRED**: Create HIGH-LEVEL TASK SUMMARY (Step 4) - **MUST BE DONE BEFORE COMMIT**
+   - Status: Use placeholder commit hash (TBD or N/A)
+
+2. **SECOND**: Create HIGH-LEVEL TASK SUMMARY (for sprint tasks only)
    - Location: `nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md`
    - Content: CONCISE status report
-3. **REQUIRED**: Create sprint DOD summary (Step 5) if sprint complete - **MUST BE DONE BEFORE COMMIT**
-4. **CHECKLIST**: ✅ Detailed Changelog created ✅ Task Summary created ✅ DOD summary created (if applicable)
-5. Stage all files: `git add *`
-6. Commit all changes: `git commit -a -m "SprintX TaskY: <brief description>"`
+
+3. **THIRD** (if sprint complete): Create sprint DOD summary
+   - Location: `nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md`
+
+4. **FOURTH**: Verify checklist
+   - ✅ Detailed Changelog created?
+   - ✅ Task Summary created? (if sprint task)
+   - ✅ DOD summary created? (if sprint complete)
+
+5. **FIFTH**: Stage all files
+   ```bash
+   git add -A
+   ```
+
+6. **SIXTH**: Commit with SHORT message
+   ```bash
+   git commit -m "SprintX TaskY: brief description"
+   ```
+   - Keep message under 80 characters
+   - Use SprintX TaskY format (NOT feat:/fix:/etc.)
+
 7. **STOP HERE** - Do NOT create a second commit to update changelog with commit hash
 
 **🚨 CRITICAL ORDER RULE 🚨**:
@@ -191,6 +213,10 @@ git commit -a -m "SprintX TaskY: <brief description>"
 
 **Commit Message Format**: 
 - **MUST** be one line only
+- **MUST** be SHORT and concise (< 80 characters)
+- **MUST** use format: `SprintX TaskY: brief description`
+- **DO NOT** use conventional commit format (feat:, fix:, etc.)
+- **EXAMPLE**: `Sprint3 Task1: Integrate Monaco Editor`
 - **MUST** include sprint number and task number
 - **MUST** be concise (e.g., "Sprint1 Task2: Implement Lexer", "Sprint1 Task4: Implement Parser")
 - **MUST NOT** include detailed descriptions (those go in changelog entries)
