@@ -29,6 +29,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   const [credentialInput, setCredentialInput] = useState('');
   const [credentialPrompt, setCredentialPrompt] = useState('');
   const [pendingOperation, setPendingOperation] = useState<'push' | 'pull' | null>(null);
+  const [explicitlyUnstagedFiles, setExplicitlyUnstagedFiles] = useState<Set<string>>(new Set());
 
   const refreshStatus = useCallback(async () => {
     if (!workspaceRoot || !window.api?.gitGetStatus) return;
@@ -50,6 +51,8 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     if (!workspaceRoot) return;
     
     console.log('[GitPanel] Setting up Git status polling for:', workspaceRoot);
+    // Clear explicitly unstaged files when workspace changes
+    setExplicitlyUnstagedFiles(new Set());
     refreshStatus();
     
     // Poll every 10 seconds for responsive Git status updates
@@ -64,10 +67,40 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     };
   }, [workspaceRoot]); // Only depend on workspaceRoot, not refreshStatus
 
+  // Auto-stage unstaged files (unless explicitly unstaged by user)
+  useEffect(() => {
+    if (!gitStatus || !workspaceRoot || !window.api?.gitStageFile) return;
+
+    const unstagedFiles = gitStatus.files.filter((f) => !f.staged && !explicitlyUnstagedFiles.has(f.path));
+    
+    if (unstagedFiles.length > 0) {
+      console.log('[GitPanel] Auto-staging', unstagedFiles.length, 'unstaged files');
+      
+      // Stage all unstaged files in parallel
+      Promise.all(
+        unstagedFiles.map((file) =>
+          window.api.gitStageFile(workspaceRoot, file.path).catch((err) => {
+            console.error('[GitPanel] Failed to auto-stage file:', file.path, err);
+          })
+        )
+      ).then(() => {
+        // Refresh status after staging
+        refreshStatus();
+      });
+    }
+  }, [gitStatus?.files.length, workspaceRoot, explicitlyUnstagedFiles]);
+
   const handleStageFile = useCallback(async (filePath: string) => {
     if (!workspaceRoot || !window.api?.gitStageFile) return;
 
     try {
+      // Remove from explicitly unstaged set (user wants it staged)
+      setExplicitlyUnstagedFiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(filePath);
+        return newSet;
+      });
+      
       await window.api.gitStageFile(workspaceRoot, filePath);
       await refreshStatus();
     } catch (err) {
@@ -80,6 +113,13 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     if (!workspaceRoot || !window.api?.gitUnstageFile) return;
 
     try {
+      // Add to explicitly unstaged set (don't auto-stage this file again)
+      setExplicitlyUnstagedFiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(filePath);
+        return newSet;
+      });
+      
       await window.api.gitUnstageFile(workspaceRoot, filePath);
       await refreshStatus();
     } catch (err) {
@@ -100,6 +140,8 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       if (result.success) {
         setSuccess('Committed successfully');
         setCommitMessage('');
+        // Clear explicitly unstaged files after commit (they're no longer in the changeset)
+        setExplicitlyUnstagedFiles(new Set());
         await refreshStatus();
         setTimeout(() => setSuccess(null), 3000);
       } else {
