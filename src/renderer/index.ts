@@ -151,9 +151,10 @@ document.addEventListener('DOMContentLoaded', (): void => {
         case 'theme':
           // Apply theme via ThemeManager
           themeManager.applyThemeById(String(value));
-          // Update Monaco theme
+          // Update Monaco theme to match Nova theme
           if (editorInstance) {
-            editorInstance.setTheme(String(value) === 'light' ? 'light' : 'dark');
+            const currentTheme = themeManager.getCurrentTheme();
+            editorInstance.applyNovaTheme(currentTheme);
           }
           break;
         case 'fontSize':

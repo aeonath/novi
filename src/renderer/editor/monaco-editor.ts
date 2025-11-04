@@ -11,6 +11,8 @@
 // Monaco is loaded via AMD loader, so we use the global
 declare const monaco: typeof import('monaco-editor');
 
+import type { Theme } from '../theme.js';
+
 export interface EditorOptions {
   language?: string;
   theme?: string;
@@ -32,8 +34,114 @@ export class MonacoEditorView {
 
   constructor(container: HTMLElement, options: EditorOptions = {}) {
     this.container = container;
+    this.defineNovaThemes();
     this.initializeMonaco(options);
     this.setupChangeListener();
+  }
+
+  /**
+   * Define custom Nova themes for Monaco
+   */
+  private defineNovaThemes(): void {
+    // Define Nova Dark theme
+    monaco.editor.defineTheme('nova-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'keyword', foreground: '569cd6', fontStyle: 'bold' },
+        { token: 'string', foreground: 'ce9178' },
+        { token: 'number', foreground: 'b5cea8' },
+        { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+        { token: 'function', foreground: 'dcdcaa' },
+        { token: 'variable', foreground: '9cdcfe' },
+        { token: 'type', foreground: '4ec9b0' },
+        { token: 'class', foreground: '4ec9b0' },
+        { token: 'interface', foreground: '4ec9b0' },
+        { token: 'namespace', foreground: '4ec9b0' },
+        { token: 'parameter', foreground: '9cdcfe' },
+        { token: 'property', foreground: '9cdcfe' },
+        { token: 'operator', foreground: 'd4d4d4' },
+        { token: 'delimiter', foreground: 'd4d4d4' },
+      ],
+      colors: {
+        'editor.background': '#1e1e1e',
+        'editor.foreground': '#ffffff',
+        'editor.lineHighlightBackground': '#2d2d30',
+        'editor.selectionBackground': '#264f78',
+        'editor.inactiveSelectionBackground': '#3a3d41',
+        'editorCursor.foreground': '#ffffff',
+        'editorWhitespace.foreground': '#3e3e42',
+        'editorIndentGuide.background': '#3e3e42',
+        'editorIndentGuide.activeBackground': '#707070',
+        'editorLineNumber.foreground': '#858585',
+        'editorLineNumber.activeForeground': '#c6c6c6',
+        'editorWidget.background': '#252526',
+        'editorWidget.border': '#3e3e42',
+        'editorSuggestWidget.background': '#252526',
+        'editorSuggestWidget.border': '#3e3e42',
+        'editorSuggestWidget.foreground': '#cccccc',
+        'editorSuggestWidget.selectedBackground': '#062f4a',
+        'editorHoverWidget.background': '#252526',
+        'editorHoverWidget.border': '#3e3e42',
+        'input.background': '#2d2d30',
+        'input.border': '#3e3e42',
+        'input.foreground': '#cccccc',
+        'inputOption.activeBorder': '#007acc',
+        'scrollbarSlider.background': '#79797966',
+        'scrollbarSlider.hoverBackground': '#646464b3',
+        'scrollbarSlider.activeBackground': '#bfbfbf66',
+      },
+    });
+
+    // Define Nova Light theme
+    monaco.editor.defineTheme('nova-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'keyword', foreground: '0000ff', fontStyle: 'bold' },
+        { token: 'string', foreground: 'a31515' },
+        { token: 'number', foreground: '098658' },
+        { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+        { token: 'function', foreground: '795e26' },
+        { token: 'variable', foreground: '001080' },
+        { token: 'type', foreground: '2d9574' },
+        { token: 'class', foreground: '2d9574' },
+        { token: 'interface', foreground: '2d9574' },
+        { token: 'namespace', foreground: '2d9574' },
+        { token: 'parameter', foreground: '001080' },
+        { token: 'property', foreground: '001080' },
+        { token: 'operator', foreground: '000000' },
+        { token: 'delimiter', foreground: '000000' },
+      ],
+      colors: {
+        'editor.background': '#ffffff',
+        'editor.foreground': '#1e1e1e',
+        'editor.lineHighlightBackground': '#f5f5f5',
+        'editor.selectionBackground': '#add6ff',
+        'editor.inactiveSelectionBackground': '#e5ebf1',
+        'editorCursor.foreground': '#000000',
+        'editorWhitespace.foreground': '#cccccc',
+        'editorIndentGuide.background': '#cccccc',
+        'editorIndentGuide.activeBackground': '#999999',
+        'editorLineNumber.foreground': '#999999',
+        'editorLineNumber.activeForeground': '#333333',
+        'editorWidget.background': '#f5f5f5',
+        'editorWidget.border': '#cccccc',
+        'editorSuggestWidget.background': '#f5f5f5',
+        'editorSuggestWidget.border': '#cccccc',
+        'editorSuggestWidget.foreground': '#333333',
+        'editorSuggestWidget.selectedBackground': '#c8e4f8',
+        'editorHoverWidget.background': '#f5f5f5',
+        'editorHoverWidget.border': '#cccccc',
+        'input.background': '#ffffff',
+        'input.border': '#cccccc',
+        'input.foreground': '#333333',
+        'inputOption.activeBorder': '#0066cc',
+        'scrollbarSlider.background': '#64646466',
+        'scrollbarSlider.hoverBackground': '#646464b3',
+        'scrollbarSlider.activeBackground': '#00000099',
+      },
+    });
   }
 
   private initializeMonaco(options: EditorOptions): void {
@@ -65,7 +173,7 @@ export class MonacoEditorView {
       this.editor = monaco.editor.create(this.container, {
         value: this.getWelcomeContent(),
         language: options.language || 'plaintext',
-        theme: this.currentTheme === 'light' ? 'vs-light' : 'vs-dark',
+        theme: this.currentTheme === 'light' ? 'nova-light' : 'nova-dark',
         fontSize: options.fontSize || 14,
         wordWrap: options.wordWrap || 'on',
         minimap: {
@@ -164,8 +272,16 @@ function helloNova() {
   public setTheme(theme: 'light' | 'dark'): void {
     this.currentTheme = theme;
     if (this.editor) {
-      monaco.editor.setTheme(theme === 'light' ? 'vs-light' : 'vs-dark');
+      monaco.editor.setTheme(theme === 'light' ? 'nova-light' : 'nova-dark');
     }
+  }
+
+  /**
+   * Apply Nova theme from Theme object
+   */
+  public applyNovaTheme(theme: Theme): void {
+    const monacoTheme = theme.id === 'light' ? 'light' : 'dark';
+    this.setTheme(monacoTheme);
   }
 
   /**

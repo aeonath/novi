@@ -13,12 +13,16 @@ export const mockEditor = {
   getModel: jest.fn(() => ({
     uri: { toString: () => 'file:///test.ts' },
   })),
+  onDidChangeModelContent: jest.fn((_callback: any) => ({
+    dispose: jest.fn(),
+  })),
 };
 
 export const editor = {
   create: jest.fn(() => mockEditor),
   setTheme: jest.fn(),
   setModelLanguage: jest.fn(),
+  defineTheme: jest.fn(),
 };
 
 // Default export for easier mocking

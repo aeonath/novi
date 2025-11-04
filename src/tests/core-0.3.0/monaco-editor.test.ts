@@ -141,6 +141,85 @@ describe('MonacoEditorView', () => {
     });
   });
 
+  describe('Nova Theme Synchronization', () => {
+    it('should define Nova custom themes on initialization', () => {
+      const editor = new MonacoEditorView(container);
+      expect(editor).toBeDefined();
+      expect(monaco.editor.defineTheme).toHaveBeenCalled();
+    });
+
+    it('should apply Nova dark theme by default', () => {
+      const editor = new MonacoEditorView(container);
+      expect(editor).toBeDefined();
+      const createCalls = (monaco.editor.create as jest.Mock).mock.calls;
+      expect(createCalls.length).toBeGreaterThan(0);
+    });
+
+    it('should apply Nova light theme when specified', () => {
+      const editor = new MonacoEditorView(container, { theme: 'light' });
+      expect(editor).toBeDefined();
+      const createCalls = (monaco.editor.create as jest.Mock).mock.calls;
+      expect(createCalls.length).toBeGreaterThan(0);
+    });
+
+    it('should switch to nova-light theme', () => {
+      const editor = new MonacoEditorView(container);
+      editor.setTheme('light');
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-light');
+    });
+
+    it('should switch to nova-dark theme', () => {
+      const editor = new MonacoEditorView(container);
+      editor.setTheme('dark');
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-dark');
+    });
+
+    it('should apply theme from Nova Theme object (light)', () => {
+      const editor = new MonacoEditorView(container);
+      const mockTheme = {
+        id: 'light',
+        name: 'Light',
+        colors: {} as any,
+        typography: {} as any,
+        spacing: {} as any,
+        shadows: {} as any,
+        borderRadius: {} as any,
+      };
+      editor.applyNovaTheme(mockTheme);
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-light');
+    });
+
+    it('should apply theme from Nova Theme object (dark)', () => {
+      const editor = new MonacoEditorView(container);
+      const mockTheme = {
+        id: 'dark',
+        name: 'Dark',
+        colors: {} as any,
+        typography: {} as any,
+        spacing: {} as any,
+        shadows: {} as any,
+        borderRadius: {} as any,
+      };
+      editor.applyNovaTheme(mockTheme);
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-dark');
+    });
+
+    it('should default to dark theme for unknown theme ids', () => {
+      const editor = new MonacoEditorView(container);
+      const mockTheme = {
+        id: 'unknown',
+        name: 'Unknown',
+        colors: {} as any,
+        typography: {} as any,
+        spacing: {} as any,
+        shadows: {} as any,
+        borderRadius: {} as any,
+      };
+      editor.applyNovaTheme(mockTheme);
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-dark');
+    });
+  });
+
   describe('Editor Operations', () => {
     it('should focus editor', () => {
       const editor = new MonacoEditorView(container);

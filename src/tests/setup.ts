@@ -26,4 +26,4 @@ global.console = {
 };
 
 // Mock Monaco Editor global for tests that need it
-(global as any).monaco = require('../../__mocks__/monaco-editor').default;
+(global as any).monaco = require('./__mocks__/monaco-editor').default;
