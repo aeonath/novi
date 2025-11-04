@@ -85,11 +85,120 @@ const AppInner: React.FC = () => {
     },
     onSaveFile: async () => {
       console.log('[App] Save File action triggered');
-      // TODO: Implement save functionality with Monaco
+      if (!window.api?.saveFile) {
+        console.error('[App] Save API not available');
+        return;
+      }
+
+      try {
+        // Get current file path and content from Monaco
+        const monacoAPI = (window as any).__monacoEditorAPI;
+        if (!monacoAPI) {
+          console.error('[App] Monaco editor API not available');
+          return;
+        }
+
+        const filePath = monacoAPI.getFilePath();
+        if (!filePath) {
+          console.log('[App] No file open, falling back to Save As');
+          // Fall back to Save As if no file is open
+          await actionContext.onSaveFileAs?.();
+          return;
+        }
+
+        const content = monacoAPI.getValue();
+        console.log('[App] Saving file:', filePath, 'size:', content.length, 'bytes');
+
+        // Save file
+        await window.api.saveFile(filePath, content);
+        
+        // Mark as saved
+        monacoAPI.markAsSaved();
+        
+        // Update tab dirty state
+        if ((window as any).__tabBarAPI) {
+          const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+          (window as any).__tabBarAPI.updateTabDirty(filePath, false);
+        }
+
+        // Update status bar
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus(`Saved: ${filePath.split(/[\\/]/).pop()}`);
+          
+          // Clear status after 2 seconds
+          setTimeout(() => {
+            if ((window as any).__statusBarAPI) {
+              (window as any).__statusBarAPI.setStatus('Ready');
+            }
+          }, 2000);
+        }
+
+        console.log('[App] File saved successfully');
+      } catch (error) {
+        console.error('[App] Failed to save file:', error);
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Save failed');
+        }
+      }
     },
     onSaveFileAs: async () => {
       console.log('[App] Save File As action triggered');
-      // TODO: Implement save as functionality
+      if (!window.api?.saveFileAs) {
+        console.error('[App] Save As API not available');
+        return;
+      }
+
+      try {
+        // Get current content from Monaco
+        const monacoAPI = (window as any).__monacoEditorAPI;
+        if (!monacoAPI) {
+          console.error('[App] Monaco editor API not available');
+          return;
+        }
+
+        const content = monacoAPI.getValue();
+        console.log('[App] Save As with content size:', content.length, 'bytes');
+
+        // Show save dialog and save
+        const result = await window.api.saveFileAs(content);
+        if (!result) {
+          console.log('[App] Save As canceled');
+          return;
+        }
+
+        console.log('[App] File saved as:', result.path);
+
+        // Load the new file path in Monaco
+        monacoAPI.loadFile(result.path, content);
+        
+        // Mark as saved
+        monacoAPI.markAsSaved();
+        
+        // Update tab
+        if ((window as any).__tabBarAPI) {
+          const fileName = result.path.split(/[\\/]/).pop() || 'untitled';
+          (window as any).__tabBarAPI.addTab({
+            id: `tab-${Date.now()}`,
+            filePath: result.path,
+            fileName: fileName,
+            isDirty: false,
+            content: content,
+            language: 'typescript',
+          });
+        }
+
+        // Update status bar
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus(`Saved as: ${result.path.split(/[\\/]/).pop()}`);
+        }
+
+        console.log('[App] File saved as successfully');
+      } catch (error) {
+        console.error('[App] Failed to save file as:', error);
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Save failed');
+        }
+      }
     },
     onOpenSettings: () => {
       console.log('[App] Open Settings action triggered');
@@ -138,6 +247,22 @@ const AppInner: React.FC = () => {
 
   // Create actions
   const actions = useMemo(() => createDefaultActions(actionContext), [actionContext]);
+
+  // Global Ctrl+S keybinding for save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        console.log('[App] Ctrl+S pressed, triggering save');
+        void actionContext.onSaveFile?.();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, { capture: true });
+    };
+  }, [actionContext.onSaveFile]);
 
   useEffect(() => {
     // Wait for Monaco to load
