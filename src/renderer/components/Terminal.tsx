@@ -26,11 +26,12 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      console.error('[Terminal] Container ref not available');
+      return;
+    }
 
-    // Initialize terminal session if not already created
-    // Note: Terminal session should be created before this component mounts
-    // This component assumes the session already exists
+    console.log('[Terminal] Initializing xterm for:', terminalId);
 
     // Create xterm instance
     const terminal = new XTerm({
@@ -71,17 +72,31 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
     terminal.loadAddon(fitAddon);
 
     // Mount terminal to container
-    terminal.open(containerRef.current);
-    fitAddon.fit();
+    try {
+      terminal.open(containerRef.current);
+      console.log('[Terminal] Terminal opened successfully');
+      
+      // Fit terminal to container
+      setTimeout(() => {
+        fitAddon.fit();
+        console.log('[Terminal] Terminal fitted:', terminal.cols, 'x', terminal.rows);
+      }, 0);
 
-    terminalRef.current = terminal;
-    fitAddonRef.current = fitAddon;
-    setIsReady(true);
+      terminalRef.current = terminal;
+      fitAddonRef.current = fitAddon;
+      setIsReady(true);
 
-    // Handle input
-    terminal.onData((data) => {
-      onData?.(data);
-    });
+      // Write welcome message
+      terminal.write('\x1b[1;32mNova Terminal\x1b[0m\r\n');
+      terminal.write('Type commands to execute...\r\n\r\n');
+
+      // Handle input
+      terminal.onData((data) => {
+        onData?.(data);
+      });
+    } catch (error) {
+      console.error('[Terminal] Failed to open terminal:', error);
+    }
 
     // Handle resize
     const handleResize = () => {

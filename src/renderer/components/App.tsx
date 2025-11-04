@@ -16,7 +16,7 @@ import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
-import { Terminal } from './Terminal.js';
+import { Terminal } from './terminal.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
@@ -210,24 +210,28 @@ const AppInner: React.FC = () => {
       
       if (!window.api?.terminalCreate) {
         console.error('[App] Terminal API not available');
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Terminal API not available');
+        }
         return;
       }
 
       try {
         // Create terminal session
+        console.log('[App] Creating terminal session...');
         const result = await window.api.terminalCreate(workspaceRoot || undefined, 80, 24);
         const terminalId = result.id;
+        console.log('[App] Terminal session created:', terminalId);
 
         // Hide welcome screen
         setShowWelcome(false);
 
-        // Add terminal tab
+        // Add terminal tab - Use terminalId as the tab ID for direct mapping
         if ((window as any).__tabBarAPI) {
-          const tabId = `terminal-${Date.now()}`;
           (window as any).__tabBarAPI.addTab({
-            id: tabId,
+            id: terminalId, // Use terminalId as tab ID for direct mapping
             type: 'terminal',
-            filePath: terminalId, // Use terminalId as filePath for terminals
+            filePath: terminalId,
             fileName: 'bash',
             isDirty: false,
             content: '',
@@ -235,7 +239,8 @@ const AppInner: React.FC = () => {
           });
           
           // Switch to terminal tab
-          setActiveTab({ id: tabId, type: 'terminal' });
+          setActiveTab({ id: terminalId, type: 'terminal' });
+          console.log('[App] Switched to terminal tab:', terminalId);
         }
 
         // Update status bar
@@ -243,10 +248,12 @@ const AppInner: React.FC = () => {
           (window as any).__statusBarAPI.setStatus('Terminal: bash');
         }
 
-        console.log('[App] Terminal created successfully');
+        console.log('[App] Terminal created successfully:', terminalId);
       } catch (error) {
         console.error('[App] Failed to create terminal:', error);
-        alert(`Failed to create terminal: ${(error as Error).message}`);
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus(`Terminal error: ${(error as Error).message}`);
+        }
       }
     },
     onOpenSettings: () => {
@@ -614,33 +621,29 @@ const AppInner: React.FC = () => {
               ) : null}
               
               {/* Show Monaco for file tabs, Terminal for terminal tabs */}
-              {activeTab?.type === 'terminal' ? (() => {
-                // Get terminalId from tab's filePath (which stores terminalId for terminal tabs)
-                const tab = (window as any).__tabBarAPI?.getTabs()?.find((t: any) => t.id === activeTab.id);
-                const terminalId = tab?.filePath || activeTab.id;
-                
-                return (
-                  <div style={{ 
-                    flex: 1, 
-                    display: 'flex',
-                    overflow: 'hidden',
-                  }}>
-                    <Terminal 
-                      terminalId={terminalId}
-                      onData={async (data: string) => {
-                        if (window.api?.terminalWrite) {
-                          await window.api.terminalWrite(terminalId, data);
-                        }
-                      }}
-                      onResize={async (cols: number, rows: number) => {
-                        if (window.api?.terminalResize) {
-                          await window.api.terminalResize(terminalId, cols, rows);
-                        }
-                      }}
-                    />
-                  </div>
-                );
-              })() : (
+              {activeTab?.type === 'terminal' ? (
+                <div style={{ 
+                  flex: 1, 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  backgroundColor: '#1e1e1e',
+                }}>
+                  <Terminal 
+                    terminalId={activeTab.id}
+                    onData={async (data: string) => {
+                      if (window.api?.terminalWrite) {
+                        await window.api.terminalWrite(activeTab.id, data);
+                      }
+                    }}
+                    onResize={async (cols: number, rows: number) => {
+                      if (window.api?.terminalResize) {
+                        await window.api.terminalResize(activeTab.id, cols, rows);
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
                 <div style={{ 
                   flex: 1, 
                   display: showWelcome ? 'none' : 'flex',
