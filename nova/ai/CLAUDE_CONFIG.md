@@ -26,6 +26,14 @@ This applies to ALL filesystem modifications - code, config, docs, renames, dele
 - Remember: Windows PowerShell environment in Cursor
 - Note: We may move to Linux in the future, but currently developing on Windows
 
+## ⏰ DATE/TIME REQUIREMENT ⏰
+**ALWAYS GET THE CURRENT DATE/TIME FIRST!**
+- **MANDATORY**: At the start of ANY work session, run: `Get-Date -Format "yyyyMMdd HHmm"`
+- Use this date for ALL changelog and documentation files
+- NEVER assume or guess the date - always verify with the system
+- Changelog directory structure: `nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md`
+- If there's a conflict, append `.1`, `.2`, etc: `TIME_HHMM.1-CHANGELOG.md`
+
 ## User Control Configuration
 
 ### Git Commit Toggle
