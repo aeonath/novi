@@ -176,7 +176,49 @@ export const App: React.FC = () => {
         
         <div style={styles.mainContent}>
           <aside style={styles.sidebar}>
-            <FileTree onFileOpen={() => setShowWelcome(false)} />
+            <FileTree onFileOpen={async (filePath: string) => {
+              console.log('[App] FileTree file open:', filePath);
+              if (!window.api?.readFile) {
+                console.error('[App] File API not available');
+                return;
+              }
+
+              try {
+                // Read file content
+                const fileData = await window.api.readFile(filePath);
+                console.log('[App] File loaded from tree, size:', fileData.content.length, 'bytes');
+
+                // Hide welcome screen
+                setShowWelcome(false);
+
+                // Load into Monaco editor
+                if ((window as any).__monacoEditorAPI) {
+                  (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
+                }
+
+                // Add tab
+                if ((window as any).__tabBarAPI) {
+                  const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+                  (window as any).__tabBarAPI.addTab({
+                    id: `tab-${Date.now()}`,
+                    filePath: filePath,
+                    fileName: fileName,
+                    isDirty: false,
+                    content: fileData.content,
+                    language: 'typescript', // Will be auto-detected by Monaco
+                  });
+                }
+
+                // Update status bar
+                if ((window as any).__statusBarAPI) {
+                  (window as any).__statusBarAPI.setStatus(`Editing: ${filePath.split(/[\\/]/).pop()}`);
+                }
+
+                console.log('[App] File opened from tree successfully');
+              } catch (error) {
+                console.error('[App] Failed to open file from tree:', error);
+              }
+            }} />
           </aside>
           
           <main style={styles.editorArea}>
