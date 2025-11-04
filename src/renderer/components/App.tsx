@@ -41,9 +41,13 @@ const AppInner: React.FC = () => {
 
     console.log('[App] Setting up terminal data listener');
     window.api.terminalOnData((terminalId: string, data: string) => {
+      console.log('[App] Received terminal data for:', terminalId, 'length:', data.length);
       const terminalAPI = (window as any).__terminalAPI?.[terminalId];
       if (terminalAPI && terminalAPI.write) {
+        console.log('[App] Writing data to terminal:', terminalId);
         terminalAPI.write(data);
+      } else {
+        console.warn('[App] No terminal API found for:', terminalId, 'Available:', Object.keys((window as any).__terminalAPI || {}));
       }
     });
 

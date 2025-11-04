@@ -76,14 +76,22 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
       terminal.open(containerRef.current);
       console.log('[Terminal] Terminal opened successfully');
       
-      // Fit terminal to container
-      setTimeout(() => {
-        fitAddon.fit();
-        console.log('[Terminal] Terminal fitted:', terminal.cols, 'x', terminal.rows);
-      }, 0);
-
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
+      
+      // Fit terminal to container and notify about resize
+      setTimeout(() => {
+        fitAddon.fit();
+        const cols = terminal.cols;
+        const rows = terminal.rows;
+        console.log('[Terminal] Terminal fitted:', cols, 'x', rows);
+        
+        // Notify parent about the actual terminal size
+        if (onResize && cols && rows) {
+          onResize(cols, rows);
+        }
+      }, 100); // Give it a bit more time to render
+
       setIsReady(true);
 
       // Handle input
@@ -121,9 +129,11 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
   // Expose write and focus methods for incoming data and tab switching
   useEffect(() => {
     if (terminalRef.current && isReady) {
+      console.log('[Terminal] Registering terminal API for:', terminalId);
       (window as any).__terminalAPI = (window as any).__terminalAPI || {};
       (window as any).__terminalAPI[terminalId] = {
         write: (data: string) => {
+          console.log('[Terminal] write() called for:', terminalId, 'data length:', data.length);
           if (terminalRef.current) {
             terminalRef.current.write(data);
           }
@@ -139,10 +149,12 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
           }
         },
       };
+      console.log('[Terminal] Terminal API registered. Available APIs:', Object.keys((window as any).__terminalAPI));
     }
 
     return () => {
       if ((window as any).__terminalAPI) {
+        console.log('[Terminal] Unregistering terminal API for:', terminalId);
         delete (window as any).__terminalAPI[terminalId];
       }
     };
