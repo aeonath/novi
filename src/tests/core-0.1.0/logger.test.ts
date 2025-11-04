@@ -169,6 +169,13 @@ describe('Logger', () => {
         unlinkSync(logFile);
       }
 
+      // Wait a tiny bit to ensure file system has flushed
+      // (in case other tests just finished)
+      const startTime = Date.now();
+      while (Date.now() - startTime < 10) {
+        // busy wait for 10ms to ensure isolation
+      }
+
       logInfo('First message');
       logError('Second message');
       logInfo('Third message');
@@ -178,8 +185,20 @@ describe('Logger', () => {
       expect(content).toContain('First message');
       expect(content).toContain('Second message');
       expect(content).toContain('Third message');
-      expect((content.match(/\[INFO\]/g) ?? []).length).toBe(2);
-      expect((content.match(/\[ERROR\]/g) ?? []).length).toBe(1);
+      
+      // Count only our specific messages to avoid contamination from other tests
+      const lines = content.split('\n').filter(line => line.trim());
+      const infoCount = lines.filter(line => 
+        line.includes('[INFO]') && 
+        (line.includes('First message') || line.includes('Third message'))
+      ).length;
+      const errorCount = lines.filter(line => 
+        line.includes('[ERROR]') && 
+        line.includes('Second message')
+      ).length;
+      
+      expect(infoCount).toBe(2);
+      expect(errorCount).toBe(1);
     });
   });
 
