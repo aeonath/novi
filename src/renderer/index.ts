@@ -8,6 +8,7 @@ import { StatusBar } from './components/status-bar.js';
 import { FileViewer } from './components/file-viewer.js';
 import { DiagnosticsPanel } from './components/diagnostics-panel.js';
 import { initializeThemeManager, themes } from './theme.js';
+import { MonacoEditorView, detectLanguage } from './editor/index.js';
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
@@ -106,7 +107,9 @@ document.addEventListener('DOMContentLoaded', (): void => {
     // Load settings from storage
     await settingsPanel.loadFromStorage();
 
-    // Handle setting changes
+    // Handle setting changes (editor will be initialized later)
+    let editorInstance: MonacoEditorView | null = null;
+    
     settingsPanel.onChange(async (id, value) => {
       // Save to storage
       await settingsPanel.saveToStorage(id, value);
@@ -116,9 +119,17 @@ document.addEventListener('DOMContentLoaded', (): void => {
         case 'theme':
           // Apply theme via ThemeManager
           themeManager.applyThemeById(String(value));
+          // Update Monaco theme
+          if (editorInstance) {
+            editorInstance.setTheme(String(value) === 'light' ? 'light' : 'dark');
+          }
           break;
         case 'fontSize':
           document.documentElement.style.setProperty('--font-size', `${value}px`);
+          // Update Monaco font size
+          if (editorInstance) {
+            editorInstance.updateOptions({ fontSize: Number(value) });
+          }
           break;
         case 'autoSave':
           // eslint-disable-next-line no-console
@@ -143,17 +154,54 @@ document.addEventListener('DOMContentLoaded', (): void => {
     // Initialize Diagnostics Panel
     const diagnosticsPanel = new DiagnosticsPanel();
 
+    // Initialize Monaco Editor
+    const editorContainer = document.getElementById('monaco-editor-container') as HTMLElement;
+    const welcomeScreen = document.getElementById('welcome-screen') as HTMLElement;
+    
+    if (editorContainer) {
+      // Show editor by default with welcome content
+      editorInstance = new MonacoEditorView(editorContainer, {
+        theme: currentTheme.id === 'light' ? 'light' : 'dark',
+        fontSize: 14,
+        wordWrap: 'on',
+        minimap: true,
+        lineNumbers: 'on',
+      });
+      
+      // Show the editor
+      editorContainer.style.display = 'block';
+      if (welcomeScreen) {
+        welcomeScreen.style.display = 'none';
+      }
+      
+      statusBar.setStatus('Ready');
+    }
+
     // Initialize Action HUD
     const actionContext: ActionContext = {
       onOpenFile: async () => {
-        if (!window.api) {
+        if (!window.api || !editorInstance) {
           return;
         }
         try {
           const filePath = await window.api.openFile();
           if (filePath) {
-            await fileViewer.openFile(filePath);
-            statusBar.setStatus(`Viewing: ${filePath.split(/[\\/]/).pop()}`);
+            // Load file data
+            const fileData = await window.api.readFile(filePath);
+            
+            // Set content in Monaco editor
+            editorInstance.setValue(fileData.content);
+            
+            // Set language based on file extension
+            const language = detectLanguage(filePath);
+            editorInstance.setLanguage(language);
+            
+            // Update status bar
+            const fileName = filePath.split(/[\\/]/).pop() || filePath;
+            statusBar.setStatus(`Editing: ${fileName}`);
+            
+            // eslint-disable-next-line no-console
+            console.log(`[Monaco] Opened file: ${filePath} (${language})`);
           }
         } catch (error) {
           // eslint-disable-next-line no-console

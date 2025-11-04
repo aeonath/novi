@@ -19,9 +19,15 @@ This sprint maintains Nova’s simplicity and transparency while expanding capab
 Embed the Monaco Editor as Nova’s primary text editing component.
 
 **Tasks:**  
-1. Add Monaco Editor locally.  
-2. Create an `EditorView` container in `src/renderer/editor/`.  
-3. Verify smooth input, scrolling, and resizing.  
+1. Add monaco-editor as a local dependency and ensure it builds correctly with Nova’s bundler (Vite or Webpack).
+
+2. Create an EditorView container in src/renderer/editor/. Mount Monaco inside a <div id="editor"> that fills the window.
+
+3. Initialize the editor with basic options (language: 'plaintext', automaticLayout: true, theme: 'vs-dark').  You may use our dark or light themes that are alraedy implemented.
+
+4. Load a static sample file or test string to confirm proper rendering.
+
+5. Verify smooth input, scrolling, resizing, and no renderer errors on window reload.
 **Result:**  
 Monaco runs natively within Nova.
 
