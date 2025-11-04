@@ -181,10 +181,14 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         const rows = terminal.rows;
         console.log('[Terminal] Initial xterm fit:', cols, 'x', rows);
         
-        // DO NOT send resize - PTY was created with these exact dimensions
-        // Sending resize causes visible export commands and is unnecessary
-        // The shell already knows the correct dimensions from PTY creation
-        console.log('[Terminal] Skipping resize - PTY already has correct dimensions from creation');
+        // CRITICAL: Even though PTY was created with measured dimensions,
+        // we MUST notify the PTY of the final xterm dimensions to ensure
+        // vim and other TUI apps display correctly. Without this, there can
+        // be a mismatch between PTY size and xterm viewport causing offset.
+        if (onResizeRef.current) {
+          console.log('[Terminal] Syncing PTY dimensions to match xterm:', cols, 'x', rows);
+          onResizeRef.current(cols, rows);
+        }
         
         // Focus the terminal if it's active
         if (isActive) {
@@ -200,6 +204,12 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminal.onData((data) => {
         onDataRef.current?.(data);
       });
+
+      // Ensure terminal starts with viewport at the bottom
+      // This prevents vim and other TUI apps from displaying offset
+      setTimeout(() => {
+        terminal.scrollToBottom();
+      }, 200);
     } catch (error) {
       console.error('[Terminal] Failed to open terminal:', error);
     }
@@ -301,6 +311,9 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
             onResizeRef.current(newCols, newRows);
           }
           
+          // Ensure viewport is at bottom (critical for vim and TUI apps)
+          terminalRef.current.scrollToBottom();
+          
           // Focus the terminal without flashing
           terminalRef.current.focus();
         }
@@ -324,13 +337,26 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
 
   // Handle paste to terminal
   const handlePaste = useCallback(() => {
-    if (terminalRef.current && (window as any).api?.clipboardReadText) {
+    console.log('[Terminal] Paste triggered');
+    if (terminalRef.current) {
+      if (!(window as any).api?.clipboardReadText) {
+        console.error('[Terminal] Clipboard API not available');
+        setContextMenu(null);
+        return;
+      }
+      
       const text = (window as any).api.clipboardReadText();
+      console.log('[Terminal] Read from clipboard:', text ? text.length : 0, 'chars');
+      
       if (text) {
-        console.log('[Terminal] Pasting:', text.length, 'chars');
+        console.log('[Terminal] Pasting to terminal via onData');
         if (onData) {
           onData(text);
+        } else {
+          console.warn('[Terminal] onData callback not available');
         }
+      } else {
+        console.warn('[Terminal] No text in clipboard');
       }
     }
     setContextMenu(null);
