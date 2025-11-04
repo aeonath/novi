@@ -86,18 +86,41 @@
       /* Title bar button overrides to maintain theme colors */
       .title-bar-button {
         color: #cccccc !important;
+        forced-color-adjust: none !important;
+        -webkit-text-fill-color: #cccccc !important;
       }
       
       .title-bar-button:hover {
         color: #cccccc !important;
+        forced-color-adjust: none !important;
+        -webkit-text-fill-color: #cccccc !important;
       }
       
       .title-bar-button:focus {
         color: #cccccc !important;
+        forced-color-adjust: none !important;
+        -webkit-text-fill-color: #cccccc !important;
       }
       
       .title-bar-button:active {
         color: #cccccc !important;
+        forced-color-adjust: none !important;
+        -webkit-text-fill-color: #cccccc !important;
+      }
+
+      /* Override Windows High Contrast Mode */
+      @media (forced-colors: active) {
+        .title-bar-button {
+          forced-color-adjust: none !important;
+          color: #cccccc !important;
+          -webkit-text-fill-color: #cccccc !important;
+        }
+        
+        .title-bar-button:hover {
+          forced-color-adjust: none !important;
+          color: #cccccc !important;
+          -webkit-text-fill-color: #cccccc !important;
+        }
       }
     </style>
     <meta
