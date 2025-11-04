@@ -179,23 +179,8 @@ const AppInner: React.FC = () => {
         
         <div style={styles.mainContent}>
           <aside style={styles.sidebar}>
-            {showGitPanel ? (
-              <GitPanel
-                workspaceRoot={workspaceRoot}
-                onToggleFiles={() => setShowGitPanel(false)}
-                onRefreshStatus={async () => {
-                  if (!workspaceRoot || !window.api?.gitGetStatus) return;
-                  try {
-                    const status = await window.api.gitGetStatus(workspaceRoot);
-                    if (status.isRepo) {
-                      setGitStatus(status);
-                    }
-                  } catch (error) {
-                    console.error('[App] Failed to refresh git status:', error);
-                  }
-                }}
-              />
-            ) : (
+            {/* Always render both components, but hide with CSS to preserve state */}
+            <div style={{ display: showGitPanel ? 'none' : 'flex', flexDirection: 'column', height: '100%' }}>
               <FileTree
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
                 onDirectoryOpen={async (dirPath: string) => {
@@ -263,7 +248,25 @@ const AppInner: React.FC = () => {
                   }
                 }}
               />
-            )}
+            </div>
+            
+            <div style={{ display: showGitPanel ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+              <GitPanel
+                workspaceRoot={workspaceRoot}
+                onToggleFiles={() => setShowGitPanel(false)}
+                onRefreshStatus={async () => {
+                  if (!workspaceRoot || !window.api?.gitGetStatus) return;
+                  try {
+                    const status = await window.api.gitGetStatus(workspaceRoot);
+                    if (status.isRepo) {
+                      setGitStatus(status);
+                    }
+                  } catch (error) {
+                    console.error('[App] Failed to refresh git status:', error);
+                  }
+                }}
+              />
+            </div>
           </aside>
           
           <main style={styles.editorArea}>
