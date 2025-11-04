@@ -2,6 +2,7 @@
 
 Nova is a modern development environment built with Electron and TypeScript.
 It sits comfortably between simplicity and power — more expressive than a text editor, 
+
 yet free from the excess of a traditional IDE.
 Nova focuses on clarity, performance, and a workspace that feels effortless to use.
 

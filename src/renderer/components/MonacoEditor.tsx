@@ -218,18 +218,51 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   }, []);
 
   // Context menu action handlers
-  const handleCut = useCallback(() => {
-    editorRef.current?.getAction('editor.action.clipboardCutAction')?.run();
+  const handleCut = useCallback(async () => {
+    if (editorRef.current) {
+      const selection = editorRef.current.getSelection();
+      if (selection && !selection.isEmpty()) {
+        const text = editorRef.current.getModel()?.getValueInRange(selection);
+        if (text && window.api?.clipboardWriteText) {
+          window.api.clipboardWriteText(text);
+          editorRef.current.executeEdits('context-menu', [{
+            range: selection,
+            text: ''
+          }]);
+        }
+      }
+    }
     setContextMenu(null);
   }, []);
 
-  const handleCopy = useCallback(() => {
-    editorRef.current?.getAction('editor.action.clipboardCopyAction')?.run();
+  const handleCopy = useCallback(async () => {
+    if (editorRef.current) {
+      const selection = editorRef.current.getSelection();
+      if (selection && !selection.isEmpty()) {
+        const text = editorRef.current.getModel()?.getValueInRange(selection);
+        if (text && window.api?.clipboardWriteText) {
+          window.api.clipboardWriteText(text);
+          console.log('[MonacoEditor] Copied to clipboard:', text.substring(0, 50) + '...');
+        }
+      }
+    }
     setContextMenu(null);
   }, []);
 
   const handlePaste = useCallback(async () => {
-    editorRef.current?.getAction('editor.action.clipboardPasteAction')?.run();
+    if (editorRef.current && window.api?.clipboardReadText) {
+      const text = window.api.clipboardReadText();
+      if (text) {
+        const selection = editorRef.current.getSelection();
+        if (selection) {
+          editorRef.current.executeEdits('context-menu', [{
+            range: selection,
+            text: text
+          }]);
+          console.log('[MonacoEditor] Pasted from clipboard:', text.substring(0, 50) + '...');
+        }
+      }
+    }
     setContextMenu(null);
   }, []);
 

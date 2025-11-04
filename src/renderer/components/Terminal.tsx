@@ -96,11 +96,11 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         // Validate dimensions before creating PTY
         if (cols < 40 || rows < 10) {
           console.warn(`[Terminal] Measured dimensions seem invalid (${cols}x${rows}), using safe defaults`);
-          await window.api.terminalCreate(workspaceRoot, 100, 30, terminalId);
+          await (window as any).api?.terminalCreate(workspaceRoot, 100, 30, terminalId);
         } else {
           // Create PTY with the EXACT measured dimensions
           console.log(`[Terminal] Creating PTY ${terminalId} with measured dimensions: ${cols}x${rows}`);
-          await window.api.terminalCreate(workspaceRoot, cols, rows, terminalId);
+          await (window as any).api?.terminalCreate(workspaceRoot, cols, rows, terminalId);
         }
         
         setPtyCreated(true);
@@ -364,7 +364,6 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           width: '100%',
           height: '100%',
           backgroundColor: '#1e1e1e',
-          padding: '4px',
           boxSizing: 'border-box',
           overflow: 'hidden',
         }}
