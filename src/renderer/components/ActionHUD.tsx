@@ -73,7 +73,7 @@ export const ActionHUD: React.FC<ActionHUDProps> = ({ actions: initialActions = 
     await action.handler();
   }, [filteredActions, hide]);
 
-  // Global keyboard listeners (Ctrl/Cmd + K or Space)
+  // Global keyboard listeners (Ctrl/Cmd + K)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Ignore modifier keys themselves
@@ -81,8 +81,8 @@ export const ActionHUD: React.FC<ActionHUDProps> = ({ actions: initialActions = 
         return;
       }
 
-      // Ctrl/Cmd + K or Ctrl/Cmd + Space to toggle
-      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'k' || e.key === ' ')) {
+      // Ctrl/Cmd + K to toggle
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();

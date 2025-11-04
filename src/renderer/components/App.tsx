@@ -615,7 +615,7 @@ const AppInner: React.FC = () => {
                   <h1>Nova</h1>
                   <p>Open a file to start editing</p>
                   <p style={{ fontSize: '0.9em', opacity: 0.7 }}>
-                    Press <kbd>Ctrl+K</kbd> or <kbd>Ctrl+Space</kbd> for commands
+                    Press <kbd>Ctrl+K</kbd> for commands
                   </p>
                 </div>
               ) : null}

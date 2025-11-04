@@ -72,6 +72,22 @@ async function initializeApp() {
 
     console.log('[Nova] React app rendered successfully');
 
+    // Ensure document is always focusable and receives keyboard events
+    window.addEventListener('focus', () => {
+      console.log('[Renderer] Window gained focus');
+      // Ensure body is focusable
+      if (!document.body.hasAttribute('tabindex')) {
+        document.body.setAttribute('tabindex', '-1');
+      }
+      // Focus body to ensure keyboard events work immediately
+      setTimeout(() => {
+        document.body.focus();
+      }, 0);
+    });
+
+    // Trigger focus handler immediately
+    window.dispatchEvent(new Event('focus'));
+
     // Setup error handlers
     window.addEventListener('error', (ev) => {
       // Ignore Monaco-related errors
