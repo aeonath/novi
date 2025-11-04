@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('api', {
   // File operations
   openFile: () => ipcRenderer.invoke('open-file'),
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
+  saveFile: (filePath: string, content: string) => ipcRenderer.invoke('save-file', filePath, content),
+  saveFileAs: (content: string) => ipcRenderer.invoke('save-file-as', content),
   // Window controls
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),

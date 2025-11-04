@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join } from 'node:path';
-import { readdir, stat, readFile } from 'node:fs/promises';
+import { readdir, stat, readFile, writeFile } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
 import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './crash-reporter';
@@ -173,6 +173,47 @@ void app.whenReady().then(() => {
       };
     } catch (error) {
       logError(`Failed to read file: ${filePath}`, error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('save-file', async (_e, filePath: string, content: string) => {
+    try {
+      await writeFile(filePath, content, 'utf-8');
+      const stats = await stat(filePath);
+      return {
+        path: filePath,
+        size: stats.size,
+        modified: stats.mtime,
+      };
+    } catch (error) {
+      logError(`Failed to save file: ${filePath}`, error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('save-file-as', async (_e, content: string) => {
+    try {
+      const result = await dialog.showSaveDialog(mainWindowRef!, {
+        filters: [
+          { name: 'All Files', extensions: ['*'] },
+          { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css'] },
+        ],
+      });
+      
+      if (result.canceled || !result.filePath) {
+        return null;
+      }
+      
+      await writeFile(result.filePath, content, 'utf-8');
+      const stats = await stat(result.filePath);
+      return {
+        path: result.filePath,
+        size: stats.size,
+        modified: stats.mtime,
+      };
+    } catch (error) {
+      logError(`Failed to save file as`, error);
       throw error;
     }
   });

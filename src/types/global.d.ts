@@ -35,6 +35,8 @@ declare global {
       selectDirectory: () => Promise<string | null>;
       openFile: () => Promise<string | null>;
       readFile: (filePath: string) => Promise<FileData>;
+      saveFile: (filePath: string, content: string) => Promise<{ path: string; size: number; modified: Date }>;
+      saveFileAs: (content: string) => Promise<{ path: string; size: number; modified: Date } | null>;
       windowMinimize: () => void;
       windowMaximize: () => void;
       windowClose: () => void;

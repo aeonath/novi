@@ -5,6 +5,8 @@ describe('Actions', () => {
     it('should create default actions with all handlers', () => {
       const context: ActionContext = {
         onOpenFile: jest.fn(),
+        onSaveFile: jest.fn(),
+        onSaveFileAs: jest.fn(),
         onReloadFile: jest.fn(),
         onCloseFile: jest.fn(),
         onToggleTheme: jest.fn(),
@@ -14,19 +16,23 @@ describe('Actions', () => {
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(6);
+      expect(actions).toHaveLength(8);
       expect(actions[0].id).toBe('open-file');
       expect(actions[0].label).toBe('Open File');
-      expect(actions[1].id).toBe('reload-file');
-      expect(actions[1].label).toBe('Reload File');
-      expect(actions[2].id).toBe('close-file');
-      expect(actions[2].label).toBe('Close File');
-      expect(actions[3].id).toBe('toggle-theme');
-      expect(actions[3].label).toBe('Toggle Theme');
-      expect(actions[4].id).toBe('settings');
-      expect(actions[4].label).toBe('Settings');
-      expect(actions[5].id).toBe('diagnostics');
-      expect(actions[5].label).toBe('System Diagnostics');
+      expect(actions[1].id).toBe('save-file');
+      expect(actions[1].label).toBe('Save File');
+      expect(actions[2].id).toBe('save-file-as');
+      expect(actions[2].label).toBe('Save File As...');
+      expect(actions[3].id).toBe('reload-file');
+      expect(actions[3].label).toBe('Reload File');
+      expect(actions[4].id).toBe('close-file');
+      expect(actions[4].label).toBe('Close File');
+      expect(actions[5].id).toBe('toggle-theme');
+      expect(actions[5].label).toBe('Toggle Theme');
+      expect(actions[6].id).toBe('settings');
+      expect(actions[6].label).toBe('Settings');
+      expect(actions[7].id).toBe('diagnostics');
+      expect(actions[7].label).toBe('System Diagnostics');
     });
 
     it('should call onOpenFile handler when Open File action is executed', () => {
@@ -82,7 +88,7 @@ describe('Actions', () => {
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(6);
+      expect(actions).toHaveLength(8);
       // Should not throw when handlers are missing
       actions.forEach((action) => {
         expect(() => {
@@ -126,9 +132,11 @@ describe('Actions', () => {
       });
     });
 
-    it('should create all six default actions', () => {
+    it('should create all eight default actions', () => {
       const context: ActionContext = {
         onOpenFile: jest.fn(),
+        onSaveFile: jest.fn(),
+        onSaveFileAs: jest.fn(),
         onReloadFile: jest.fn(),
         onCloseFile: jest.fn(),
         onToggleTheme: jest.fn(),
@@ -140,6 +148,8 @@ describe('Actions', () => {
 
       const actionIds = actions.map((a) => a.id);
       expect(actionIds).toContain('open-file');
+      expect(actionIds).toContain('save-file');
+      expect(actionIds).toContain('save-file-as');
       expect(actionIds).toContain('reload-file');
       expect(actionIds).toContain('close-file');
       expect(actionIds).toContain('toggle-theme');
@@ -192,6 +202,38 @@ describe('Actions', () => {
       if (diagnosticsAction) {
         void Promise.resolve(diagnosticsAction.handler());
         expect(onOpenDiagnostics).toHaveBeenCalled();
+      }
+    });
+
+    it('should call onSaveFile handler when Save File action is executed', () => {
+      const onSaveFile = jest.fn();
+      const context: ActionContext = {
+        onSaveFile,
+      };
+
+      const actions = createDefaultActions(context);
+      const saveFileAction = actions.find((a) => a.id === 'save-file');
+
+      expect(saveFileAction).toBeDefined();
+      if (saveFileAction) {
+        void Promise.resolve(saveFileAction.handler());
+        expect(onSaveFile).toHaveBeenCalled();
+      }
+    });
+
+    it('should call onSaveFileAs handler when Save File As action is executed', () => {
+      const onSaveFileAs = jest.fn();
+      const context: ActionContext = {
+        onSaveFileAs,
+      };
+
+      const actions = createDefaultActions(context);
+      const saveFileAsAction = actions.find((a) => a.id === 'save-file-as');
+
+      expect(saveFileAsAction).toBeDefined();
+      if (saveFileAsAction) {
+        void Promise.resolve(saveFileAsAction.handler());
+        expect(onSaveFileAs).toHaveBeenCalled();
       }
     });
   });

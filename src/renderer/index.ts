@@ -224,36 +224,112 @@ document.addEventListener('DOMContentLoaded', (): void => {
       }
     }
 
+    // Setup dirty state tracking
+    if (editorInstance) {
+      editorInstance.onDirtyChange((isDirty) => {
+        const filePath = editorInstance.getFilePath();
+        if (filePath) {
+          const fileName = filePath.split(/[\\/]/).pop() || filePath;
+          const dirtyMarker = isDirty ? ' *' : '';
+          statusBar.setStatus(`Editing: ${fileName}${dirtyMarker}`);
+        }
+      });
+    }
+
     // Initialize Action HUD
     const actionContext: ActionContext = {
       onOpenFile: async () => {
         if (!window.api || !editorInstance) {
           return;
         }
+
+        // Check for unsaved changes
+        if (editorInstance.isDirty()) {
+          const currentFile = editorInstance.getFilePath();
+          const fileName = currentFile ? currentFile.split(/[\\/]/).pop() : 'untitled';
+          const proceed = confirm(
+            `You have unsaved changes in "${fileName}". Do you want to discard them and open a new file?`
+          );
+          if (!proceed) {
+            return;
+          }
+        }
+
         try {
           const filePath = await window.api.openFile();
           if (filePath) {
             // Load file data
             const fileData = await window.api.readFile(filePath);
             
-            // Set content in Monaco editor
-            editorInstance.setValue(fileData.content);
-            
-            // Set language based on file extension
-            const language = detectLanguage(filePath);
-            editorInstance.setLanguage(language);
+            // Load into Monaco editor
+            editorInstance.loadFile(filePath, fileData.content);
             
             // Update status bar
             const fileName = filePath.split(/[\\/]/).pop() || filePath;
             statusBar.setStatus(`Editing: ${fileName}`);
             
             // eslint-disable-next-line no-console
-            console.log(`[Monaco] Opened file: ${filePath} (${language})`);
+            console.log(`[Monaco] Opened file: ${filePath}`);
           }
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error('Failed to open file:', error);
           statusBar.setStatus('Error opening file', 'Failed to open file');
+        }
+      },
+      onSaveFile: async () => {
+        if (!window.api || !editorInstance) {
+          return;
+        }
+        try {
+          const filePath = editorInstance.getFilePath();
+          if (!filePath) {
+            // No file loaded, use Save As instead
+            await actionContext.onSaveFileAs?.();
+            return;
+          }
+
+          const content = editorInstance.getValue();
+          await window.api.saveFile(filePath, content);
+          editorInstance.markAsSaved();
+          
+          const fileName = filePath.split(/[\\/]/).pop() || filePath;
+          statusBar.setStatus(`Saved: ${fileName}`);
+          
+          // eslint-disable-next-line no-console
+          console.log(`[Monaco] Saved file: ${filePath}`);
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to save file:', error);
+          statusBar.setStatus('Error saving file', 'Failed to save file');
+        }
+      },
+      onSaveFileAs: async () => {
+        if (!window.api || !editorInstance) {
+          return;
+        }
+        try {
+          const content = editorInstance.getValue();
+          const result = await window.api.saveFileAs(content);
+          
+          if (result) {
+            editorInstance.setFilePath(result.path);
+            editorInstance.markAsSaved();
+            
+            const fileName = result.path.split(/[\\/]/).pop() || result.path;
+            statusBar.setStatus(`Saved: ${fileName}`);
+            
+            // Update language based on new file extension
+            const language = detectLanguage(result.path);
+            editorInstance.setLanguage(language);
+            
+            // eslint-disable-next-line no-console
+            console.log(`[Monaco] Saved file as: ${result.path}`);
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to save file as:', error);
+          statusBar.setStatus('Error saving file', 'Failed to save file');
         }
       },
       onReloadFile: async () => {

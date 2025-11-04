@@ -25,10 +25,15 @@ export class MonacoEditorView {
   private editor: any | null = null;
   private container: HTMLElement;
   private currentTheme: 'light' | 'dark' = 'dark';
+  private currentFilePath: string | null = null;
+  private isDirtyFlag: boolean = false;
+  private savedContent: string = '';
+  private onDirtyChangeCallback: ((isDirty: boolean) => void) | null = null;
 
   constructor(container: HTMLElement, options: EditorOptions = {}) {
     this.container = container;
     this.initializeMonaco(options);
+    this.setupChangeListener();
   }
 
   private initializeMonaco(options: EditorOptions): void {
@@ -85,6 +90,24 @@ export class MonacoEditorView {
       console.error('[MonacoEditor] Failed to initialize:', error);
       throw error; // Re-throw so caller can handle
     }
+  }
+
+  private setupChangeListener(): void {
+    if (!this.editor) {
+      return;
+    }
+
+    // Listen for content changes
+    this.editor.onDidChangeModelContent(() => {
+      const currentContent = this.getValue();
+      const wasDirty = this.isDirtyFlag;
+      this.isDirtyFlag = currentContent !== this.savedContent;
+
+      // Notify callback if dirty state changed
+      if (wasDirty !== this.isDirtyFlag && this.onDirtyChangeCallback) {
+        this.onDirtyChangeCallback(this.isDirtyFlag);
+      }
+    });
   }
 
   private getWelcomeContent(): string {
@@ -181,11 +204,62 @@ function helloNova() {
   }
 
   /**
+   * Load a file into the editor
+   */
+  public loadFile(filePath: string, content: string): void {
+    this.currentFilePath = filePath;
+    this.savedContent = content;
+    this.setValue(content);
+    this.isDirtyFlag = false;
+    
+    // Detect and set language
+    const language = detectLanguage(filePath);
+    this.setLanguage(language);
+    
+    // Notify dirty state changed
+    if (this.onDirtyChangeCallback) {
+      this.onDirtyChangeCallback(false);
+    }
+  }
+
+  /**
+   * Mark content as saved
+   */
+  public markAsSaved(): void {
+    this.savedContent = this.getValue();
+    this.isDirtyFlag = false;
+    
+    if (this.onDirtyChangeCallback) {
+      this.onDirtyChangeCallback(false);
+    }
+  }
+
+  /**
+   * Set the current file path
+   */
+  public setFilePath(filePath: string): void {
+    this.currentFilePath = filePath;
+  }
+
+  /**
+   * Get the current file path
+   */
+  public getFilePath(): string | null {
+    return this.currentFilePath;
+  }
+
+  /**
    * Check if content has been modified
    */
   public isDirty(): boolean {
-    // This will be enhanced later when we track file state
-    return false;
+    return this.isDirtyFlag;
+  }
+
+  /**
+   * Register a callback for dirty state changes
+   */
+  public onDirtyChange(callback: (isDirty: boolean) => void): void {
+    this.onDirtyChangeCallback = callback;
   }
 
   /**

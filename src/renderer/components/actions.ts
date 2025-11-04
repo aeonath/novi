@@ -5,6 +5,8 @@ import { Action } from './action-hud.js';
 
 export interface ActionContext {
   onOpenFile?: () => void | Promise<void>;
+  onSaveFile?: () => void | Promise<void>;
+  onSaveFileAs?: () => void | Promise<void>;
   onReloadFile?: () => void | Promise<void>;
   onCloseFile?: () => void | Promise<void>;
   onToggleTheme?: () => void | Promise<void>;
@@ -27,6 +29,24 @@ export function createDefaultActions(context: ActionContext): Action[] {
     label: 'Open File',
     handler: () => {
       callHandler(context.onOpenFile);
+    },
+  });
+
+  // Save File action
+  actions.push({
+    id: 'save-file',
+    label: 'Save File',
+    handler: () => {
+      callHandler(context.onSaveFile);
+    },
+  });
+
+  // Save File As action
+  actions.push({
+    id: 'save-file-as',
+    label: 'Save File As...',
+    handler: () => {
+      callHandler(context.onSaveFileAs);
     },
   });
 

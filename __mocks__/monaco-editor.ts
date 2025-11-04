@@ -13,6 +13,12 @@ export const mockEditor = {
   getModel: jest.fn(() => ({
     uri: { toString: () => 'file:///test.ts' },
   })),
+  onDidChangeModelContent: jest.fn((_callback) => {
+    // Return a disposable
+    return {
+      dispose: jest.fn(),
+    };
+  }),
 };
 
 export const editor = {
