@@ -89,7 +89,9 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         padding: {
           top: 8,
           bottom: 8,
+          right: 4,
         },
+        scrollBeyondLastColumn: 5,
       });
 
       console.log('[MonacoEditor] Initialized successfully');
