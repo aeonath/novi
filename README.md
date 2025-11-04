@@ -6,10 +6,6 @@ It sits comfortably between simplicity and power — more expressive than a text
 yet free from the excess of a traditional IDE.
 Nova focuses on clarity, performance, and a workspace that feels effortless to use.
 
-
-test this is our edit
-
-
 **Version:** 0.3.5 (Sprint 3 - Editing Core)  
 **Status:** Active Development
 

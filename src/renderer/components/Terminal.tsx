@@ -314,12 +314,9 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   const handleCopy = useCallback(() => {
     if (terminalRef.current) {
       const selection = terminalRef.current.getSelection();
-      if (selection) {
-        navigator.clipboard.writeText(selection).then(() => {
-          console.log('[Terminal] Copied to clipboard:', selection.length, 'chars');
-        }).catch((err) => {
-          console.error('[Terminal] Failed to copy:', err);
-        });
+      if (selection && (window as any).api?.clipboardWriteText) {
+        (window as any).api.clipboardWriteText(selection);
+        console.log('[Terminal] Copied to clipboard:', selection.length, 'chars');
       }
     }
     setContextMenu(null);
@@ -327,15 +324,14 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
 
   // Handle paste to terminal
   const handlePaste = useCallback(() => {
-    if (terminalRef.current) {
-      navigator.clipboard.readText().then((text) => {
+    if (terminalRef.current && (window as any).api?.clipboardReadText) {
+      const text = (window as any).api.clipboardReadText();
+      if (text) {
         console.log('[Terminal] Pasting:', text.length, 'chars');
         if (onData) {
           onData(text);
         }
-      }).catch((err) => {
-        console.error('[Terminal] Failed to paste:', err);
-      });
+      }
     }
     setContextMenu(null);
   }, [onData]);
