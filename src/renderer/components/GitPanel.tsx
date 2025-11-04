@@ -48,11 +48,11 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     console.log('[GitPanel] Setting up Git status polling for:', workspaceRoot);
     refreshStatus();
     
-    // Poll every 30 seconds (reduced from 5s to prevent system overload)
+    // Poll every 10 seconds for responsive Git status updates
     const interval = setInterval(() => {
       console.log('[GitPanel] Polling Git status');
       refreshStatus();
-    }, 30000);
+    }, 10000);
     
     return () => {
       console.log('[GitPanel] Cleaning up Git status polling');
@@ -205,7 +205,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         <div style={styles.headerButtons}>
           {onToggleFiles && (
             <button style={styles.refreshButton} onClick={onToggleFiles} title="Show Files">
-              📁
+              ☰
             </button>
           )}
           <button style={styles.refreshButton} onClick={refreshStatus} title="Refresh">
@@ -213,10 +213,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
           </button>
         </div>
       </div>
-
-      {/* Status messages */}
-      {error && <div style={styles.errorMessage}>{error}</div>}
-      {success && <div style={styles.successMessage}>{success}</div>}
 
       {/* Commit section */}
       <div style={styles.commitSection}>
@@ -263,6 +259,13 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
           >
             {isPulling ? '...' : '↓ Pull'}
           </button>
+        </div>
+        
+        {/* Status messages - Fixed position below commit actions */}
+        <div style={styles.statusMessageContainer}>
+          {error && <div style={styles.errorMessage}>{error}</div>}
+          {success && <div style={styles.successMessage}>{success}</div>}
+          {!error && !success && <div style={styles.placeholder}>&nbsp;</div>}
         </div>
       </div>
 
@@ -455,6 +458,7 @@ const styles = {
   commitActions: {
     display: 'flex',
     gap: '8px',
+    marginBottom: '8px',
   },
   button: {
     padding: '6px 12px',
@@ -473,19 +477,32 @@ const styles = {
     opacity: 0.5,
     cursor: 'not-allowed',
   },
+  statusMessageContainer: {
+    minHeight: '32px',
+    display: 'flex',
+    alignItems: 'center',
+  },
   errorMessage: {
-    padding: '8px 12px',
+    width: '100%',
+    padding: '8px 0',
     backgroundColor: '#5a1d1d',
     color: '#f48771',
     fontSize: '12px',
-    borderBottom: '1px solid #3e3e42',
+    textAlign: 'center' as const,
   },
   successMessage: {
-    padding: '8px 12px',
+    width: '100%',
+    padding: '8px 0',
     backgroundColor: '#1e5c1e',
     color: '#73c991',
     fontSize: '12px',
-    borderBottom: '1px solid #3e3e42',
+    textAlign: 'center' as const,
+  },
+  placeholder: {
+    width: '100%',
+    padding: '8px 0',
+    fontSize: '12px',
+    visibility: 'hidden' as const,
   },
   filesList: {
     flex: 1,
