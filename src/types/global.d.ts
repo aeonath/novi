@@ -7,6 +7,13 @@ export interface DirectoryEntry {
   size: number;
 }
 
+export interface FileData {
+  path: string;
+  content: string;
+  size: number;
+  modified: Date;
+}
+
 declare global {
   interface Window {
     api: {
@@ -19,6 +26,8 @@ declare global {
       getCrashesDirectory: () => Promise<string>;
       readDirectory: (path: string) => Promise<DirectoryEntry[]>;
       selectDirectory: () => Promise<string | null>;
+      openFile: () => Promise<string | null>;
+      readFile: (filePath: string) => Promise<FileData>;
       windowMinimize: () => void;
       windowMaximize: () => void;
       windowClose: () => void;

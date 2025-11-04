@@ -5,6 +5,8 @@ import { Action } from './action-hud';
 
 export interface ActionContext {
   onOpenFile?: () => void | Promise<void>;
+  onReloadFile?: () => void | Promise<void>;
+  onCloseFile?: () => void | Promise<void>;
   onToggleTheme?: () => void | Promise<void>;
   onOpenSettings?: () => void | Promise<void>;
 }
@@ -24,6 +26,24 @@ export function createDefaultActions(context: ActionContext): Action[] {
     label: 'Open File',
     handler: () => {
       callHandler(context.onOpenFile);
+    },
+  });
+
+  // Reload File action
+  actions.push({
+    id: 'reload-file',
+    label: 'Reload File',
+    handler: () => {
+      callHandler(context.onReloadFile);
+    },
+  });
+
+  // Close File action
+  actions.push({
+    id: 'close-file',
+    label: 'Close File',
+    handler: () => {
+      callHandler(context.onCloseFile);
     },
   });
 

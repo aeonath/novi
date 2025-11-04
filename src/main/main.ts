@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join } from 'node:path';
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, stat, readFile } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
 import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './crash-reporter';
@@ -124,6 +124,40 @@ void app.whenReady().then(() => {
       return null;
     }
     return result.filePaths[0];
+  });
+  
+  // File operations IPC handlers
+  ipcMain.handle('open-file', async () => {
+    if (!mainWindowRef) {
+      return null;
+    }
+    const result = await dialog.showOpenDialog(mainWindowRef, {
+      properties: ['openFile'],
+      filters: [
+        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'yml', 'yaml'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+  
+  ipcMain.handle('read-file', async (_e, filePath: string) => {
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      const stats = await stat(filePath);
+      return {
+        path: filePath,
+        content,
+        size: stats.size,
+        modified: stats.mtime,
+      };
+    } catch (error) {
+      logError(`Failed to read file: ${filePath}`, error);
+      throw error;
+    }
   });
   
   // Window control IPC handlers

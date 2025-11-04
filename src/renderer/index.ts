@@ -5,6 +5,7 @@ import { FileTree } from './components/file-tree';
 import { SettingsPanel } from './components/settings-panel';
 import { TitleBar } from './components/title-bar';
 import { StatusBar } from './components/status-bar';
+import { FileViewer } from './components/file-viewer';
 import { initializeThemeManager, themes } from './theme';
 
 document.addEventListener('DOMContentLoaded', (): void => {
@@ -129,11 +130,49 @@ document.addEventListener('DOMContentLoaded', (): void => {
       }
     });
 
+    // Initialize File Viewer
+    const fileViewerContainer = document.querySelector('.main-content') as HTMLElement;
+    const fileViewer = new FileViewer({ 
+      container: fileViewerContainer,
+      onClose: () => {
+        statusBar.setStatus('Ready');
+      },
+    });
+
     // Initialize Action HUD
     const actionContext: ActionContext = {
-      onOpenFile: () => {
-        // eslint-disable-next-line no-console
-        console.log('Open File action - will be implemented in Task 6');
+      onOpenFile: async () => {
+        if (!window.api) {
+          return;
+        }
+        try {
+          const filePath = await window.api.openFile();
+          if (filePath) {
+            await fileViewer.openFile(filePath);
+            statusBar.setStatus(`Viewing: ${filePath.split(/[\\/]/).pop()}`);
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to open file:', error);
+          statusBar.setStatus('Error opening file', 'Failed to open file');
+        }
+      },
+      onReloadFile: async () => {
+        const currentFile = fileViewer.getCurrentFile();
+        if (currentFile) {
+          await fileViewer.reload();
+          statusBar.setStatus(`Reloaded: ${currentFile.path.split(/[\\/]/).pop()}`);
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn('No file to reload');
+        }
+      },
+      onCloseFile: () => {
+        const currentFile = fileViewer.getCurrentFile();
+        if (currentFile) {
+          fileViewer.close();
+          statusBar.setStatus('Ready');
+        }
       },
       onToggleTheme: () => {
         // Toggle theme between light and dark

@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('api', {
   getCrashesDirectory: () => ipcRenderer.invoke('get-crashes-directory'),
   readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  // File operations
+  openFile: () => ipcRenderer.invoke('open-file'),
+  readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
   // Window controls
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),
