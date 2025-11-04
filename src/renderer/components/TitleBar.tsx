@@ -164,10 +164,11 @@ const styles = {
   },
   buttonHover: {
     backgroundColor: '#3e3e42',
+    color: '#cccccc',
   },
   buttonHoverClose: {
     backgroundColor: '#e81123',
-    color: '#ffffff',
+    color: '#cccccc',
   },
 };
 
