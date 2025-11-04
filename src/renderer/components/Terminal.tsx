@@ -85,19 +85,28 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
       fitAddonRef.current = fitAddon;
       
       // Fit terminal to container and notify about resize
+      // Use a longer delay to ensure the container is fully rendered
       setTimeout(() => {
         fitAddon.fit();
         const cols = terminal.cols;
         const rows = terminal.rows;
-        console.log('[Terminal] Terminal fitted:', cols, 'x', rows);
+        console.log('[Terminal] Initial fit:', cols, 'x', rows);
         
         // Notify parent about the actual terminal size
         if (onResize && cols && rows) {
+          console.log('[Terminal] Sending initial resize to PTY:', cols, 'x', rows);
           onResize(cols, rows);
         }
-      }, 100); // Give it a bit more time to render
-
-      setIsReady(true);
+        
+        // Focus the terminal if it's active
+        if (isActive) {
+          terminal.focus();
+          console.log('[Terminal] Initial focus applied');
+        }
+        
+        // Set ready after fit and resize
+        setIsReady(true);
+      }, 200); // Increased delay to ensure container is fully visible
 
       // Handle input
       terminal.onData((data) => {
@@ -165,27 +174,38 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
     };
   }, [terminalId, isReady]);
 
-  // Refit and focus when terminal becomes active (visible)
+  // Refit and focus when terminal becomes active (visible) or when ready
   useEffect(() => {
     if (isActive && isReady && fitAddonRef.current && terminalRef.current) {
-      console.log('[Terminal] Terminal became active, refitting and focusing:', terminalId);
-      // Small delay to ensure display:flex has taken effect
+      console.log('[Terminal] Terminal active and ready, ensuring proper fit:', terminalId);
+      // Delay to ensure display:flex has taken effect and container is measured correctly
       setTimeout(() => {
         if (fitAddonRef.current && terminalRef.current) {
-          fitAddonRef.current.fit();
-          const cols = terminalRef.current.cols;
-          const rows = terminalRef.current.rows;
-          console.log('[Terminal] Refitted to:', cols, 'x', rows);
+          // Get dimensions before fit
+          const oldCols = terminalRef.current.cols;
+          const oldRows = terminalRef.current.rows;
           
-          // Notify parent about new size
-          if (onResize && cols && rows) {
-            onResize(cols, rows);
+          // Refit to container
+          fitAddonRef.current.fit();
+          const newCols = terminalRef.current.cols;
+          const newRows = terminalRef.current.rows;
+          
+          console.log('[Terminal] Refit check:', { 
+            old: `${oldCols}x${oldRows}`, 
+            new: `${newCols}x${newRows}` 
+          });
+          
+          // Only notify if dimensions actually changed
+          if (onResize && (newCols !== oldCols || newRows !== oldRows)) {
+            console.log('[Terminal] Dimensions changed, notifying PTY:', newCols, 'x', newRows);
+            onResize(newCols, newRows);
           }
           
           // Focus the terminal
           terminalRef.current.focus();
+          console.log('[Terminal] Terminal focused');
         }
-      }, 50);
+      }, 100);
     }
   }, [isActive, isReady, terminalId, onResize]);
 
