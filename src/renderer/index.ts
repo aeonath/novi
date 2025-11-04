@@ -5,9 +5,14 @@ import { FileTree } from './components/file-tree';
 import { SettingsPanel } from './components/settings-panel';
 import { TitleBar } from './components/title-bar';
 import { StatusBar } from './components/status-bar';
+import { initializeThemeManager, themes } from './theme';
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
+    // Initialize Theme System
+    const themeManager = initializeThemeManager();
+    await themeManager.loadThemeFromStorage();
+
     // Initialize Title Bar
     const titleBar = new TitleBar({ title: 'Nova IDE' });
     const titleBarContainer = document.getElementById('title-bar-container');
@@ -54,16 +59,19 @@ document.addEventListener('DOMContentLoaded', (): void => {
     // Initialize Settings Panel
     const settingsPanel = new SettingsPanel();
 
+    // Get current theme
+    const currentTheme = themeManager.getCurrentTheme();
+
     // Add default settings
     settingsPanel.addSetting({
       id: 'theme',
       label: 'Theme',
       type: 'dropdown',
-      value: 'dark',
-      options: [
-        { label: 'Light', value: 'light' },
-        { label: 'Dark', value: 'dark' },
-      ],
+      value: currentTheme.id,
+      options: Object.values(themes).map((theme) => ({
+        label: theme.name,
+        value: theme.id,
+      })),
     });
 
     settingsPanel.addSetting({
@@ -104,7 +112,8 @@ document.addEventListener('DOMContentLoaded', (): void => {
       // Apply in real time
       switch (id) {
         case 'theme':
-          document.body.dataset.theme = String(value);
+          // Apply theme via ThemeManager
+          themeManager.applyThemeById(String(value));
           break;
         case 'fontSize':
           document.documentElement.style.setProperty('--font-size', `${value}px`);
@@ -128,11 +137,11 @@ document.addEventListener('DOMContentLoaded', (): void => {
       },
       onToggleTheme: () => {
         // Toggle theme between light and dark
-        const currentTheme = settingsPanel.getSetting('theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        settingsPanel.setSetting('theme', newTheme);
-        document.body.dataset.theme = String(newTheme);
-        void settingsPanel.saveToStorage('theme', newTheme);
+        const currentThemeId = themeManager.getCurrentTheme().id;
+        const newThemeId = currentThemeId === 'dark' ? 'light' : 'dark';
+        settingsPanel.setSetting('theme', newThemeId);
+        themeManager.applyThemeById(newThemeId);
+        void settingsPanel.saveToStorage('theme', newThemeId);
       },
       onOpenSettings: () => {
         settingsPanel.show();
