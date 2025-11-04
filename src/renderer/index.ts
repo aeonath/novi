@@ -11,25 +11,37 @@ import { initializeThemeManager, themes } from './theme.js';
 import { MonacoEditorView, detectLanguage } from './editor/index.js';
 
 // Wait for Monaco to be loaded before initializing
-function waitForMonaco(): Promise<void> {
+function waitForMonaco(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof monaco !== 'undefined') {
-      resolve();
-    } else {
-      const checkInterval = setInterval(() => {
-        if (typeof monaco !== 'undefined') {
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, 50);
+      console.log('[Nova] Monaco already loaded');
+      resolve(true);
+      return;
     }
+    
+    console.log('[Nova] Waiting for Monaco to load...');
+    let attempts = 0;
+    const maxAttempts = 100; // 5 seconds max wait
+    
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (typeof monaco !== 'undefined') {
+        clearInterval(checkInterval);
+        console.log('[Nova] Monaco loaded successfully');
+        resolve(true);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.error('[Nova] Monaco failed to load after 5 seconds');
+        resolve(false);
+      }
+    }, 50);
   });
 }
 
 document.addEventListener('DOMContentLoaded', (): void => {
   void (async (): Promise<void> => {
     // Wait for Monaco Editor to load
-    await waitForMonaco();
+    const monacoLoaded = await waitForMonaco();
     
     // Initialize Theme System
     const themeManager = initializeThemeManager();
@@ -173,27 +185,43 @@ document.addEventListener('DOMContentLoaded', (): void => {
     // Initialize Diagnostics Panel
     const diagnosticsPanel = new DiagnosticsPanel();
 
-    // Initialize Monaco Editor
+    // Initialize Monaco Editor (only if Monaco loaded successfully)
     const editorContainer = document.getElementById('monaco-editor-container') as HTMLElement;
     const welcomeScreen = document.getElementById('welcome-screen') as HTMLElement;
     
-    if (editorContainer) {
-      // Show editor by default with welcome content
-      editorInstance = new MonacoEditorView(editorContainer, {
-        theme: currentTheme.id === 'light' ? 'light' : 'dark',
-        fontSize: 14,
-        wordWrap: 'on',
-        minimap: true,
-        lineNumbers: 'on',
-      });
-      
-      // Show the editor
-      editorContainer.style.display = 'block';
-      if (welcomeScreen) {
-        welcomeScreen.style.display = 'none';
+    if (monacoLoaded && editorContainer) {
+      try {
+        // Show editor by default with welcome content
+        editorInstance = new MonacoEditorView(editorContainer, {
+          theme: currentTheme.id === 'light' ? 'light' : 'dark',
+          fontSize: 14,
+          wordWrap: 'on',
+          minimap: true,
+          lineNumbers: 'on',
+        });
+        
+        // Show the editor
+        editorContainer.style.display = 'block';
+        if (welcomeScreen) {
+          welcomeScreen.style.display = 'none';
+        }
+        
+        statusBar.setStatus('Ready - Editor loaded');
+      } catch (error) {
+        console.error('[Nova] Failed to initialize Monaco editor:', error);
+        statusBar.setStatus('Ready - Editor unavailable');
+        // Show welcome screen as fallback
+        if (welcomeScreen) {
+          welcomeScreen.style.display = 'flex';
+        }
       }
-      
-      statusBar.setStatus('Ready');
+    } else if (!monacoLoaded) {
+      console.warn('[Nova] Monaco not loaded, falling back to welcome screen');
+      statusBar.setStatus('Ready - Editor unavailable');
+      // Show welcome screen as fallback
+      if (welcomeScreen) {
+        welcomeScreen.style.display = 'flex';
+      }
     }
 
     // Initialize Action HUD

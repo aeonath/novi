@@ -12,3 +12,18 @@ jest.mock('electron', () => ({
     }),
   },
 }));
+
+// Suppress console output during tests
+// Keep console.error so we can see actual test failures
+global.console = {
+  ...console,
+  log: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+  // Keep error and debug for troubleshooting
+  // error: console.error,
+  // debug: console.debug,
+};
+
+// Mock Monaco Editor global for tests that need it
+(global as any).monaco = require('../../__mocks__/monaco-editor').default;
