@@ -4,7 +4,7 @@
   "main": "dist/main/main.js",
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && npm run copy:renderer && npm run copy:monaco",
+    "build": "tsc -p tsconfig.json && node scripts/build-renderer.js && npm run copy:renderer && npm run copy:monaco",
     "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
     "copy:monaco": "node scripts/copy-monaco.js",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
@@ -39,6 +39,7 @@
     "cross-env": "^10.1.0",
     "electron": "^38.2.2",
     "electron-builder": "^24.13.3",
+    "esbuild": "^0.25.12",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
