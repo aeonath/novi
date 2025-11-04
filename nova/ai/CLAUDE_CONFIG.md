@@ -57,52 +57,78 @@ Claude will:
 - **🚨 CRITICAL TEST REQUIREMENT 🚨**: **ALL UNIT TESTS MUST PASS 100% BEFORE TASK COMPLETION!** You must implement unit tests for all features you implement. If there are no unit tests yet, you need to pick a framework (e.g., Jest, Mocha, Vitest) and write them. If you cannot achieve 100% test pass rate in a reasonable amount of time (typically 3-5 attempts), PAUSE EXECUTION and ask the user what should be done next. Do not consider any task complete until all tests are passing.
 - **🚨 STUDIO DIRECTORY RESTRICTION 🚨**: **DO NOT MODIFY FILES IN THE `studio/` DIRECTORY!** The studio directory contains example scripts that should remain unchanged unless explicitly instructed otherwise. Focus development work on core Nova application files in `/src/`, `/src/tests/`, and related directories only.
 
-### 3. Write Summary (Conditional)
-If **Git Commit Toggle = YES**, Claude writes a changelog entry **AFTER** completing the task implementation:
+### 3. Write Detailed CHANGELOG (Conditional)
+If **Git Commit Toggle = YES**, Claude writes a **DETAILED CHANGELOG** entry **AFTER** completing the task implementation:
 
-**MANDATORY REQUIREMENT**: Always get the current date and time before creating changelog files.
+**🚨 MANDATORY REQUIREMENT 🚨**: 
+**ALWAYS CREATE BOTH CHANGELOG AND TASK SUMMARY - THESE ARE SEPARATE DOCUMENTS!**
 
 **Changelog Path Format:**
+```
 nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md
+```
+
+**MANDATORY REQUIREMENT**: Always get the current date and time before creating changelog files.
 
 **Time Format**: Use 24-hour format (e.g., 1430 for 2:30 PM, 0915 for 9:15 AM)
 
 **🚨 DUPLICATE TIMESTAMP HANDLING 🚨**:
 If a changelog file already exists with the same timestamp, append a decimal suffix:
-- First file: `2050-CHANGELOG.md`
-- Second file: `2050.1-CHANGELOG.md` 
-- Third file: `2050.2-CHANGELOG.md`
+- First file: `TIME_2050-CHANGELOG.md`
+- Second file: `TIME_2050.1-CHANGELOG.md` 
+- Third file: `TIME_2050.2-CHANGELOG.md`
 - And so on...
 
 **Examples:**
-- `nova/changelog/20251022/1430-CHANGELOG.md`
-- `nova/changelog/20251022/1430.1-CHANGELOG.md`
-- `nova/changelog/20251022/1430.2-CHANGELOG.md`
+- `nova/changelog/20251022/TIME_1430-CHANGELOG.md`
+- `nova/changelog/20251022/TIME_1430.1-CHANGELOG.md`
+- `nova/changelog/20251022/TIME_1430.2-CHANGELOG.md`
 
-**Include**
-- Commit hash
-- Files changed
-- Summary of implementation
+**PURPOSE**: Detailed technical documentation of ALL changes made
+
+**Include in CHANGELOG (DETAILED):**
+- Complete technical description of changes
+- All files modified/created with explanations
+- Code snippets and technical details
+- Test results and coverage
+- Implementation decisions and rationale
+- User-facing impact
+- Commit hash (TBD placeholder)
 - Status (✅ done / ⏳ pending)
 - Relevant sprint and task references
 
+**CHANGELOG should be COMPREHENSIVE** - think of it as the technical documentation that another developer would need to understand what was done and why.
+
 ### 4. Write Sprint Task Summary (Conditional)
-If **Git Commit Toggle = YES**, Claude writes a sprint task summary **AFTER** completing the task implementation:
+If **Git Commit Toggle = YES**, Claude writes a **HIGH-LEVEL SPRINT TASK SUMMARY** **AFTER** completing the task implementation:
 
 **🚨 CRITICAL REQUIREMENT 🚨**: 
-**ALWAYS CREATE SPRINT TASK SUMMARY - THIS IS MANDATORY!**
+**ALWAYS CREATE SPRINT TASK SUMMARY - THIS IS MANDATORY AND SEPARATE FROM CHANGELOG!**
 
+**Task Summary Path Format:**
+```
 nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md
-
+```
 
 **Naming Convention**: Always use SPRINTX_TASKX_SUMMARY.md format (e.g., SPRINT1_TASK1_SUMMARY.md, SPRINT1_TASK2_SUMMARY.md)
 
-**Include**
-- Brief task completion summary
-- Key accomplishments
-- Files created/modified
-- Status (✅ Completed)
-- Reference to changelog for details
+**PURPOSE**: High-level overview of task completion for sprint tracking
+
+**Include in TASK SUMMARY (HIGH-LEVEL):**
+- Brief task objective (from SPRINT plan)
+- Requirements checklist (✅/⏭️/❌)
+- Key accomplishments (bullet points)
+- Files created/modified (list only)
+- Test results (pass/fail counts)
+- Status (✅ Completed / ⏭️ Skipped)
+- Reference to detailed changelog
+
+**TASK SUMMARY should be CONCISE** - think of it as the executive summary that a project manager would read to understand task completion status.
+
+**🚨 KEY DISTINCTION 🚨**:
+- **CHANGELOG** = Detailed technical documentation (for developers)
+- **TASK SUMMARY** = High-level status report (for project tracking)
+- **BOTH ARE REQUIRED FOR EVERY TASK!**
 
 ### 5. Write Sprint DOD Summary (Conditional)
 If **Git Commit Toggle = YES** and sprint is complete, Claude writes a sprint definition of done summary **AFTER** completing all sprint tasks:
@@ -133,17 +159,25 @@ nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md
 - ANY filesystem modification
 
 **Final Step Process:**
-1. **REQUIRED**: Create changelog entry (Step 3) with placeholder commit hash - **MUST BE DONE FIRST**
-2. **REQUIRED**: Create sprint task summary (Step 4) - **MUST BE DONE BEFORE COMMIT**
+1. **REQUIRED**: Create DETAILED CHANGELOG (Step 3) with placeholder commit hash - **MUST BE DONE FIRST**
+   - Location: `nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md`
+   - Content: DETAILED technical documentation
+2. **REQUIRED**: Create HIGH-LEVEL TASK SUMMARY (Step 4) - **MUST BE DONE BEFORE COMMIT**
+   - Location: `nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md`
+   - Content: CONCISE status report
 3. **REQUIRED**: Create sprint DOD summary (Step 5) if sprint complete - **MUST BE DONE BEFORE COMMIT**
-4. **CHECKLIST**: ✅ Changelog created ✅ Task summary created ✅ DOD summary created (if applicable)
+4. **CHECKLIST**: ✅ Detailed Changelog created ✅ Task Summary created ✅ DOD summary created (if applicable)
 5. Stage all files: `git add *`
 6. Commit all changes: `git commit -a -m "SprintX TaskY: <brief description>"`
 7. **STOP HERE** - Do NOT create a second commit to update changelog with commit hash
 
 **🚨 CRITICAL ORDER RULE 🚨**:
 **ALL DOCUMENTATION MUST BE CREATED BEFORE ANY COMMIT!**
-**CHANGELOG → TASK SUMMARY → DOD SUMMARY → COMMIT**
+**DETAILED CHANGELOG → HIGH-LEVEL TASK SUMMARY → DOD SUMMARY (if applicable) → COMMIT**
+
+**REMEMBER**: Two separate documents required for each task:
+1. Detailed CHANGELOG in `nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md`
+2. High-level Summary in `nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md`
 
 ```bash
 git add *
