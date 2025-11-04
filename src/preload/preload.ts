@@ -55,6 +55,10 @@ contextBridge.exposeInMainWorld('api', {
   terminalKill: (terminalId: string) => ipcRenderer.invoke('terminal-kill', terminalId),
   // Terminal event listener (for receiving data from main process)
   terminalOnData: (callback: (terminalId: string, data: string) => void) => {
+    // Remove ALL existing listeners first to prevent duplicates
+    ipcRenderer.removeAllListeners('terminal-data');
+    
+    // Now add the new listener
     ipcRenderer.on('terminal-data', (_event, terminalId: string, data: string) => {
       callback(terminalId, data);
     });

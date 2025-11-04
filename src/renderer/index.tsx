@@ -73,20 +73,33 @@ async function initializeApp() {
     console.log('[Nova] React app rendered successfully');
 
     // Ensure document is always focusable and receives keyboard events
-    window.addEventListener('focus', () => {
-      console.log('[Renderer] Window gained focus');
+    const ensureFocus = () => {
+      console.log('[Renderer] Ensuring keyboard focus');
       // Ensure body is focusable
       if (!document.body.hasAttribute('tabindex')) {
         document.body.setAttribute('tabindex', '-1');
       }
-      // Focus body to ensure keyboard events work immediately
+      // Focus body immediately and again after a short delay
+      document.body.focus();
       setTimeout(() => {
         document.body.focus();
-      }, 0);
+        console.log('[Renderer] Body focused, Ctrl+K should work now');
+      }, 50);
+    };
+    
+    // Focus on window gaining focus
+    window.addEventListener('focus', ensureFocus);
+    
+    // Focus on window becoming visible (after minimize/restore)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        console.log('[Renderer] Window became visible');
+        ensureFocus();
+      }
     });
 
-    // Trigger focus handler immediately
-    window.dispatchEvent(new Event('focus'));
+    // Trigger focus handler immediately on startup
+    ensureFocus();
 
     // Setup error handlers
     window.addEventListener('error', (ev) => {
