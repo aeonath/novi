@@ -295,6 +295,15 @@ interface ContextMenuProps {
    - Bash path detection
    - Cleanup logic
 
+3. **src/tests/core-0.4.0/terminal-service.test.ts** (307 lines)
+   - Unit tests for TerminalService
+   - 23 test cases covering all service methods
+   - Mocked child_process and fs modules
+
+4. **src/tests/core-0.4.0/terminal-tabs.test.ts** (118 lines)
+   - Unit tests for terminal tab interface and behavior
+   - 7 test cases covering tab system integration
+
 ### Modified Files
 
 1. **src/renderer/components/TabBar.tsx**
@@ -335,6 +344,48 @@ interface ContextMenuProps {
 ---
 
 ## Testing
+
+### Unit Tests
+
+✅ **All Terminal Tests Passing**: 30 tests, 100% pass rate
+
+**Test Files Created**:
+1. `src/tests/core-0.4.0/terminal-service.test.ts` (307 lines)
+   - Tests TerminalService session management
+   - Tests bash path detection and fallbacks
+   - Tests session creation, write, resize, kill operations
+   - Tests cleanup and error handling
+   - **23 tests** covering all service methods
+
+2. `src/tests/core-0.4.0/terminal-tabs.test.ts` (118 lines)
+   - Tests Tab interface for terminal type
+   - Tests terminal tab behavior and properties
+   - Tests tab identification and deduplication logic
+   - **7 tests** covering tab system integration
+
+**Test Coverage**:
+- ✅ TerminalService.createSession() - all variants
+- ✅ TerminalService.writeToTerminal() - success and error cases
+- ✅ TerminalService.resizeTerminal() - dimension updates
+- ✅ TerminalService.killSession() - cleanup
+- ✅ TerminalService.getSession() - lookup
+- ✅ TerminalService.getAllSessions() - listing
+- ✅ TerminalService.cleanup() - bulk cleanup
+- ✅ Bash path detection (Git bash, system bash, cmd.exe fallback)
+- ✅ Process event handlers (exit, error)
+- ✅ Tab interface for terminal type
+- ✅ Terminal tab properties (fileName, isDirty, language)
+- ✅ Multiple terminal tabs support
+- ✅ Tab deduplication logic (files vs terminals)
+
+**Test Results**:
+```
+PASS src/tests/core-0.4.0/terminal-service.test.ts
+PASS src/tests/core-0.4.0/terminal-tabs.test.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       30 passed, 30 total
+```
 
 ### Build Verification
 
