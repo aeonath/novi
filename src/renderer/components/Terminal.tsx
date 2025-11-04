@@ -24,6 +24,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -163,19 +164,122 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
     };
   }, [terminalId, isReady]);
 
+  // Handle copy from terminal
+  const handleCopy = useCallback(() => {
+    if (terminalRef.current) {
+      const selection = terminalRef.current.getSelection();
+      if (selection) {
+        navigator.clipboard.writeText(selection).then(() => {
+          console.log('[Terminal] Copied to clipboard:', selection.length, 'chars');
+        }).catch((err) => {
+          console.error('[Terminal] Failed to copy:', err);
+        });
+      }
+    }
+    setContextMenu(null);
+  }, []);
+
+  // Handle paste to terminal
+  const handlePaste = useCallback(() => {
+    if (terminalRef.current) {
+      navigator.clipboard.readText().then((text) => {
+        console.log('[Terminal] Pasting:', text.length, 'chars');
+        if (onData) {
+          onData(text);
+        }
+      }).catch((err) => {
+        console.error('[Terminal] Failed to paste:', err);
+      });
+    }
+    setContextMenu(null);
+  }, [onData]);
+
+  // Handle right-click
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (contextMenu) {
+      const handleClick = () => setContextMenu(null);
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [contextMenu]);
+
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#1e1e1e',
-        padding: '4px',
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-      }}
-      data-terminal-id={terminalId}
-    />
+    <>
+      <div
+        ref={containerRef}
+        onContextMenu={handleContextMenu}
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#1e1e1e',
+          padding: '4px',
+          boxSizing: 'border-box',
+          overflow: 'hidden',
+        }}
+        data-terminal-id={terminalId}
+      />
+      
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            backgroundColor: '#252526',
+            border: '1px solid #3e3e42',
+            borderRadius: '4px',
+            padding: '4px 0',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            zIndex: 10000,
+            minWidth: '150px',
+          }}
+        >
+          <div
+            onClick={handleCopy}
+            style={{
+              padding: '8px 16px',
+              cursor: 'pointer',
+              color: '#cccccc',
+              fontSize: '13px',
+              fontFamily: "'Segoe UI', sans-serif",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#2a2d2e';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            Copy
+          </div>
+          <div
+            onClick={handlePaste}
+            style={{
+              padding: '8px 16px',
+              cursor: 'pointer',
+              color: '#cccccc',
+              fontSize: '13px',
+              fontFamily: "'Segoe UI', sans-serif",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#2a2d2e';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            Paste
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
