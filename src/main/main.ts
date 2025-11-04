@@ -413,36 +413,14 @@ void app.whenReady().then(() => {
         throw new Error('Failed to create terminal session');
       }
 
-      // Forward stdout to renderer (convert LF to CRLF for proper terminal display)
-      session.process.stdout?.on('data', (data: Buffer) => {
+      // Forward PTY output to renderer
+      session.pty.onData((data: string) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          let output = data.toString();
-          // Convert \n to \r\n for proper terminal line breaks
-          output = output.replace(/\r?\n/g, '\r\n');
-          mainWindowRef.webContents.send('terminal-data', terminalId, output);
+          mainWindowRef.webContents.send('terminal-data', terminalId, data);
         }
       });
 
-      // Forward stderr to renderer (filter error messages and convert LF to CRLF)
-      session.process.stderr?.on('data', (data: Buffer) => {
-        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          let output = data.toString();
-          
-          // Filter out bash job control errors
-          if (output.includes('cannot set terminal process group') ||
-              output.includes('inappropriate ioctl for device') ||
-              output.includes('no job control in this shell')) {
-            // Suppress these errors - they're expected with piped I/O
-            return;
-          }
-          
-          // Convert \n to \r\n for proper terminal line breaks
-          output = output.replace(/\r?\n/g, '\r\n');
-          mainWindowRef.webContents.send('terminal-data', terminalId, output);
-        }
-      });
-
-      logInfo(`[Main] Terminal ${terminalId} created successfully`);
+      logInfo(`[Main] Terminal ${terminalId} created with PTY successfully`);
       return { id: terminalId };
     } catch (error) {
       logError('Failed to create terminal', error as Error);

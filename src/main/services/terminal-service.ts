@@ -4,17 +4,17 @@
  */
 
 /**
- * Terminal Service - Manages terminal sessions using child_process
- * Uses bash.exe from Git for Windows as fallback since node-pty requires native compilation
+ * Terminal Service - Manages terminal sessions using node-pty
+ * Provides full pseudo-terminal support for interactive shells and TUI applications
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import * as pty from '@lydell/node-pty';
 import { existsSync } from 'node:fs';
 import { logInfo, logError } from '../logger';
 
 export interface TerminalSession {
   id: string;
-  process: ChildProcess;
+  pty: pty.IPty;
   cols: number;
   rows: number;
   cwd?: string;
@@ -53,41 +53,31 @@ class TerminalService {
   }
 
   /**
-   * Create a new terminal session
+   * Create a new terminal session with PTY
    */
   createSession(cwd?: string, cols = 80, rows = 24): string {
     const id = `terminal-${this.nextId++}`;
-    const bashPath = this.getBashPath();
-
-    logInfo(`[TerminalService] Creating terminal session ${id} with cwd: ${cwd || 'default'}`);
-
-    // Spawn bash/cmd process
+    const shellPath = this.getBashPath();
     const cwdPath = cwd || process.cwd();
-    
-    // Determine shell arguments
-    const shellArgs: string[] = [];
-    const isCmdExe = bashPath.toLowerCase().includes('cmd.exe');
-    
-    if (!isCmdExe) {
-      // For bash: use -i for interactive mode
-      shellArgs.push('-i');
-    }
-    
-    const childProcess = spawn(bashPath, shellArgs, {
+
+    logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}`);
+
+    // Spawn PTY process
+    const ptyProcess = pty.spawn(shellPath, [], {
+      name: 'xterm-256color',
+      cols,
+      rows,
       cwd: cwdPath,
       env: {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
-        PS1: '$ ', // Simple prompt for bash
       },
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false,
     });
 
     const session: TerminalSession = {
       id,
-      process: childProcess,
+      pty: ptyProcess,
       cols,
       rows,
       cwd,
@@ -96,17 +86,12 @@ class TerminalService {
     this.sessions.set(id, session);
 
     // Handle process exit
-    childProcess.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
-      logInfo(`[TerminalService] Terminal ${id} exited with code ${code}, signal ${signal}`);
+    ptyProcess.onExit((e) => {
+      logInfo(`[TerminalService] Terminal ${id} exited with code ${e.exitCode}, signal ${e.signal}`);
       this.sessions.delete(id);
     });
 
-    // Handle errors
-    childProcess.on('error', (error: Error) => {
-      logError(`[TerminalService] Terminal ${id} error:`, error);
-      this.sessions.delete(id);
-    });
-
+    logInfo(`[TerminalService] PTY session ${id} created successfully (PID: ${ptyProcess.pid})`);
     return id;
   }
 
@@ -115,13 +100,13 @@ class TerminalService {
    */
   writeToTerminal(id: string, data: string): boolean {
     const session = this.sessions.get(id);
-    if (!session || !session.process.stdin) {
-      logError(`[TerminalService] Terminal ${id} not found or stdin unavailable`);
+    if (!session) {
+      logError(`[TerminalService] Terminal ${id} not found`);
       return false;
     }
 
     try {
-      session.process.stdin.write(data);
+      session.pty.write(data);
       return true;
     } catch (error) {
       logError(`[TerminalService] Failed to write to terminal ${id}:`, error);
@@ -130,7 +115,7 @@ class TerminalService {
   }
 
   /**
-   * Resize terminal
+   * Resize terminal (full PTY support)
    */
   resizeTerminal(id: string, cols: number, rows: number): boolean {
     const session = this.sessions.get(id);
@@ -139,13 +124,16 @@ class TerminalService {
       return false;
     }
 
-    session.cols = cols;
-    session.rows = rows;
-
-    // Note: child_process.spawn doesn't support resize on Windows the same way PTY does
-    // This is a limitation, but the terminal will still function
-    logInfo(`[TerminalService] Terminal ${id} resize requested: ${cols}x${rows}`);
-    return true;
+    try {
+      session.pty.resize(cols, rows);
+      session.cols = cols;
+      session.rows = rows;
+      logInfo(`[TerminalService] Terminal ${id} resized to ${cols}x${rows}`);
+      return true;
+    } catch (error) {
+      logError(`[TerminalService] Failed to resize terminal ${id}:`, error);
+      return false;
+    }
   }
 
   /**
@@ -159,7 +147,7 @@ class TerminalService {
     }
 
     try {
-      session.process.kill();
+      session.pty.kill();
       this.sessions.delete(id);
       logInfo(`[TerminalService] Terminal ${id} killed`);
       return true;
@@ -190,7 +178,7 @@ class TerminalService {
     logInfo(`[TerminalService] Cleaning up ${this.sessions.size} terminal sessions`);
     for (const [id, session] of this.sessions.entries()) {
       try {
-        session.process.kill();
+        session.pty.kill();
       } catch (error) {
         logError(`[TerminalService] Error killing terminal ${id}:`, error);
       }

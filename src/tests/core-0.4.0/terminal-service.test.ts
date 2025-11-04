@@ -5,15 +5,14 @@
 
 /**
  * TerminalService Unit Tests
- * Tests for terminal session management service
+ * Tests for terminal session management service with PTY support
  */
 
 import { terminalService } from '../../main/services/terminal-service';
-import { spawn, ChildProcess } from 'child_process';
 import { existsSync } from 'node:fs';
 
-// Mock child_process
-jest.mock('child_process', () => ({
+// Mock node-pty
+jest.mock('@lydell/node-pty', () => ({
   spawn: jest.fn(),
 }));
 
@@ -29,10 +28,8 @@ jest.mock('../../main/logger', () => ({
 }));
 
 describe('TerminalService', () => {
-  let mockProcess: Partial<ChildProcess>;
-  let mockStdout: any;
-  let mockStderr: any;
-  let mockStdin: any;
+  let mockPty: any;
+  const pty = require('@lydell/node-pty');
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -40,26 +37,17 @@ describe('TerminalService', () => {
     // Reset terminal service state
     terminalService.cleanup();
 
-    // Setup mock process
-    mockStdout = {
-      on: jest.fn(),
-    };
-    mockStderr = {
-      on: jest.fn(),
-    };
-    mockStdin = {
+    // Setup mock PTY
+    mockPty = {
+      onData: jest.fn(),
+      onExit: jest.fn(),
       write: jest.fn(),
-    };
-
-    mockProcess = {
-      stdout: mockStdout as any,
-      stderr: mockStderr as any,
-      stdin: mockStdin as any,
-      on: jest.fn(),
+      resize: jest.fn(),
       kill: jest.fn(),
+      pid: 12345,
     };
 
-    (spawn as jest.Mock).mockReturnValue(mockProcess);
+    pty.spawn.mockReturnValue(mockPty);
   });
 
   afterEach(() => {
@@ -73,10 +61,12 @@ describe('TerminalService', () => {
       });
 
       terminalService.createSession();
-      expect(spawn).toHaveBeenCalledWith(
+      expect(pty.spawn).toHaveBeenCalledWith(
         'C:\\Program Files\\Git\\bin\\bash.exe',
-        ['-i'], // Interactive mode for proper prompt
-        expect.any(Object)
+        [],
+        expect.objectContaining({
+          name: 'xterm-256color',
+        })
       );
     });
 
@@ -86,10 +76,12 @@ describe('TerminalService', () => {
       });
 
       terminalService.createSession();
-      expect(spawn).toHaveBeenCalledWith(
+      expect(pty.spawn).toHaveBeenCalledWith(
         'C:\\Windows\\System32\\bash.exe',
-        ['-i'], // Interactive mode for proper prompt
-        expect.any(Object)
+        [],
+        expect.objectContaining({
+          name: 'xterm-256color',
+        })
       );
     });
 
@@ -97,22 +89,24 @@ describe('TerminalService', () => {
       (existsSync as jest.Mock).mockReturnValue(false);
 
       terminalService.createSession();
-      expect(spawn).toHaveBeenCalledWith(
+      expect(pty.spawn).toHaveBeenCalledWith(
         'C:\\Windows\\System32\\cmd.exe',
         [],
-        expect.any(Object)
+        expect.objectContaining({
+          name: 'xterm-256color',
+        })
       );
     });
   });
 
   describe('createSession', () => {
-    it('should create a new terminal session', () => {
+    it('should create a new terminal session with PTY', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
 
       const id = terminalService.createSession();
 
       expect(id).toMatch(/^terminal-\d+$/);
-      expect(spawn).toHaveBeenCalled();
+      expect(pty.spawn).toHaveBeenCalled();
       expect(terminalService.getSession(id)).toBeDefined();
     });
 
@@ -122,9 +116,9 @@ describe('TerminalService', () => {
       const cwd = '/test/directory';
       terminalService.createSession(cwd);
 
-      expect(spawn).toHaveBeenCalledWith(
+      expect(pty.spawn).toHaveBeenCalledWith(
         expect.any(String),
-        ['-i'], // Interactive mode for proper prompt
+        [],
         expect.objectContaining({
           cwd: cwd,
         })
@@ -142,79 +136,48 @@ describe('TerminalService', () => {
       expect(session?.rows).toBe(40);
     });
 
-    it('should set up process event handlers', () => {
+    it('should set up PTY event handlers', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
 
       terminalService.createSession();
 
-      expect(mockProcess.on).toHaveBeenCalledWith('exit', expect.any(Function));
-      expect(mockProcess.on).toHaveBeenCalledWith('error', expect.any(Function));
+      expect(mockPty.onExit).toHaveBeenCalledWith(expect.any(Function));
     });
 
-    it('should handle process exit', () => {
+    it('should handle PTY exit', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
 
       const id = terminalService.createSession();
-      const exitHandler = (mockProcess.on as jest.Mock).mock.calls.find(
-        (call) => call[0] === 'exit'
-      )?.[1];
+      const exitHandler = mockPty.onExit.mock.calls[0][0];
 
       expect(exitHandler).toBeDefined();
-      exitHandler?.(0, null);
-      
-      expect(terminalService.getSession(id)).toBeUndefined();
-    });
-
-    it('should handle process error', () => {
-      (existsSync as jest.Mock).mockReturnValue(true);
-
-      const id = terminalService.createSession();
-      const errorHandler = (mockProcess.on as jest.Mock).mock.calls.find(
-        (call) => call[0] === 'error'
-      )?.[1];
-
-      expect(errorHandler).toBeDefined();
-      errorHandler?.(new Error('Process error'));
+      exitHandler({ exitCode: 0, signal: null });
       
       expect(terminalService.getSession(id)).toBeUndefined();
     });
   });
 
   describe('writeToTerminal', () => {
-    it('should write data to terminal stdin', () => {
+    it('should write data to PTY', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
 
       const id = terminalService.createSession();
       const success = terminalService.writeToTerminal(id, 'test data');
 
       expect(success).toBe(true);
-      expect(mockStdin.write).toHaveBeenCalledWith('test data');
+      expect(mockPty.write).toHaveBeenCalledWith('test data');
     });
 
     it('should return false if terminal not found', () => {
       const success = terminalService.writeToTerminal('non-existent', 'data');
 
       expect(success).toBe(false);
-      expect(mockStdin.write).not.toHaveBeenCalled();
-    });
-
-    it('should return false if stdin unavailable', () => {
-      (existsSync as jest.Mock).mockReturnValue(true);
-
-      const id = terminalService.createSession();
-      const session = terminalService.getSession(id);
-      if (session) {
-        session.process.stdin = null;
-      }
-
-      const success = terminalService.writeToTerminal(id, 'data');
-
-      expect(success).toBe(false);
+      expect(mockPty.write).not.toHaveBeenCalled();
     });
   });
 
   describe('resizeTerminal', () => {
-    it('should update terminal dimensions', () => {
+    it('should resize PTY and update dimensions', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
 
       const id = terminalService.createSession(undefined, 80, 24);
@@ -222,6 +185,7 @@ describe('TerminalService', () => {
       const session = terminalService.getSession(id);
 
       expect(success).toBe(true);
+      expect(mockPty.resize).toHaveBeenCalledWith(120, 40);
       expect(session?.cols).toBe(120);
       expect(session?.rows).toBe(40);
     });
@@ -230,18 +194,19 @@ describe('TerminalService', () => {
       const success = terminalService.resizeTerminal('non-existent', 120, 40);
 
       expect(success).toBe(false);
+      expect(mockPty.resize).not.toHaveBeenCalled();
     });
   });
 
   describe('killSession', () => {
-    it('should kill terminal process and remove session', () => {
+    it('should kill PTY and remove session', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
 
       const id = terminalService.createSession();
       const success = terminalService.killSession(id);
 
       expect(success).toBe(true);
-      expect(mockProcess.kill).toHaveBeenCalled();
+      expect(mockPty.kill).toHaveBeenCalled();
       expect(terminalService.getSession(id)).toBeUndefined();
     });
 
@@ -249,7 +214,7 @@ describe('TerminalService', () => {
       const success = terminalService.killSession('non-existent');
 
       expect(success).toBe(false);
-      expect(mockProcess.kill).not.toHaveBeenCalled();
+      expect(mockPty.kill).not.toHaveBeenCalled();
     });
   });
 
@@ -292,7 +257,7 @@ describe('TerminalService', () => {
   });
 
   describe('cleanup', () => {
-    it('should kill all sessions and clear them', () => {
+    it('should kill all PTY sessions and clear them', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
 
       terminalService.createSession();
@@ -300,7 +265,7 @@ describe('TerminalService', () => {
 
       terminalService.cleanup();
 
-      expect(mockProcess.kill).toHaveBeenCalled();
+      expect(mockPty.kill).toHaveBeenCalled();
       expect(terminalService.getAllSessions()).toEqual([]);
     });
   });

@@ -82,16 +82,15 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         scrollbar: {
           vertical: 'visible',
           horizontal: 'visible',
-          verticalScrollbarSize: 14,
-          horizontalScrollbarSize: 14,
+          verticalScrollbarSize: 17,
+          horizontalScrollbarSize: 17,
           alwaysConsumeMouseWheel: false,
+          useShadows: false,
         },
-        padding: {
-          top: 8,
-          bottom: 8,
-          right: 4,
-        },
-        scrollBeyondLastColumn: 5,
+        glyphMargin: false,
+        folding: true,
+        lineDecorationsWidth: 5,
+        lineNumbersMinChars: 3,
         // Disable word-based completions
         quickSuggestions: false,
         wordBasedSuggestions: false,

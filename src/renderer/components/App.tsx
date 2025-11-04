@@ -32,6 +32,28 @@ const AppInner: React.FC = () => {
   const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
   const { setGitStatus } = useAppContext();
 
+  // Set up global terminal data listener
+  useEffect(() => {
+    if (!window.api?.terminalOnData || !window.api?.terminalRemoveDataListener) {
+      console.warn('[App] Terminal API not available');
+      return;
+    }
+
+    console.log('[App] Setting up terminal data listener');
+    window.api.terminalOnData((terminalId: string, data: string) => {
+      const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+      if (terminalAPI && terminalAPI.write) {
+        terminalAPI.write(data);
+      }
+    });
+
+    return () => {
+      if (window.api?.terminalRemoveDataListener) {
+        window.api.terminalRemoveDataListener();
+      }
+    };
+  }, []);
+
   // Create action handlers
   const actionContext: ActionContext = useMemo(() => ({
     onOpenFile: async () => {
@@ -346,7 +368,7 @@ const AppInner: React.FC = () => {
           const filePath = monacoAPI.getFilePath();
           if (filePath) {
             window.api.readFile(filePath)
-              .then((fileData: { content: string; encoding: string }) => {
+              .then((fileData) => {
                 console.log('[App] File reloaded from disk:', filePath);
                 monacoAPI.loadFile(filePath, fileData.content);
                 monacoAPI.markAsSaved();
