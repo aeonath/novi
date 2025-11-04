@@ -250,7 +250,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         <div style={styles.headerButtons}>
           {onToggleFiles && (
             <button style={styles.refreshButton} onClick={onToggleFiles} title="Show Files">
-              <img src="assets/filetree.png" alt="File Tree" style={styles.iconImage} />
+              📂
             </button>
           )}
           <button style={styles.refreshButton} onClick={refreshStatus} title="Refresh">
@@ -494,14 +494,6 @@ const styles = {
     fontSize: '16px',
     cursor: 'pointer',
     padding: '4px 8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconImage: {
-    width: '16px',
-    height: '16px',
-    opacity: 0.9,
   },
   emptyState: {
     display: 'flex',
