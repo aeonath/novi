@@ -8,6 +8,7 @@
  * Main layout structure for Nova IDE
  */
 
+import '../global.css';
 import React, { useEffect, useState, useMemo } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
@@ -21,6 +22,7 @@ import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
 import { createDefaultActions, ActionContext } from './actions.js';
+
 
 const AppInner: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(true);

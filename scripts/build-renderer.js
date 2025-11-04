@@ -25,6 +25,7 @@ async function build() {
       loader: {
         '.tsx': 'tsx',
         '.ts': 'ts',
+        '.css': 'css',
       },
       jsx: 'automatic',
       jsxImportSource: 'react',

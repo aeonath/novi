@@ -113,24 +113,17 @@ Provide Git visibility, status icons, and simple commit/push/pull actions to emb
 **Description:**  
 Allow launching and operating Nova directly from the terminal.
 
-**Acceptance Criteria:**  
-- [ ] `nova --version` outputs correct build.  
-- [ ] `nova <file>` opens the file in Nova.  
-- [ ] CLI commands write to `logs/cli.log`.  
-- [ ] PATH registration verified on Windows/macOS/Linux.  
-- [ ] Help text prints syntax and examples.
+The window will be like a terminal window however the prompt *nova>* will appear before 
+each command input.
 
-**Notes for Claude:**  
-- Add a Node-based CLI entry script (e.g., `bin/nova.js`) and configure the `package.json` `"bin"` field so that `npm install -g` (or the packaged installer) places a `nova` executable on the user’s PATH.  
-- Use a simple argument parser (like `commander` or `yargs`) to support:  
-  - `nova .` to open a directory as a workspace.  
-  - `nova <file>` to open a specific file directly.  
-  - `nova --version` to print the current app version.  
-  - `nova --help` to show usage.  
-- For file/directory parameters, have the CLI either:  
-  - launch Nova if it is not already running, or  
-  - send a message to a running instance to open the given path.  
-- Log each CLI invocation (arguments, timestamp, result) to `logs/cli.log`.  
+**Acceptance Criteria:**  
+- [ ] `nova> version` outputs correct build.  
+- [ ] `nova> open` opens the file open dialog box.
+- `nova> save` saves the current file open in the editor
+- `nova> help` displays a help message  
+
+
+**Notes for Claude:**    
 
 ---
 
@@ -144,6 +137,12 @@ Prototype a terminal panel for quick command-line operations inside Nova.
 - [ ] Commands like `ls`, `git status` run normally.  
 - [ ] No measurable performance drop.  
 - [ ] Closing terminal releases all IPC handles.
+
+IF you need a shell you can use bash.exe in \program files\git\bin\bash.exe
+
+The terminal panel should be another TAB like an open file with title bash for now. 
+
+The terminal panel
 
 **Notes for Claude:**  
 - Use `xterm.js` in the renderer to create a terminal component that can be shown/hidden via a toggle control.  

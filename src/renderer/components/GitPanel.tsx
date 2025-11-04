@@ -290,14 +290,14 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
           {gitStatus.behind > 0 && <span style={styles.badge}>↓{gitStatus.behind}</span>}
         </div>
         <div style={styles.headerButtons}>
-          {onToggleFiles && (
-            <button style={styles.refreshButton} onClick={onToggleFiles} title="Show Files">
-              📂
-            </button>
-          )}
           <button style={styles.refreshButton} onClick={refreshStatus} title="Refresh">
             ⟳
           </button>
+          {onToggleFiles && (
+            <button style={styles.refreshButton} onClick={onToggleFiles} title="Show Files">
+              ←
+            </button>
+          )}
         </div>
       </div>
 
