@@ -29,6 +29,8 @@ function createWindow(): void {
     y: typeof savedBounds.y === 'number' ? savedBounds.y : undefined,
     resizable: true,
     frame: false, // Enable frameless window for custom title bar
+    show: false, // Don't show until ready to prevent white screen
+    backgroundColor: '#1e1e1e', // Match app background color
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,
@@ -58,6 +60,13 @@ function createWindow(): void {
   // Always load local built HTML file
   void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   mainWindow.setMinimumSize(800, 600);
+
+  // Show window when ready to prevent white screen
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
+    logInfo('Window shown and focused');
+  });
 
   // Persist bounds on close
   const saveBounds = (): void => {

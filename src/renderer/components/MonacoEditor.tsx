@@ -79,6 +79,17 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         },
         lineNumbers: 'on',
         readOnly: false,
+        scrollbar: {
+          vertical: 'visible',
+          horizontal: 'visible',
+          verticalScrollbarSize: 14,
+          horizontalScrollbarSize: 14,
+          alwaysConsumeMouseWheel: false,
+        },
+        padding: {
+          top: 8,
+          bottom: 8,
+        },
       });
 
       console.log('[MonacoEditor] Initialized successfully');

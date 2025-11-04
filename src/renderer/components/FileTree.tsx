@@ -422,6 +422,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '8px 12px',
+    minHeight: '35px',
     borderBottom: '1px solid #3e3e42',
   },
   title: {
