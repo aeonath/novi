@@ -166,12 +166,10 @@ it prompts with nova>  and reads the command and then shows the output
 
 ## 🧩 Task 7 — Workspace Management
 **Description:**  
-Implement persistence of workspace state, including open files, layout, and recent projects.
+Implement persistence of workspace state, including open files, layout
 
 **Acceptance Criteria:**  
-- [ ] Nova reopens with same layout and files.  
-- [ ] “Recent Workspaces” lists five most recent entries.  
-- [ ] Switching workspace updates title and logs event.  
+- [ ] Nova reopens with same layout and files.   
 - [ ] No data loss between sessions.
 
 **Notes for Claude:**  
@@ -184,9 +182,7 @@ Implement persistence of workspace state, including open files, layout, and rece
   - current branch (if available).  
 - Store workspace state under a Nova-specific config directory (for example, `~/.nova/workspaces/`), using one JSON file per workspace.  
 - On startup, load the last active workspace (if configured) and send the data to the renderer so it can restore tabs and layout.  
-- Implement a simple “Recent Workspaces” list in the UI that lets the user quickly switch between known workspace roots.  
-- Log workspace switch events and any failures (e.g., missing directories) to a dedicated section in the logs.  
-
+- keep in mind we may extend this later to allow multiple workspaces but NOT now
 ---
 
 ## 🧩 Task 8 — Application Menu Bar & Action HUD Refinement

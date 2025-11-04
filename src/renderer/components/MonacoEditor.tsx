@@ -48,6 +48,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [isDirtyFlag, setIsDirtyFlag] = useState(false);
   const [savedContent, setSavedContent] = useState('');
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   // Initialize Monaco on mount
   useEffect(() => {
@@ -99,23 +100,8 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         },
         wordBasedSuggestions: 'off',
         suggestOnTriggerCharacters: false,
-      });
-
-      // Remove unwanted context menu actions at Monaco's internal level
-      // This filters them before the menu DOM is created, preventing re-insertion
-      const unwantedActionIds = [
-        'editor.action.changeAll',        // Change All Occurrences  
-        'editor.action.quickCommand',     // Command Palette
-      ];
-
-      // Get all editor actions and remove unwanted ones
-      const editorActions = editorRef.current.getSupportedActions();
-      unwantedActionIds.forEach(actionId => {
-        const action = editorActions.find((a: any) => a.id === actionId);
-        if (action) {
-          // Mark action as not supported to remove from context menu
-          (action as any).isSupported = () => false;
-        }
+        // Disable Monaco's built-in context menu - we'll use Nova's custom menu
+        contextmenu: false,
       });
 
       console.log('[MonacoEditor] Initialized successfully');
@@ -123,6 +109,16 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       // Initialize EditorService
       editorServiceRef.current = new EditorService(editorRef.current);
       console.log('[MonacoEditor] EditorService initialized');
+
+      // Add custom context menu handler on the editor's DOM node
+      const editorDomNode = editorRef.current.getDomNode();
+      if (editorDomNode) {
+        editorDomNode.addEventListener('contextmenu', (e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setContextMenu({ x: e.clientX, y: e.clientY });
+        });
+      }
 
       // Set up change listener
       const disposable = editorRef.current.onDidChangeModelContent(() => {
@@ -179,6 +175,49 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       editorRef.current.updateOptions({ fontSize, wordWrap });
     }
   }, [fontSize, wordWrap]);
+
+  // Close context menu on outside click or Escape
+  useEffect(() => {
+    if (contextMenu) {
+      const handleClickOutside = () => setContextMenu(null);
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setContextMenu(null);
+        }
+      };
+
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [contextMenu]);
+
+  // Context menu action handlers
+  const handleCut = useCallback(() => {
+    editorRef.current?.getAction('editor.action.clipboardCutAction')?.run();
+    setContextMenu(null);
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    editorRef.current?.getAction('editor.action.clipboardCopyAction')?.run();
+    setContextMenu(null);
+  }, []);
+
+  const handlePaste = useCallback(async () => {
+    editorRef.current?.getAction('editor.action.clipboardPasteAction')?.run();
+    setContextMenu(null);
+  }, []);
+
+  const handleQuit = useCallback(() => {
+    if (window.api?.quit) {
+      window.api.quit();
+    }
+    setContextMenu(null);
+  }, []);
 
   // Public API methods
   const loadFile = useCallback((filePath: string, content: string) => {
@@ -317,7 +356,64 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     };
   }, [loadFile, getValue, setValue, isDirtyMethod, markAsSaved, getFilePath, updateOptions, formatDocument, goToDefinition, peekDefinition, findReferences, renameSymbol, runLinting, clearDiagnostics, focus]);
 
-  return <div ref={containerRef} style={styles.container} />;
+  return (
+    <>
+      <div ref={containerRef} style={styles.container} />
+      
+      {/* Nova's custom context menu */}
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            backgroundColor: '#2d2d30',
+            border: '1px solid #454545',
+            borderRadius: '3px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+            zIndex: 10000,
+            minWidth: '150px',
+            padding: '4px 0',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            style={styles.contextMenuItem}
+            onClick={handleCut}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            ✂️ Cut
+          </div>
+          <div
+            style={styles.contextMenuItem}
+            onClick={handleCopy}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            📋 Copy
+          </div>
+          <div
+            style={styles.contextMenuItem}
+            onClick={handlePaste}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            📄 Paste
+          </div>
+          <div style={styles.contextMenuSeparator} />
+          <div
+            style={styles.contextMenuItem}
+            onClick={handleQuit}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            🚪 Quit
+          </div>
+        </div>
+      )}
+    </>
+  );
 });
 
 MonacoEditor.displayName = 'MonacoEditor';
@@ -396,6 +492,21 @@ const styles = {
     width: '100%',
     height: '100%',
     overflow: 'hidden',
+  },
+  contextMenuItem: {
+    padding: '6px 12px',
+    fontSize: '13px',
+    color: '#cccccc',
+    cursor: 'pointer',
+    transition: 'background-color 0.1s',
+    userSelect: 'none' as const,
+  } as React.CSSProperties & {
+    ':hover'?: React.CSSProperties;
+  },
+  contextMenuSeparator: {
+    height: '1px',
+    backgroundColor: '#454545',
+    margin: '4px 0',
   },
 };
 
