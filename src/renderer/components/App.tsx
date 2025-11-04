@@ -24,17 +24,54 @@ export const App: React.FC = () => {
   const actionContext: ActionContext = useMemo(() => ({
     onOpenFile: async () => {
       console.log('[App] Open File action triggered');
-      if (window.api?.openFile) {
-        try {
-          const result = await window.api.openFile();
-          if (result) {
-            console.log('[App] File selected:', result);
-            setShowWelcome(false);
-            // The actual file loading will be handled by Monaco integration
-          }
-        } catch (error) {
-          console.error('[App] Failed to open file:', error);
+      if (!window.api?.openFile || !window.api?.readFile) {
+        console.error('[App] File API not available');
+        return;
+      }
+
+      try {
+        // Open file picker
+        const filePath = await window.api.openFile();
+        if (!filePath) {
+          console.log('[App] No file selected');
+          return;
         }
+
+        console.log('[App] File selected:', filePath);
+
+        // Read file content
+        const fileData = await window.api.readFile(filePath);
+        console.log('[App] File loaded, size:', fileData.content.length, 'bytes');
+
+        // Hide welcome screen
+        setShowWelcome(false);
+
+        // Load into Monaco editor
+        if ((window as any).__monacoEditorAPI) {
+          (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
+        }
+
+        // Add tab
+        if ((window as any).__tabBarAPI) {
+          const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+          (window as any).__tabBarAPI.addTab({
+            id: `tab-${Date.now()}`,
+            filePath: filePath,
+            fileName: fileName,
+            isDirty: false,
+            content: fileData.content,
+            language: 'typescript', // Will be auto-detected by Monaco
+          });
+        }
+
+        // Update status bar
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus(`Editing: ${filePath.split(/[\\/]/).pop()}`);
+        }
+
+        console.log('[App] File opened successfully');
+      } catch (error) {
+        console.error('[App] Failed to open file:', error);
       }
     },
     onSaveFile: async () => {
