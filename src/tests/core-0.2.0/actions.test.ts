@@ -14,7 +14,7 @@ describe('Actions', () => {
         onSaveFileAs: jest.fn(),
         onReloadFile: jest.fn(),
         onCloseFile: jest.fn(),
-        onToggleTheme: jest.fn(),
+        onNewTerminal: jest.fn(),
         onOpenSettings: jest.fn(),
         onOpenDiagnostics: jest.fn(),
       };
@@ -32,8 +32,8 @@ describe('Actions', () => {
       expect(actions[3].label).toBe('Reload File');
       expect(actions[4].id).toBe('close-file');
       expect(actions[4].label).toBe('Close File');
-      expect(actions[5].id).toBe('toggle-theme');
-      expect(actions[5].label).toBe('Toggle Theme');
+      expect(actions[5].id).toBe('new-terminal');
+      expect(actions[5].label).toBe('New Terminal');
       expect(actions[6].id).toBe('settings');
       expect(actions[6].label).toBe('Settings');
       expect(actions[7].id).toBe('diagnostics');
@@ -56,19 +56,19 @@ describe('Actions', () => {
       }
     });
 
-    it('should call onToggleTheme handler when Toggle Theme action is executed', () => {
-      const onToggleTheme = jest.fn();
+    it('should call onNewTerminal handler when New Terminal action is executed', () => {
+      const onNewTerminal = jest.fn();
       const context: ActionContext = {
-        onToggleTheme,
+        onNewTerminal,
       };
 
       const actions = createDefaultActions(context);
-      const toggleThemeAction = actions.find((a) => a.id === 'toggle-theme');
+      const newTerminalAction = actions.find((a) => a.id === 'new-terminal');
 
-      expect(toggleThemeAction).toBeDefined();
-      if (toggleThemeAction) {
-        void Promise.resolve(toggleThemeAction.handler());
-        expect(onToggleTheme).toHaveBeenCalled();
+      expect(newTerminalAction).toBeDefined();
+      if (newTerminalAction) {
+        void Promise.resolve(newTerminalAction.handler());
+        expect(onNewTerminal).toHaveBeenCalled();
       }
     });
 
@@ -121,7 +121,7 @@ describe('Actions', () => {
     it('should create actions with correct structure', () => {
       const context: ActionContext = {
         onOpenFile: jest.fn(),
-        onToggleTheme: jest.fn(),
+        onNewTerminal: jest.fn(),
         onOpenSettings: jest.fn(),
       };
 
@@ -144,7 +144,7 @@ describe('Actions', () => {
         onSaveFileAs: jest.fn(),
         onReloadFile: jest.fn(),
         onCloseFile: jest.fn(),
-        onToggleTheme: jest.fn(),
+        onNewTerminal: jest.fn(),
         onOpenSettings: jest.fn(),
         onOpenDiagnostics: jest.fn(),
       };
@@ -157,7 +157,7 @@ describe('Actions', () => {
       expect(actionIds).toContain('save-file-as');
       expect(actionIds).toContain('reload-file');
       expect(actionIds).toContain('close-file');
-      expect(actionIds).toContain('toggle-theme');
+      expect(actionIds).toContain('new-terminal');
       expect(actionIds).toContain('settings');
       expect(actionIds).toContain('diagnostics');
     });

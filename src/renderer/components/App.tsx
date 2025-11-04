@@ -205,6 +205,50 @@ const AppInner: React.FC = () => {
         }
       }
     },
+    onNewTerminal: async () => {
+      console.log('[App] New Terminal action triggered');
+      
+      if (!window.api?.terminalCreate) {
+        console.error('[App] Terminal API not available');
+        return;
+      }
+
+      try {
+        // Create terminal session
+        const result = await window.api.terminalCreate(workspaceRoot || undefined, 80, 24);
+        const terminalId = result.id;
+
+        // Hide welcome screen
+        setShowWelcome(false);
+
+        // Add terminal tab
+        if ((window as any).__tabBarAPI) {
+          const tabId = `terminal-${Date.now()}`;
+          (window as any).__tabBarAPI.addTab({
+            id: tabId,
+            type: 'terminal',
+            filePath: terminalId, // Use terminalId as filePath for terminals
+            fileName: 'bash',
+            isDirty: false,
+            content: '',
+            language: 'terminal',
+          });
+          
+          // Switch to terminal tab
+          setActiveTab({ id: tabId, type: 'terminal' });
+        }
+
+        // Update status bar
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Terminal: bash');
+        }
+
+        console.log('[App] Terminal created successfully');
+      } catch (error) {
+        console.error('[App] Failed to create terminal:', error);
+        alert(`Failed to create terminal: ${(error as Error).message}`);
+      }
+    },
     onOpenSettings: () => {
       console.log('[App] Open Settings action triggered');
       if ((window as any).__settingsPanelAPI) {
@@ -412,50 +456,7 @@ const AppInner: React.FC = () => {
             <div style={{ display: showGitPanel ? 'none' : 'flex', flexDirection: 'column', height: '100%' }}>
               <FileTree
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
-                onNewTerminal={async () => {
-                  console.log('[App] New Terminal requested');
-                  
-                  if (!window.api?.terminalCreate) {
-                    console.error('[App] Terminal API not available');
-                    return;
-                  }
-
-                  try {
-                    // Create terminal session
-                    const result = await window.api.terminalCreate(workspaceRoot || undefined, 80, 24);
-                    const terminalId = result.id;
-
-                    // Hide welcome screen
-                    setShowWelcome(false);
-
-                    // Add terminal tab
-                    if ((window as any).__tabBarAPI) {
-                      const tabId = `terminal-${Date.now()}`;
-                      (window as any).__tabBarAPI.addTab({
-                        id: tabId,
-                        type: 'terminal',
-                        filePath: terminalId, // Use terminalId as filePath for terminals
-                        fileName: 'bash',
-                        isDirty: false,
-                        content: '',
-                        language: 'terminal',
-                      });
-                      
-                      // Switch to terminal tab
-                      setActiveTab({ id: tabId, type: 'terminal' });
-                    }
-
-                    // Update status bar
-                    if ((window as any).__statusBarAPI) {
-                      (window as any).__statusBarAPI.setStatus('Terminal: bash');
-                    }
-
-                    console.log('[App] Terminal created successfully');
-                  } catch (error) {
-                    console.error('[App] Failed to create terminal:', error);
-                    alert(`Failed to create terminal: ${(error as Error).message}`);
-                  }
-                }}
+                onNewTerminal={actionContext.onNewTerminal}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
                   setWorkspaceRoot(dirPath);

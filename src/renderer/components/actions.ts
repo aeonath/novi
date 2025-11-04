@@ -14,7 +14,7 @@ export interface ActionContext {
   onSaveFileAs?: () => void | Promise<void>;
   onReloadFile?: () => void | Promise<void>;
   onCloseFile?: () => void | Promise<void>;
-  onToggleTheme?: () => void | Promise<void>;
+  onNewTerminal?: () => void | Promise<void>;
   onOpenSettings?: () => void | Promise<void>;
   onOpenDiagnostics?: () => void | Promise<void>;
   // Editor commands
@@ -79,12 +79,12 @@ export function createDefaultActions(context: ActionContext): Action[] {
     },
   });
 
-  // Toggle Theme action
+  // New Terminal action
   actions.push({
-    id: 'toggle-theme',
-    label: 'Toggle Theme',
+    id: 'new-terminal',
+    label: 'New Terminal',
     handler: () => {
-      callHandler(context.onToggleTheme);
+      callHandler(context.onNewTerminal);
     },
   });
 
