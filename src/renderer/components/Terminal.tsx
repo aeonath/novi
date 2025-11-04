@@ -40,7 +40,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
         foreground: '#cccccc',
         cursor: '#ffffff',
         cursorAccent: '#000000',
-        selection: 'rgba(0, 122, 204, 0.3)',
+        selectionBackground: 'rgba(0, 122, 204, 0.3)',
         black: '#000000',
         red: '#cd3131',
         green: '#0dbc79',
