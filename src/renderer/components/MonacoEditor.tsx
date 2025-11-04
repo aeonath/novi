@@ -39,7 +39,7 @@ export interface MonacoEditorProps {
 }
 
 export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((props, ref) => {
-  const { onDirtyChange, fontSize = 14, wordWrap = 'off' } = props;
+  const { onDirtyChange, fontSize = 14, wordWrap = 'on' } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
   const editorServiceRef = useRef<EditorService | null>(null);
@@ -97,27 +97,37 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         suggestOnTriggerCharacters: false,
       });
 
-      // Hide specific context menu items using Monaco's contribution system
+      // Hide specific context menu items more aggressively
       editorRef.current.onContextMenu(() => {
-        // Use multiple timeouts to ensure we catch the menu rendering
-        [0, 10, 50, 100].forEach(delay => {
-          setTimeout(() => {
-            const menuItems = document.querySelectorAll('.monaco-menu-container .action-label');
+        // Use MutationObserver to catch menu when it appears
+        const observer = new MutationObserver(() => {
+          const menuContainer = document.querySelector('.monaco-menu-container');
+          if (menuContainer) {
+            const menuItems = menuContainer.querySelectorAll('.action-label');
             menuItems.forEach((item: any) => {
-              const text = item.textContent || '';
-              // Hide unwanted items
-              if (text.includes('Change All Occurrences') || 
-                  text.includes('Command Palette') ||
-                  text.toLowerCase().includes('change all occurrences') ||
-                  text.toLowerCase().includes('command palette')) {
-                const menuItem = item.closest('.action-item');
-                if (menuItem) {
-                  (menuItem as HTMLElement).style.display = 'none';
+              const text = (item.textContent || '').trim();
+              // Hide unwanted items - check multiple variations
+              if (text === 'Change All Occurrences' || 
+                  text === 'Command Palette' ||
+                  text.includes('Change All Occurrence') ||
+                  text.includes('Command Palette')) {
+                const actionItem = item.closest('.action-item');
+                if (actionItem) {
+                  (actionItem as HTMLElement).style.display = 'none';
                 }
               }
             });
-          }, delay);
+            observer.disconnect();
+          }
         });
+        
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+        
+        // Fallback timeout cleanup
+        setTimeout(() => observer.disconnect(), 500);
       });
 
       console.log('[MonacoEditor] Initialized successfully');
@@ -400,4 +410,5 @@ const styles = {
     overflow: 'hidden',
   },
 };
+
 

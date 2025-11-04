@@ -158,6 +158,7 @@ it prompts with nova>  and reads in the command and then shows the output
 - `nova> list` shows the list of open tabs 
 
 
+
 **Notes for Claude:**    
 
 

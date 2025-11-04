@@ -193,23 +193,36 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       console.error('[Terminal] Failed to open terminal:', error);
     }
 
-    // Handle resize
+    // Handle resize with debouncing to prevent flickering
+    let resizeTimeout: NodeJS.Timeout | null = null;
     const handleResize = () => {
-      if (fitAddonRef.current) {
-        fitAddonRef.current.fit();
-        const dimensions = terminalRef.current?.cols && terminalRef.current?.rows
-          ? { cols: terminalRef.current.cols, rows: terminalRef.current.rows }
-          : null;
-        if (dimensions) {
-          onResize?.(dimensions.cols, dimensions.rows);
-        }
+      // Clear any pending resize
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
       }
+      
+      // Debounce resize to prevent flickering
+      resizeTimeout = setTimeout(() => {
+        if (fitAddonRef.current && terminalRef.current) {
+          fitAddonRef.current.fit();
+          const dimensions = terminalRef.current?.cols && terminalRef.current?.rows
+            ? { cols: terminalRef.current.cols, rows: terminalRef.current.rows }
+            : null;
+          if (dimensions) {
+            onResize?.(dimensions.cols, dimensions.rows);
+          }
+        }
+        resizeTimeout = null;
+      }, 100); // 100ms debounce
     };
 
     window.addEventListener('resize', handleResize);
 
     // Cleanup
     return () => {
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
       window.removeEventListener('resize', handleResize);
       terminal.dispose();
       terminalRef.current = null;

@@ -651,7 +651,7 @@ const styles = {
   filesList: {
     flex: 1,
     overflow: 'auto',
-  },
+  } as React.CSSProperties & { WebkitOverflowScrolling?: string },
   fileSection: {
     marginTop: '12px',
   },
