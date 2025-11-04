@@ -72,6 +72,8 @@ class TerminalService {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
+        COLUMNS: String(cols),
+        LINES: String(rows),
       },
     });
 
@@ -128,7 +130,7 @@ class TerminalService {
       session.pty.resize(cols, rows);
       session.cols = cols;
       session.rows = rows;
-      logInfo(`[TerminalService] Terminal ${id} resized to ${cols}x${rows}`);
+      // Terminal resized silently
       return true;
     } catch (error) {
       logError(`[TerminalService] Failed to resize terminal ${id}:`, error);

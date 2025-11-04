@@ -26,6 +26,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
   const fitAddonRef = useRef<FitAddon | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const hasInitialFitRef = useRef(false); // Track if initial fit has completed
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -85,28 +86,30 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
       fitAddonRef.current = fitAddon;
       
       // Fit terminal to container and notify about resize
-      // Use a longer delay to ensure the container is fully rendered
+      // Use a longer delay to ensure the container is fully rendered and measured correctly
       setTimeout(() => {
+        // Fit to actual container dimensions
         fitAddon.fit();
         const cols = terminal.cols;
         const rows = terminal.rows;
         console.log('[Terminal] Initial fit:', cols, 'x', rows);
         
-        // Notify parent about the actual terminal size
-        if (onResize && cols && rows) {
-          console.log('[Terminal] Sending initial resize to PTY:', cols, 'x', rows);
+        // CRITICAL: Force PTY to update shell's COLUMNS/ROWS immediately
+        // This ensures 'ls' and other commands use correct width
+        if (onResize && cols && rows && cols > 0 && rows > 0) {
+          console.log('[Terminal] Notifying PTY of dimensions:', cols, 'x', rows);
           onResize(cols, rows);
         }
         
         // Focus the terminal if it's active
         if (isActive) {
           terminal.focus();
-          console.log('[Terminal] Initial focus applied');
         }
         
-        // Set ready after fit and resize
+        // Mark as ready and initial fit as complete
+        hasInitialFitRef.current = true;
         setIsReady(true);
-      }, 200); // Increased delay to ensure container is fully visible
+      }, 300); // Longer delay ensures accurate measurements
 
       // Handle input
       terminal.onData((data) => {
@@ -174,12 +177,17 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
     };
   }, [terminalId, isReady]);
 
-  // Refit and focus when terminal becomes active (visible) or when ready
+  // Refit and focus when terminal becomes active AFTER initial mount (tab switching)
   useEffect(() => {
+    // Skip if this is the initial mount (hasInitialFitRef is still false)
+    // This prevents double-fitting and flashing on terminal creation
+    if (!hasInitialFitRef.current) {
+      return;
+    }
+    
     if (isActive && isReady && fitAddonRef.current && terminalRef.current) {
-      console.log('[Terminal] Terminal active and ready, ensuring proper fit:', terminalId);
-      // Delay to ensure display:flex has taken effect and container is measured correctly
-      setTimeout(() => {
+      // Small delay to ensure display:flex has taken effect
+      const timeout = setTimeout(() => {
         if (fitAddonRef.current && terminalRef.current) {
           // Get dimensions before fit
           const oldCols = terminalRef.current.cols;
@@ -190,22 +198,17 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
           const newCols = terminalRef.current.cols;
           const newRows = terminalRef.current.rows;
           
-          console.log('[Terminal] Refit check:', { 
-            old: `${oldCols}x${oldRows}`, 
-            new: `${newCols}x${newRows}` 
-          });
-          
-          // Only notify if dimensions actually changed
-          if (onResize && (newCols !== oldCols || newRows !== oldRows)) {
-            console.log('[Terminal] Dimensions changed, notifying PTY:', newCols, 'x', newRows);
+          // Only notify if dimensions actually changed (avoids unnecessary PTY updates)
+          if (onResize && (newCols !== oldCols || newRows !== oldRows) && newCols > 0 && newRows > 0) {
             onResize(newCols, newRows);
           }
           
-          // Focus the terminal
+          // Focus the terminal without flashing
           terminalRef.current.focus();
-          console.log('[Terminal] Terminal focused');
         }
-      }, 100);
+      }, 50);
+      
+      return () => clearTimeout(timeout);
     }
   }, [isActive, isReady, terminalId, onResize]);
 
