@@ -569,6 +569,7 @@ const styles = {
     resize: 'none' as const,
     marginBottom: '8px',
     marginTop: '4px',
+    boxSizing: 'border-box' as const,
   },
   commitActions: {
     display: 'flex',
