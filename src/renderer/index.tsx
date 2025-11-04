@@ -81,9 +81,6 @@ async function initializeApp() {
       }
 
       console.error('[Nova] Unhandled error:', ev.error);
-      if (window.api?.logError) {
-        window.api.logError(ev.message, ev.error?.stack);
-      }
     });
 
     window.addEventListener('unhandledrejection', (ev) => {
@@ -97,19 +94,11 @@ async function initializeApp() {
       }
 
       console.error('[Nova] Unhandled rejection:', ev.reason);
-      if (window.api?.logError) {
-        const error = ev.reason instanceof Error ? ev.reason : new Error(String(ev.reason));
-        window.api.logError(error.message, error.stack);
-      }
     });
 
     console.log('[Nova] Initialization complete');
   } catch (error) {
     console.error('[Nova] Fatal initialization error:', error);
-    if (window.api?.logError) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      window.api.logError(err.message, err.stack);
-    }
   }
 }
 
