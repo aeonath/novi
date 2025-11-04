@@ -8,7 +8,7 @@
  * Displays terminal output and handles user input
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 // Note: xterm.css is loaded in index.html
