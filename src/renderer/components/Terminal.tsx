@@ -113,7 +113,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
 
     console.log('[Terminal] Initializing xterm for:', terminalId);
 
-    // Create xterm instance
+    // Create xterm instance with proper terminal emulation settings
     const terminal = new XTerm({
       theme: {
         background: '#1e1e1e',
@@ -145,9 +145,9 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       lineHeight: 1.2,
       letterSpacing: 0,
       scrollback: 1000,
-      // Disable local echo - PTY will echo characters back
-      disableStdin: false,
-      convertEol: false,
+      // Critical: windowsMode MUST be false for vim and other TUI apps
+      // to work correctly. This ensures proper handling of control sequences.
+      windowsMode: false,
     });
 
     // Create fit addon
