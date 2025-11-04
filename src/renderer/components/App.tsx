@@ -298,12 +298,6 @@ const AppInner: React.FC = () => {
         (window as any).__settingsPanelAPI.show();
       }
     },
-    onOpenDiagnostics: () => {
-      console.log('[App] Open Diagnostics action triggered');
-      if ((window as any).__diagnosticsPanelAPI) {
-        (window as any).__diagnosticsPanelAPI.show();
-      }
-    },
     // Editor commands
     onFormatDocument: async () => {
       console.log('[App] Format Document action triggered');
