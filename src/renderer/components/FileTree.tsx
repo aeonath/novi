@@ -135,6 +135,8 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode | null) => {
     e.preventDefault();
     e.stopPropagation();
+    // Notify other components to close their context menus
+    window.dispatchEvent(new CustomEvent('nova-close-context-menus', { detail: { source: 'FileTree' } }));
     setContextMenu({ x: e.clientX, y: e.clientY, node });
   }, []);
 
@@ -247,6 +249,17 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       return () => document.removeEventListener('click', handleClick);
     }
   }, [contextMenu, closeContextMenu]);
+
+  // Close context menu when another component opens its menu
+  useEffect(() => {
+    const handleCloseContextMenus = (e: CustomEvent) => {
+      if (e.detail.source !== 'FileTree') {
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+    return () => window.removeEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+  }, []);
 
   // Expose methods for compatibility
   useEffect(() => {

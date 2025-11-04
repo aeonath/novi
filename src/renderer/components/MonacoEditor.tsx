@@ -116,6 +116,8 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         console.log('[MonacoEditor] Context menu triggered at:', e.clientX, e.clientY);
         e.preventDefault();
         e.stopPropagation();
+        // Notify other components to close their context menus
+        window.dispatchEvent(new CustomEvent('nova-close-context-menus', { detail: { source: 'MonacoEditor' } }));
         setContextMenu({ x: e.clientX, y: e.clientY });
       };
       
@@ -203,6 +205,17 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       };
     }
   }, [contextMenu]);
+
+  // Close context menu when another component opens its menu
+  useEffect(() => {
+    const handleCloseContextMenus = (e: CustomEvent) => {
+      if (e.detail.source !== 'MonacoEditor') {
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+    return () => window.removeEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+  }, []);
 
   // Context menu action handlers
   const handleCut = useCallback(() => {
