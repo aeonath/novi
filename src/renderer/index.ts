@@ -9,6 +9,7 @@ import { FileViewer } from './components/file-viewer.js';
 import { DiagnosticsPanel } from './components/diagnostics-panel.js';
 import { initializeThemeManager, themes } from './theme.js';
 import { MonacoEditorView, detectLanguage } from './editor/index.js';
+import { TabBar, Tab } from './components/tab-bar.js';
 
 // Wait for Monaco to be loaded before initializing
 function waitForMonaco(): Promise<boolean> {
@@ -185,6 +186,10 @@ document.addEventListener('DOMContentLoaded', (): void => {
     // Initialize Diagnostics Panel
     const diagnosticsPanel = new DiagnosticsPanel();
 
+    // Initialize Tab Bar
+    const tabBarContainer = document.getElementById('tab-bar-container') as HTMLElement;
+    const tabBar = new TabBar(tabBarContainer);
+
     // Initialize Monaco Editor (only if Monaco loaded successfully)
     const editorContainer = document.getElementById('monaco-editor-container') as HTMLElement;
     const welcomeScreen = document.getElementById('welcome-screen') as HTMLElement;
@@ -200,8 +205,11 @@ document.addEventListener('DOMContentLoaded', (): void => {
           lineNumbers: 'on',
         });
         
-        // Show the editor
+        // Show the editor and tab bar
         editorContainer.style.display = 'block';
+        if (tabBarContainer) {
+          tabBarContainer.style.display = 'flex';
+        }
         if (welcomeScreen) {
           welcomeScreen.style.display = 'none';
         }
@@ -227,14 +235,44 @@ document.addEventListener('DOMContentLoaded', (): void => {
     // Setup dirty state tracking
     if (editorInstance) {
       editorInstance.onDirtyChange((isDirty) => {
-        const filePath = editorInstance.getFilePath();
-        if (filePath) {
-          const fileName = filePath.split(/[\\/]/).pop() || filePath;
+        // Update active tab's dirty state
+        const activeTab = tabBar.getActiveTab();
+        if (activeTab) {
+          tabBar.updateTabDirty(activeTab.id, isDirty);
+          
+          const fileName = activeTab.fileName;
           const dirtyMarker = isDirty ? ' *' : '';
           statusBar.setStatus(`Editing: ${fileName}${dirtyMarker}`);
         }
       });
     }
+
+    // Setup tab switching
+    tabBar.onTabSwitch((tab) => {
+      if (editorInstance) {
+        // Load tab content into Monaco
+        editorInstance.loadFile(tab.filePath, tab.content);
+        
+        // Update status bar
+        const dirtyMarker = tab.isDirty ? ' *' : '';
+        statusBar.setStatus(`Editing: ${tab.fileName}${dirtyMarker}`);
+      }
+    });
+
+    // Setup tab close callback
+    tabBar.onTabClose((tabId) => {
+      const tabs = tabBar.getTabs();
+      const tab = tabs.find(t => t.id === tabId);
+      
+      if (tab && tab.isDirty) {
+        const proceed = confirm(
+          `You have unsaved changes in "${tab.fileName}". Do you want to close it anyway?`
+        );
+        return proceed;
+      }
+      
+      return true;
+    });
 
     // Initialize Action HUD
     const actionContext: ActionContext = {
@@ -243,30 +281,25 @@ document.addEventListener('DOMContentLoaded', (): void => {
           return;
         }
 
-        // Check for unsaved changes
-        if (editorInstance.isDirty()) {
-          const currentFile = editorInstance.getFilePath();
-          const fileName = currentFile ? currentFile.split(/[\\/]/).pop() : 'untitled';
-          const proceed = confirm(
-            `You have unsaved changes in "${fileName}". Do you want to discard them and open a new file?`
-          );
-          if (!proceed) {
-            return;
-          }
-        }
-
         try {
           const filePath = await window.api.openFile();
           if (filePath) {
             // Load file data
             const fileData = await window.api.readFile(filePath);
-            
-            // Load into Monaco editor
-            editorInstance.loadFile(filePath, fileData.content);
-            
-            // Update status bar
             const fileName = filePath.split(/[\\/]/).pop() || filePath;
-            statusBar.setStatus(`Editing: ${fileName}`);
+            const language = detectLanguage(fileName);
+            
+            // Create or activate tab
+            const tab: Tab = {
+              id: filePath, // Use file path as unique ID
+              filePath: filePath,
+              fileName: fileName,
+              isDirty: false,
+              content: fileData.content,
+              language: language,
+            };
+            
+            tabBar.addTab(tab);
             
             // eslint-disable-next-line no-console
             console.log(`[Monaco] Opened file: ${filePath}`);
@@ -293,6 +326,13 @@ document.addEventListener('DOMContentLoaded', (): void => {
           await window.api.saveFile(filePath, content);
           editorInstance.markAsSaved();
           
+          // Update tab content and clear dirty state
+          const activeTab = tabBar.getActiveTab();
+          if (activeTab) {
+            tabBar.updateTabContent(activeTab.id, content);
+            tabBar.updateTabDirty(activeTab.id, false);
+          }
+          
           const fileName = filePath.split(/[\\/]/).pop() || filePath;
           statusBar.setStatus(`Saved: ${fileName}`);
           
@@ -313,6 +353,7 @@ document.addEventListener('DOMContentLoaded', (): void => {
           const result = await window.api.saveFileAs(content);
           
           if (result) {
+            const oldPath = editorInstance.getFilePath();
             editorInstance.setFilePath(result.path);
             editorInstance.markAsSaved();
             
@@ -322,6 +363,23 @@ document.addEventListener('DOMContentLoaded', (): void => {
             // Update language based on new file extension
             const language = detectLanguage(result.path);
             editorInstance.setLanguage(language);
+            
+            // Update or create tab for new file
+            const activeTab = tabBar.getActiveTab();
+            if (activeTab && activeTab.filePath === oldPath) {
+              // Remove old tab and create new one
+              tabBar.removeTab(activeTab.id);
+            }
+            
+            const newTab: Tab = {
+              id: result.path,
+              filePath: result.path,
+              fileName: fileName,
+              isDirty: false,
+              content: content,
+              language: language,
+            };
+            tabBar.addTab(newTab);
             
             // eslint-disable-next-line no-console
             console.log(`[Monaco] Saved file as: ${result.path}`);
