@@ -65,6 +65,9 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, onData, onResize
       lineHeight: 1.2,
       letterSpacing: 0,
       scrollback: 1000,
+      // Disable local echo - PTY will echo characters back
+      disableStdin: false,
+      convertEol: false,
     });
 
     // Create fit addon

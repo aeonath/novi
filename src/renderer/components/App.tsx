@@ -41,6 +41,10 @@ const AppInner: React.FC = () => {
     }
 
     console.log('[App] Setting up terminal data listener');
+    
+    // Remove any existing listeners first to prevent duplicates
+    window.api.terminalRemoveDataListener();
+    
     window.api.terminalOnData((terminalId: string, data: string) => {
       console.log('[App] Received terminal data for:', terminalId, 'length:', data.length);
       const terminalAPI = (window as any).__terminalAPI?.[terminalId];
@@ -54,6 +58,7 @@ const AppInner: React.FC = () => {
 
     return () => {
       if (window.api?.terminalRemoveDataListener) {
+        console.log('[App] Cleaning up terminal data listener');
         window.api.terminalRemoveDataListener();
       }
     };
