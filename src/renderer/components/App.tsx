@@ -3,7 +3,7 @@
  * Main layout structure for Nova IDE
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { AppProvider } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
@@ -14,10 +14,53 @@ import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
+import { createDefaultActions, ActionContext } from './actions.js';
 
 export const App: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(true);
   const [monacoReady, setMonacoReady] = useState(false);
+
+  // Create action handlers
+  const actionContext: ActionContext = useMemo(() => ({
+    onOpenFile: async () => {
+      console.log('[App] Open File action triggered');
+      if (window.api?.openFile) {
+        try {
+          const result = await window.api.openFile();
+          if (result) {
+            console.log('[App] File selected:', result);
+            setShowWelcome(false);
+            // The actual file loading will be handled by Monaco integration
+          }
+        } catch (error) {
+          console.error('[App] Failed to open file:', error);
+        }
+      }
+    },
+    onSaveFile: async () => {
+      console.log('[App] Save File action triggered');
+      // TODO: Implement save functionality with Monaco
+    },
+    onSaveFileAs: async () => {
+      console.log('[App] Save File As action triggered');
+      // TODO: Implement save as functionality
+    },
+    onOpenSettings: () => {
+      console.log('[App] Open Settings action triggered');
+      if ((window as any).__settingsPanelAPI) {
+        (window as any).__settingsPanelAPI.show();
+      }
+    },
+    onOpenDiagnostics: () => {
+      console.log('[App] Open Diagnostics action triggered');
+      if ((window as any).__diagnosticsPanelAPI) {
+        (window as any).__diagnosticsPanelAPI.show();
+      }
+    },
+  }), []);
+
+  // Create actions
+  const actions = useMemo(() => createDefaultActions(actionContext), [actionContext]);
 
   useEffect(() => {
     // Wait for Monaco to load
@@ -88,7 +131,7 @@ export const App: React.FC = () => {
         <StatusBar />
         
         {/* Modal components */}
-        <ActionHUD />
+        <ActionHUD actions={actions} />
         <SettingsPanel />
         <DiagnosticsPanel />
         <RecoveryDialog />
