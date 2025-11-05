@@ -14,11 +14,26 @@ import { logSuccess, logError as logFSError } from './services/fs-logger';
 import { gitService } from './services/git-service';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
+import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
+import { commandStatsService } from './services/command-stats-service';
 
 let mainWindowRef: BrowserWindow | null = null;
 
 // Set NODE_ENV for development (not used for branching, kept for future use)
 process.env.NODE_ENV ??= 'development';
+
+/**
+ * Handle menu commands
+ */
+async function handleMenuCommand(command: MenuCommand, window: BrowserWindow): Promise<void> {
+  logInfo(`[Menu] Handling command: ${command}`);
+  
+  // Record command execution for stats
+  commandStatsService.recordCommand(command);
+  
+  // Send command to renderer
+  window.webContents.send('menu-command', command);
+}
 
 function createWindow(): void {
   const savedBounds = getSetting<{ width: number; height: number; x?: number; y?: number }>(
@@ -64,6 +79,10 @@ function createWindow(): void {
   void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   mainWindow.setMinimumSize(800, 600);
 
+  // Initialize application menu
+  setMenuCommandHandler(handleMenuCommand);
+  initializeMenu(mainWindow);
+
   // Show window when ready to prevent white screen
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -107,6 +126,9 @@ function createWindow(): void {
 
 void app.whenReady().then(() => {
   logInfo('App ready');
+  
+  // Load command stats
+  void commandStatsService.loadStats();
   
   // Clean up old recovery files (older than 7 days)
   void cleanupOldRecoveryFiles();
@@ -441,6 +463,45 @@ void app.whenReady().then(() => {
     } catch (error) {
       logError('Failed to get workspace path', error as Error);
       throw error;
+    }
+  });
+
+  // Command Stats IPC handlers
+  ipcMain.handle('command-stats-record', async (_e, command: string) => {
+    try {
+      commandStatsService.recordCommand(command);
+      return { success: true };
+    } catch (error) {
+      logError('Failed to record command', error as Error);
+      return { success: false };
+    }
+  });
+
+  ipcMain.handle('command-stats-get-top', async (_e, limit = 8) => {
+    try {
+      return commandStatsService.getTopCommands(limit);
+    } catch (error) {
+      logError('Failed to get top commands', error as Error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('command-stats-get-all', async () => {
+    try {
+      return commandStatsService.getAllStats();
+    } catch (error) {
+      logError('Failed to get all stats', error as Error);
+      return {};
+    }
+  });
+
+  ipcMain.handle('command-stats-clear', async () => {
+    try {
+      await commandStatsService.clearStats();
+      return { success: true };
+    } catch (error) {
+      logError('Failed to clear stats', error as Error);
+      return { success: false };
     }
   });
 

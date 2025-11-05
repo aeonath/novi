@@ -88,6 +88,20 @@ contextBridge.exposeInMainWorld('api', {
   // Clipboard operations (via IPC to main process)
   clipboardReadText: () => ipcRenderer.invoke('clipboard-read-text'),
   clipboardWriteText: (text: string) => ipcRenderer.invoke('clipboard-write-text', text),
+  // Menu command listener
+  onMenuCommand: (callback: (command: string) => void) => {
+    ipcRenderer.on('menu-command', (_event, command: string) => {
+      callback(command);
+    });
+  },
+  removeMenuCommandListener: () => {
+    ipcRenderer.removeAllListeners('menu-command');
+  },
+  // Command stats operations
+  commandStatsRecord: (command: string) => ipcRenderer.invoke('command-stats-record', command),
+  commandStatsGetTop: (limit?: number) => ipcRenderer.invoke('command-stats-get-top', limit),
+  commandStatsGetAll: () => ipcRenderer.invoke('command-stats-get-all'),
+  commandStatsClear: () => ipcRenderer.invoke('command-stats-clear'),
 });
 
 // Type definitions for the exposed API

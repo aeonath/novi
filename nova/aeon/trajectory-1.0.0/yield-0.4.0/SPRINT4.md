@@ -191,15 +191,55 @@ Implement Nova’s top-level **application menu bar** (`File`, `Edit`, `View`, `
 
 **Acceptance Criteria:**  
 - [ ] A visible, functional menu bar appears in Nova’s window with all core categories:
-  - **File:** New, Open, Save, Close, Exit  
-  - **Edit:** Undo, Redo, Cut, Copy, Paste  
-  - **View:** Reload, Toggle Developer Tools, Toggle Sidebar  
-  - **Agents:** Assign Task to Architect / Claude / Coda, Open Agent Logs  
-  - **Workflow:** Plan Sprint, Add Acceptance Criteria, Create Trajectory, Review Sprint  
-  - **Help:** View Documentation, About Nova  
+### 🪐 Nova Application Menu (Minimal Layout)
+
+**File**
+- New File    CTRL+N
+- Open File…  CTRL+O
+- Save        CTRL+S
+- Save As…  
+- Close File  
+- Exit  
+
+**Edit**
+- Undo         CTRL+Z
+- Redo         CTRL+Y
+- Cut          CTRL+X
+- Copy  
+- Paste        CTRL+V
+- Select All   CTRL+A
+
+**View**
+- Toggle Word Wrap  
+- Toggle Line Numbers  
+- Increase Font Size  
+- Decrease Font Size  
+- Reset Font Size  
+- Theme → Light / Dark / System
+- Action Hud    Ctrl+K  
+
+**Nova**
+- New Terminal  CTRL + T
+- Nova Prompt   
+- Nova Agile *()*  
+- Command Palette *** Ctrl + P  
+  
+
+**Help**
+- About Nova  
+- Documentation (Online)  
+- Check for Updates  
+
+---
+
+**Notes**
+- “Window” menu omitted — redundant with system controls.  
+- Developer Tools disabled in release builds for security and simplicity.  
+- Keep interface minimal; Nova targets the space between **Notepad** and **VS Code**.  
+- Command Palette retained for power users but not emphasized in docs.
+
 - [ ] Menu shortcuts (`Ctrl+N`, `Ctrl+S`, `Ctrl+Shift+I`, etc.) function correctly across all platforms.  
-- [ ] The menu is defined in `src/main/menu.js` and initialized from `main.js` via `Menu.setApplicationMenu()`.  
-- [ ] The **Action HUD** displays the top 8 most frequently executed commands based on usage frequency (tracked in memory).  
+- [ ] The **Action HUD** displays the top 8 most frequently executed commands based on usage frequency (tracked in memory).  Re-enable the Action Hud with Ctrl+K but don't mention it on the home page. default with current actions.  You can save action hud history in the ~/.nova directory somehow
 - [ ] Commands in the HUD are clickable or keyboard-triggerable, invoking their corresponding orchestration actions through IPC.  
 - [ ] The HUD refreshes automatically when command frequency ranking changes.  
 
@@ -211,7 +251,9 @@ Implement Nova’s top-level **application menu bar** (`File`, `Edit`, `View`, `
   - Maintain a lightweight JSON or in-memory counter (`commandStats.json`) storing execution counts per command.  
   - Sort and display the top 8 commands in the HUD component (`ActionHUD.jsx`).
   - Update counts whenever a command is executed from menu, HUD, or CLI.  
-- Keep the Action HUD’s UI minimal: one-line command labels, optional icons, and keyboard shortcut hints.  
+- Keep the Action HUD’s UI minimal: one-line command labels, optional icons, and keyboard shortcut hints. 
+- You can set deafult short cuts for many of these items and we will modify them later.  Please make sure
+the short cut is included in the menu item description but make sure there is plenty of space between the description and the short cut. Do not add shortcuts to all items just add a few more like new terminal new nova prompt Nova Agile etc.
 
 **Result:**  
 Nova now includes a fully functional application menu bar with organized orchestration categories and a streamlined Action HUD showing the eight most-used commands, improving usability and discoverability.

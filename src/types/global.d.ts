@@ -124,8 +124,29 @@ declare global {
       // Clipboard operations (async via IPC)
       clipboardReadText: () => Promise<string>;
       clipboardWriteText: (text: string) => Promise<{ success: boolean }>;
+      // Menu command listener
+      onMenuCommand: (callback: (command: string) => void) => void;
+      removeMenuCommandListener: () => void;
+      // Command stats operations
+      commandStatsRecord: (command: string) => Promise<{ success: boolean }>;
+      commandStatsGetTop: (limit?: number) => Promise<CommandStat[]>;
+      commandStatsGetAll: () => Promise<CommandStats>;
+      commandStatsClear: () => Promise<{ success: boolean }>;
     };
   }
+}
+
+export interface CommandStat {
+  command: string;
+  count: number;
+  lastUsed: string;
+}
+
+export interface CommandStats {
+  [command: string]: {
+    count: number;
+    lastUsed: string;
+  };
 }
 
 export {};

@@ -25,7 +25,17 @@ export const ActionHUD: React.FC<ActionHUDProps> = ({ actions: initialActions = 
   const [filteredActions, setFilteredActions] = useState<Action[]>(initialActions);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filterText, setFilterText] = useState('');
+  const [topCommands, setTopCommands] = useState<Array<{ command: string; count: number }>>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load top commands on mount and when HUD becomes visible
+  useEffect(() => {
+    if (isVisible && window.api?.commandStatsGetTop) {
+      void window.api.commandStatsGetTop(8).then((commands) => {
+        setTopCommands(commands);
+      });
+    }
+  }, [isVisible]);
 
   // Update filtered actions when filter text changes
   useEffect(() => {
@@ -69,6 +79,12 @@ export const ActionHUD: React.FC<ActionHUDProps> = ({ actions: initialActions = 
     if (index < 0 || index >= filteredActions.length) return;
 
     const action = filteredActions[index];
+    
+    // Record command execution
+    if (window.api?.commandStatsRecord) {
+      void window.api.commandStatsRecord(action.id);
+    }
+    
     hide();
     await action.handler();
   }, [filteredActions, hide]);
@@ -164,9 +180,48 @@ export const ActionHUD: React.FC<ActionHUDProps> = ({ actions: initialActions = 
           style={styles.input}
         />
         <ul style={styles.list}>
+          {!filterText.trim() && topCommands.length > 0 ? (
+            <>
+              <li style={styles.sectionHeader}>Top 8 Most Used Commands</li>
+              {filteredActions
+                .filter((action) => topCommands.some((cmd) => cmd.command === action.id))
+                .sort((a, b) => {
+                  const aCmd = topCommands.find((cmd) => cmd.command === a.id);
+                  const bCmd = topCommands.find((cmd) => cmd.command === b.id);
+                  return (bCmd?.count || 0) - (aCmd?.count || 0);
+                })
+                .slice(0, 8)
+                .map((action, index) => {
+                  const cmd = topCommands.find((c) => c.command === action.id);
+                  return (
+                    <li
+                      key={action.id}
+                      style={{
+                        ...styles.item,
+                        ...(index === selectedIndex ? styles.itemSelected : {}),
+                      }}
+                      onClick={() => {
+                        const actualIndex = filteredActions.findIndex((a) => a.id === action.id);
+                        setSelectedIndex(actualIndex);
+                        void executeAction(actualIndex);
+                      }}
+                    >
+                      <span>{action.label}</span>
+                      {cmd && <span style={styles.badge}>{cmd.count}x</span>}
+                    </li>
+                  );
+                })}
+              {filteredActions.length > 0 && (
+                <>
+                  <li style={styles.separator} />
+                  <li style={styles.sectionHeader}>All Commands</li>
+                </>
+              )}
+            </>
+          ) : null}
           {filteredActions.length === 0 ? (
             <li style={styles.emptyState}>No actions found</li>
-          ) : (
+          ) : filterText.trim() || topCommands.length === 0 ? (
             filteredActions.map((action, index) => (
               <li
                 key={action.id}
@@ -182,7 +237,7 @@ export const ActionHUD: React.FC<ActionHUDProps> = ({ actions: initialActions = 
                 {action.label}
               </li>
             ))
-          )}
+          ) : null}
         </ul>
       </div>
     </div>
@@ -237,6 +292,9 @@ const styles = {
     color: '#cccccc',
     borderBottom: '1px solid #2d2d30',
     transition: 'background-color 0.15s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   itemSelected: {
     backgroundColor: '#094771',
@@ -247,6 +305,31 @@ const styles = {
     color: '#858585',
     fontStyle: 'italic' as const,
     textAlign: 'center' as const,
+  },
+  sectionHeader: {
+    padding: '8px 16px',
+    color: '#858585',
+    fontSize: '11px',
+    fontWeight: 'bold' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    background: '#2d2d30',
+    borderBottom: '1px solid #333',
+  },
+  separator: {
+    height: '1px',
+    background: '#333',
+    margin: '4px 0',
+    padding: 0,
+  },
+  badge: {
+    marginLeft: 'auto',
+    padding: '2px 8px',
+    borderRadius: '10px',
+    background: '#094771',
+    color: '#fff',
+    fontSize: '11px',
+    fontWeight: 'bold' as const,
   },
 };
 

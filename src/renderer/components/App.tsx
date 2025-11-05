@@ -195,6 +195,27 @@ const AppInner: React.FC = () => {
     loadWorkspace();
   }, []); // Only run on mount
 
+  // Menu command listener
+  useEffect(() => {
+    if (!window.api?.onMenuCommand) {
+      console.warn('[App] Menu command API not available');
+      return;
+    }
+
+    console.log('[App] Setting up menu command listener');
+
+    window.api.onMenuCommand((command: string) => {
+      console.log('[App] Menu command received:', command);
+      handleMenuCommand(command);
+    });
+
+    return () => {
+      if (window.api?.removeMenuCommandListener) {
+        window.api.removeMenuCommandListener();
+      }
+    };
+  }, []); // Only run on mount
+
   // Save workspace when state changes (debounced)
   useEffect(() => {
     const saveWorkspace = async () => {
@@ -657,6 +678,94 @@ const AppInner: React.FC = () => {
       document.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
   }, [actionContext.onOpenFile, actionContext.onSaveFile]);
+
+  // Handle menu commands
+  const handleMenuCommand = useCallback(async (command: string) => {
+    console.log('[App] Handling menu command:', command);
+    
+    // Map menu commands to action handlers
+    switch (command) {
+      case 'new-file':
+        // TODO: Implement new file creation
+        console.log('[App] New file not yet implemented');
+        break;
+      case 'open-file':
+        await actionContext.onOpenFile?.();
+        break;
+      case 'save':
+        await actionContext.onSaveFile?.();
+        break;
+      case 'save-as':
+        await actionContext.onSaveFileAs?.();
+        break;
+      case 'close-file':
+        await actionContext.onCloseFile?.();
+        break;
+      case 'exit':
+        window.api?.quit();
+        break;
+      case 'undo':
+      case 'redo':
+      case 'cut':
+      case 'copy':
+      case 'paste':
+      case 'select-all':
+        // These are handled by Monaco/Terminal directly
+        console.log('[App] Editor command:', command);
+        break;
+      case 'toggle-word-wrap':
+        // TODO: Implement word wrap toggle
+        console.log('[App] Word wrap toggle not yet implemented');
+        break;
+      case 'toggle-line-numbers':
+        // TODO: Implement line numbers toggle
+        console.log('[App] Line numbers toggle not yet implemented');
+        break;
+      case 'increase-font-size':
+      case 'decrease-font-size':
+      case 'reset-font-size':
+        // TODO: Implement font size controls
+        console.log('[App] Font size control not yet implemented');
+        break;
+      case 'theme-light':
+      case 'theme-dark':
+      case 'theme-system':
+        // TODO: Implement theme switching
+        console.log('[App] Theme switching not yet implemented');
+        break;
+      case 'action-hud':
+        (window as any).__actionHUDAPI?.toggle();
+        break;
+      case 'new-terminal':
+        await actionContext.onNewTerminal?.();
+        break;
+      case 'nova-prompt':
+        await actionContext.onNovaPrompt?.();
+        break;
+      case 'nova-agile':
+        // TODO: Implement Nova Agile
+        console.log('[App] Nova Agile not yet implemented');
+        break;
+      case 'command-palette':
+        // TODO: Implement Command Palette
+        console.log('[App] Command Palette not yet implemented');
+        break;
+      case 'about':
+        // TODO: Implement About dialog
+        console.log('[App] About dialog not yet implemented');
+        break;
+      case 'documentation':
+        // Open documentation URL
+        window.open('https://github.com/miranova-studios/nova', '_blank');
+        break;
+      case 'check-updates':
+        // TODO: Implement update checker
+        console.log('[App] Update checker not yet implemented');
+        break;
+      default:
+        console.warn('[App] Unknown menu command:', command);
+    }
+  }, [actionContext]);
 
   // Terminal data listener is set up globally at the top of this component (line 40)
   // Removed duplicate listener that was causing periodic redraws
