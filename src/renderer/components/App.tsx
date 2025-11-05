@@ -895,6 +895,27 @@ const AppInner: React.FC = () => {
             </div>
             <div
               onClick={() => {
+                actionContext.onNovaPrompt?.();
+                handleWelcomeMenuClose();
+              }}
+              style={{
+                padding: '8px 16px',
+                cursor: 'pointer',
+                color: '#cccccc',
+                fontSize: '13px',
+                fontFamily: "'Segoe UI', sans-serif",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2a2d2e';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              ▶️ Nova Prompt
+            </div>
+            <div
+              onClick={() => {
                 actionContext.onOpenSettings?.();
                 handleWelcomeMenuClose();
               }}
