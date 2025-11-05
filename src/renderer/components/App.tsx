@@ -22,6 +22,7 @@ import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
+import { SavePrompt } from './SavePrompt.js';
 import { createDefaultActions, ActionContext } from './actions.js';
 
 
@@ -37,6 +38,19 @@ const AppInner: React.FC = () => {
   
   // Context menu state for welcome screen
   const [welcomeContextMenu, setWelcomeContextMenu] = useState<{ x: number; y: number } | null>(null);
+  
+  // Save prompt state
+  const [savePrompt, setSavePrompt] = useState<{
+    show: boolean;
+    fileName: string;
+    tabId: string;
+    resolve: ((value: boolean) => void) | null;
+  }>({
+    show: false,
+    fileName: '',
+    tabId: '',
+    resolve: null,
+  });
 
   // Set up global terminal data listener
   useEffect(() => {
@@ -984,10 +998,15 @@ const AppInner: React.FC = () => {
                   
                   // For file tabs, check if they're dirty (unsaved changes)
                   if (tab && tab.type === 'file' && tab.isDirty) {
-                    const shouldClose = confirm(`File "${tab.fileName}" has unsaved changes. Close anyway?`);
-                    if (!shouldClose) {
-                      return false;
-                    }
+                    // Show save prompt and wait for user decision
+                    return new Promise<boolean>((resolve) => {
+                      setSavePrompt({
+                        show: true,
+                        fileName: tab.fileName,
+                        tabId: tabId,
+                        resolve: resolve,
+                      });
+                    });
                   }
                 }
                 
@@ -1081,6 +1100,56 @@ const AppInner: React.FC = () => {
         <SettingsPanel />
         <DiagnosticsPanel />
         <RecoveryDialog />
+        
+        {/* Save prompt for unsaved changes */}
+        {savePrompt.show && (
+          <SavePrompt
+            fileName={savePrompt.fileName}
+            onSave={async () => {
+              // Save the file
+              const monacoAPI = (window as any).__monacoEditorAPI;
+              if (monacoAPI && window.api?.saveFile) {
+                const filePath = monacoAPI.getFilePath();
+                if (filePath) {
+                  const content = monacoAPI.getValue();
+                  await window.api.saveFile(filePath, content);
+                  monacoAPI.markAsSaved();
+                  
+                  // Update tab dirty state
+                  if ((window as any).__tabBarAPI) {
+                    (window as any).__tabBarAPI.updateTabDirty(savePrompt.tabId, false);
+                  }
+                }
+              }
+              
+              // Resolve the promise to allow closing
+              if (savePrompt.resolve) {
+                savePrompt.resolve(true);
+              }
+              
+              // Hide the prompt
+              setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
+            }}
+            onDiscard={() => {
+              // Discard changes and close
+              if (savePrompt.resolve) {
+                savePrompt.resolve(true);
+              }
+              
+              // Hide the prompt
+              setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
+            }}
+            onCancel={() => {
+              // Don't close the tab
+              if (savePrompt.resolve) {
+                savePrompt.resolve(false);
+              }
+              
+              // Hide the prompt
+              setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
+            }}
+          />
+        )}
         
         {/* Welcome screen context menu */}
         {welcomeContextMenu && (

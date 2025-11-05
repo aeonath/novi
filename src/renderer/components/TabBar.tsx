@@ -232,8 +232,9 @@ const styles = {
     whiteSpace: 'nowrap' as const,
   },
   dirtyIndicator: {
-    color: '#007acc',
+    color: '#e0e0e0',
     fontWeight: 'bold' as const,
+    fontSize: '14px',
   },
   closeButton: {
     marginLeft: '8px',
