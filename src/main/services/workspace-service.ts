@@ -59,20 +59,40 @@ export class WorkspaceManager {
   }
 
   /**
-   * Saves workspace state to disk
+   * Saves workspace state to disk using key-value pairs
    */
   async saveWorkspace(state: WorkspaceState): Promise<void> {
     try {
       await this.ensureConfigDir();
       
-      // Add timestamp
-      const stateWithTimestamp: WorkspaceState = {
-        ...state,
-        lastSaved: new Date().toISOString(),
-      };
-
-      const json = JSON.stringify(stateWithTimestamp, null, 2);
-      await writeFile(this.workspaceFile, json, 'utf-8');
+      // Convert state to key-value pairs
+      const lines: string[] = [];
+      
+      // Basic properties
+      lines.push(`workspaceRoot=${state.workspaceRoot || ''}`);
+      lines.push(`activeTabId=${state.activeTabId || ''}`);
+      lines.push(`activeTabType=${state.activeTabType || ''}`);
+      lines.push(`showGitPanel=${state.layout.showGitPanel}`);
+      lines.push(`lastSaved=${new Date().toISOString()}`);
+      
+      // Open files (store as delimited list of paths)
+      const filePaths = state.openFiles.map(f => f.filePath).join('|');
+      lines.push(`openFiles=${filePaths}`);
+      
+      // Open files dirty state (parallel array)
+      const dirtyStates = state.openFiles.map(f => f.isDirty ? '1' : '0').join('|');
+      lines.push(`openFilesDirty=${dirtyStates}`);
+      
+      // Terminal IDs
+      const terminalIds = state.openTerminals.map(t => t.id).join('|');
+      lines.push(`openTerminals=${terminalIds}`);
+      
+      // Nova Prompt IDs
+      const promptIds = state.openNovaPrompts.map(p => p.id).join('|');
+      lines.push(`openNovaPrompts=${promptIds}`);
+      
+      const content = lines.join('\n');
+      await writeFile(this.workspaceFile, content, 'utf-8');
       
       console.log('[WorkspaceManager] Workspace saved:', this.workspaceFile);
       console.log('[WorkspaceManager] Root:', state.workspaceRoot);
@@ -86,7 +106,7 @@ export class WorkspaceManager {
   }
 
   /**
-   * Loads workspace state from disk
+   * Loads workspace state from disk (key-value pairs)
    */
   async loadWorkspace(): Promise<WorkspaceState | null> {
     try {
@@ -95,8 +115,56 @@ export class WorkspaceManager {
         return null;
       }
 
-      const json = await readFile(this.workspaceFile, 'utf-8');
-      const state = JSON.parse(json) as WorkspaceState;
+      const content = await readFile(this.workspaceFile, 'utf-8');
+      const lines = content.split('\n');
+      
+      // Parse key-value pairs
+      const config: Record<string, string> = {};
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        
+        const idx = trimmed.indexOf('=');
+        if (idx === -1) continue;
+        
+        const key = trimmed.substring(0, idx);
+        const value = trimmed.substring(idx + 1);
+        config[key] = value;
+      }
+      
+      // Reconstruct WorkspaceState
+      const openFilePaths = config.openFiles ? config.openFiles.split('|').filter(p => p) : [];
+      const dirtyStates = config.openFilesDirty ? config.openFilesDirty.split('|') : [];
+      
+      const openFiles = openFilePaths.map((filePath, i) => ({
+        filePath,
+        isDirty: dirtyStates[i] === '1',
+      }));
+      
+      const terminalIds = config.openTerminals ? config.openTerminals.split('|').filter(id => id) : [];
+      const openTerminals = terminalIds.map(id => ({
+        id,
+        name: 'bash',
+      }));
+      
+      const promptIds = config.openNovaPrompts ? config.openNovaPrompts.split('|').filter(id => id) : [];
+      const openNovaPrompts = promptIds.map(id => ({
+        id,
+        name: 'nova>',
+      }));
+      
+      const state: WorkspaceState = {
+        workspaceRoot: config.workspaceRoot || null,
+        openFiles,
+        openTerminals,
+        openNovaPrompts,
+        activeTabId: config.activeTabId || null,
+        activeTabType: (config.activeTabType as any) || null,
+        layout: {
+          showGitPanel: config.showGitPanel === 'true',
+        },
+        lastSaved: config.lastSaved || new Date().toISOString(),
+      };
       
       console.log('[WorkspaceManager] Workspace loaded:', this.workspaceFile);
       console.log('[WorkspaceManager] Root:', state.workspaceRoot);
@@ -118,7 +186,7 @@ export class WorkspaceManager {
   async clearWorkspace(): Promise<void> {
     try {
       if (existsSync(this.workspaceFile)) {
-        await writeFile(this.workspaceFile, '{}', 'utf-8');
+        await writeFile(this.workspaceFile, '', 'utf-8');
         console.log('[WorkspaceManager] Workspace cleared');
       }
     } catch (error) {

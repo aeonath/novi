@@ -50,10 +50,9 @@ describe('WorkspaceManager', () => {
 
       expect(writeFile).toHaveBeenCalled();
       const savedData = (writeFile as jest.Mock).mock.calls[0][1];
-      const parsed = JSON.parse(savedData);
-      expect(parsed.workspaceRoot).toBe('/test/workspace');
-      expect(parsed.openFiles).toHaveLength(1);
-      expect(parsed.lastSaved).toBeDefined();
+      expect(savedData).toContain('workspaceRoot=/test/workspace');
+      expect(savedData).toContain('openFiles=/test/file1.ts');
+      expect(savedData).toContain('lastSaved=');
     });
 
     it('should create config directory if it does not exist', async () => {
@@ -103,23 +102,18 @@ describe('WorkspaceManager', () => {
 
   describe('loadWorkspace', () => {
     it('should load workspace state from file', async () => {
-      const mockState: WorkspaceState = {
-        workspaceRoot: '/test/workspace',
-        openFiles: [
-          { filePath: '/test/file1.ts' },
-        ],
-        openTerminals: [],
-        openNovaPrompts: [],
-        activeTabId: 'tab-1',
-        activeTabType: 'file',
-        layout: {
-          showGitPanel: true,
-        },
-        lastSaved: '2025-11-04T12:00:00.000Z',
-      };
+      const mockConfig = `workspaceRoot=/test/workspace
+activeTabId=tab-1
+activeTabType=file
+showGitPanel=true
+lastSaved=2025-11-04T12:00:00.000Z
+openFiles=/test/file1.ts
+openFilesDirty=0
+openTerminals=
+openNovaPrompts=`;
 
       (existsSync as jest.Mock).mockReturnValue(true);
-      (readFile as jest.Mock).mockResolvedValue(JSON.stringify(mockState));
+      (readFile as jest.Mock).mockResolvedValue(mockConfig);
 
       const result = await workspaceManager.loadWorkspace();
 
@@ -148,13 +142,15 @@ describe('WorkspaceManager', () => {
       expect(result).toBeNull();
     });
 
-    it('should return null if JSON parse fails', async () => {
+    it('should handle invalid config format gracefully', async () => {
       (existsSync as jest.Mock).mockReturnValue(true);
-      (readFile as jest.Mock).mockResolvedValue('invalid json');
+      (readFile as jest.Mock).mockResolvedValue('invalid format without equals signs');
 
       const result = await workspaceManager.loadWorkspace();
 
-      expect(result).toBeNull();
+      // Should still parse but with empty data
+      expect(result).not.toBeNull();
+      expect(result?.openFiles).toHaveLength(0);
     });
   });
 
@@ -167,7 +163,7 @@ describe('WorkspaceManager', () => {
 
       expect(writeFile).toHaveBeenCalledWith(
         expect.any(String),
-        '{}',
+        '',
         'utf-8'
       );
     });
@@ -228,13 +224,12 @@ describe('WorkspaceManager', () => {
 
       expect(writeFile).toHaveBeenCalled();
       const savedData = (writeFile as jest.Mock).mock.calls[0][1];
-      const parsed = JSON.parse(savedData);
       
-      expect(parsed.openFiles).toHaveLength(3);
-      expect(parsed.openTerminals).toHaveLength(1);
-      expect(parsed.openNovaPrompts).toHaveLength(1);
-      expect(parsed.activeTabId).toBe('tab-2');
-      expect(parsed.activeTabType).toBe('file');
+      expect(savedData).toContain('openFiles=/test/file1.ts|/test/file2.ts|/test/file3.ts');
+      expect(savedData).toContain('openTerminals=terminal-1');
+      expect(savedData).toContain('openNovaPrompts=prompt-1');
+      expect(savedData).toContain('activeTabId=tab-2');
+      expect(savedData).toContain('activeTabType=file');
     });
 
     it('should handle empty workspace', async () => {
@@ -258,11 +253,10 @@ describe('WorkspaceManager', () => {
 
       expect(writeFile).toHaveBeenCalled();
       const savedData = (writeFile as jest.Mock).mock.calls[0][1];
-      const parsed = JSON.parse(savedData);
       
-      expect(parsed.openFiles).toHaveLength(0);
-      expect(parsed.workspaceRoot).toBeNull();
-      expect(parsed.activeTabId).toBeNull();
+      expect(savedData).toContain('openFiles=');
+      expect(savedData).toContain('workspaceRoot=');
+      expect(savedData).toContain('activeTabId=');
     });
   });
 });
