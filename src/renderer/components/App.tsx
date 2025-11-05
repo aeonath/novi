@@ -11,6 +11,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
+import { MenuBar } from './MenuBar.js';
 import { StatusBar } from './StatusBar.js';
 import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
@@ -834,6 +835,7 @@ const AppInner: React.FC = () => {
   return (
       <div className="nova-layout" style={styles.layout}>
         <TitleBar />
+        <MenuBar onCommand={handleMenuCommand} />
         
         <div style={styles.mainContent}>
           <aside style={styles.sidebar}>
@@ -1077,7 +1079,7 @@ const AppInner: React.FC = () => {
         
         {/* Modal components */}
         {/* ActionHUD disabled - Ctrl+K functionality not working reliably on startup */}
-        {/* <ActionHUD actions={actions} /> */}
+        <ActionHUD actions={actions} />
         <SettingsPanel />
         <DiagnosticsPanel />
         <RecoveryDialog />
