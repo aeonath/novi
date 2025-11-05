@@ -150,7 +150,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     closeContextMenu();
 
     const parentPath = parentNode ? parentNode.path : rootPath;
-    if (!parentPath) return;
+    if (!parentPath) {
+      alert('Please open a directory first (📂 Open Folder)');
+      return;
+    }
 
     const fileName = prompt('Enter file name:');
     if (!fileName) return;
@@ -177,7 +180,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     closeContextMenu();
 
     const parentPath = parentNode ? parentNode.path : rootPath;
-    if (!parentPath) return;
+    if (!parentPath) {
+      alert('Please open a directory first (📂 Open Folder)');
+      return;
+    }
 
     const folderName = prompt('Enter folder name:');
     if (!folderName) return;
