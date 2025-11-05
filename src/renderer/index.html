@@ -126,6 +126,29 @@
       .xterm .xterm-viewport::-webkit-scrollbar-corner {
         background-color: transparent;
       }
+
+      /* TabBar horizontal scrollbar styling - Match file tree, Monaco, and terminal */
+      .tab-bar-container::-webkit-scrollbar {
+        width: 14px;
+        height: 14px;
+      }
+
+      .tab-bar-container::-webkit-scrollbar-thumb {
+        background-color: rgba(121, 121, 121, 0.4);
+        border-radius: 0;
+      }
+
+      .tab-bar-container::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(100, 100, 100, 0.7);
+      }
+
+      .tab-bar-container::-webkit-scrollbar-track {
+        background-color: transparent;
+      }
+
+      .tab-bar-container::-webkit-scrollbar-corner {
+        background-color: transparent;
+      }
       
       /* Monaco editor content spacing fix */
       .monaco-editor .lines-content {

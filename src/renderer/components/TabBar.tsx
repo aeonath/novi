@@ -132,7 +132,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
   }
 
   return (
-    <div style={styles.container}>
+    <div className="tab-bar-container" style={styles.container}>
       {tabs.map((tab) => (
         <TabItem
           key={tab.id}

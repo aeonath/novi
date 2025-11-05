@@ -17,6 +17,7 @@ export interface FileTreeProps {
   showGitToggle?: boolean;
   onDirectoryOpen?: (dirPath: string) => void;
   onNewTerminal?: () => void;
+  onNovaPrompt?: () => void;
 }
 
 interface FileNode {
@@ -42,7 +43,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNovaPrompt }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -331,6 +332,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
               closeContextMenu();
               onNewTerminal?.();
             }}
+            onNovaPrompt={() => {
+              closeContextMenu();
+              onNovaPrompt?.();
+            }}
             onRename={() => contextMenu.node && renameNode(contextMenu.node)}
             onDelete={() => contextMenu.node && deleteNode(contextMenu.node)}
             onQuit={() => {
@@ -410,13 +415,14 @@ interface ContextMenuProps {
   onNewFile: () => void;
   onNewFolder: () => void;
   onNewTerminal: () => void;
+  onNovaPrompt: () => void;
   onRename: () => void;
   onDelete: () => void;
   onQuit: () => void;
   onClose: () => void;
 }
 
-const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onRename, onDelete, onQuit, onClose }) => {
+const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onNovaPrompt, onRename, onDelete, onQuit, onClose }) => {
   return (
     <div style={{ ...styles.contextMenu, left: x, top: y }} onClick={(e) => e.stopPropagation()}>
       <div style={styles.menuItem} onClick={onNewFile}>
@@ -427,6 +433,9 @@ const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFil
       </div>
       <div style={styles.menuItem} onClick={onNewTerminal}>
         💻 New Terminal
+      </div>
+      <div style={styles.menuItem} onClick={onNovaPrompt}>
+        ▶️ Nova Prompt
       </div>
       {node && (
         <>

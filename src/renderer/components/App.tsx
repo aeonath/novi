@@ -17,6 +17,7 @@ import { MonacoEditor } from './MonacoEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
+import { NovaPrompt } from './NovaPrompt.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
@@ -29,8 +30,9 @@ const AppInner: React.FC = () => {
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' } | null>(null);
+  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' | 'nova-prompt' } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string; workspaceRoot?: string | null }>>([]);
+  const [novaPromptTabs, setNovaPromptTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const { setGitStatus } = useAppContext();
   
   // Context menu state for welcome screen
@@ -282,6 +284,50 @@ const AppInner: React.FC = () => {
         console.error('[App] Failed to save file as:', error);
         if ((window as any).__statusBarAPI) {
           (window as any).__statusBarAPI.setStatus('Save failed');
+        }
+      }
+    },
+    onNovaPrompt: async () => {
+      console.log('[App] Nova Prompt action triggered');
+      
+      try {
+        // Generate prompt ID
+        const promptId = `nova-prompt-${Date.now()}`;
+        console.log('[App] Creating Nova Prompt tab:', promptId);
+
+        // Hide welcome screen
+        setShowWelcome(false);
+
+        // Add nova prompt tab
+        if ((window as any).__tabBarAPI) {
+          (window as any).__tabBarAPI.addTab({
+            id: promptId,
+            type: 'nova-prompt',
+            filePath: promptId,
+            fileName: 'nova>',
+            isDirty: false,
+            content: '',
+            language: 'plaintext',
+          });
+        }
+
+        // Add to novaPromptTabs state
+        setNovaPromptTabs((prev) => [...prev, { id: promptId, fileName: 'nova>' }]);
+        console.log('[App] Added Nova Prompt to state:', promptId);
+
+        // Switch to the new prompt tab
+        setActiveTab({ id: promptId, type: 'nova-prompt' });
+
+        // Update status bar
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Nova Prompt ready');
+        }
+
+        console.log('[App] Nova Prompt tab created successfully:', promptId);
+      } catch (error) {
+        console.error('[App] Failed to create Nova Prompt:', error);
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Failed to create Nova Prompt');
         }
       }
     },
@@ -549,6 +595,7 @@ const AppInner: React.FC = () => {
               <FileTree
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
                 onNewTerminal={actionContext.onNewTerminal}
+                onNovaPrompt={actionContext.onNovaPrompt}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
                   setWorkspaceRoot(dirPath);
@@ -666,7 +713,7 @@ const AppInner: React.FC = () => {
                 }
               }}
               onTabClose={async (tabId: string) => {
-                // Get the tab to check if it's a terminal
+                // Get the tab to check its type
                 if ((window as any).__tabBarAPI) {
                   const tabs = (window as any).__tabBarAPI.getTabs();
                   const tab = tabs.find((t: any) => t.id === tabId);
@@ -680,6 +727,12 @@ const AppInner: React.FC = () => {
                     // Remove from terminal tabs state
                     setTerminalTabs(prev => prev.filter(t => t.id !== tabId));
                     console.log('[App] Removed terminal from state:', tabId);
+                  }
+                  
+                  if (tab && tab.type === 'nova-prompt') {
+                    // Remove from nova prompt tabs state
+                    setNovaPromptTabs(prev => prev.filter(t => t.id !== tabId));
+                    console.log('[App] Removed nova prompt from state:', tabId);
                   }
                   
                   // For file tabs, check if they're dirty (unsaved changes)
@@ -735,6 +788,27 @@ const AppInner: React.FC = () => {
                       isActive={activeTab?.id === tab.id}
                       onData={terminalOnData}
                       onResize={terminalOnResize}
+                    />
+                  </div>
+                );
+              })}
+              
+              {/* Render all nova prompts (hidden when not active) to preserve state */}
+              {novaPromptTabs.map((tab) => {
+                return (
+                  <div
+                    key={tab.id}
+                    style={{ 
+                      flex: 1, 
+                      display: activeTab?.id === tab.id ? 'flex' : 'none',
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                      backgroundColor: '#1e1e1e',
+                    }}
+                  >
+                    <NovaPrompt 
+                      promptId={tab.id}
+                      isActive={activeTab?.id === tab.id}
                     />
                   </div>
                 );
