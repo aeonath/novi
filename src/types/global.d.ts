@@ -25,6 +25,31 @@ export interface RecoveryFile {
   content: string;
 }
 
+export interface WorkspaceState {
+  workspaceRoot: string | null;
+  openFiles: Array<{
+    filePath: string;
+    content?: string;
+    isDirty?: boolean;
+  }>;
+  openTerminals: Array<{
+    id: string;
+    name: string;
+  }>;
+  openNovaPrompts: Array<{
+    id: string;
+    name: string;
+  }>;
+  activeTabId: string | null;
+  activeTabType: 'file' | 'terminal' | 'nova-prompt' | null;
+  layout: {
+    showGitPanel: boolean;
+    gitPanelCollapsed?: boolean;
+  };
+  gitBranch?: string;
+  lastSaved: string;
+}
+
 export interface GitStatus {
   isRepo: boolean;
   branch: string | null;
@@ -78,6 +103,10 @@ declare global {
       gitPush: (cwd: string) => Promise<GitOperationResult>;
       gitPull: (cwd: string) => Promise<GitOperationResult>;
       gitGetDiff: (cwd: string, filePath?: string) => Promise<string>;
+      workspaceSave: (state: WorkspaceState) => Promise<{ success: boolean }>;
+      workspaceLoad: () => Promise<WorkspaceState | null>;
+      workspaceClear: () => Promise<{ success: boolean }>;
+      workspaceGetPath: () => Promise<{ path: string }>;
       windowMinimize: () => void;
       windowMaximize: () => void;
       windowClose: () => void;

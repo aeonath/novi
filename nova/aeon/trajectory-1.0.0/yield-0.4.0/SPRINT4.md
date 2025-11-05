@@ -180,7 +180,7 @@ Implement persistence of workspace state, including open files, layout
   - which file is active,  
   - layout information (e.g., sidebar visibility, terminal visibility),  
   - current branch (if available).  
-- Store workspace state under a Nova-specific config directory (for example, `~/.nova/workspaces/`), using one JSON file per workspace.  
+- Store workspace state under a Nova-specific config directory (for example, `~/.nova/workspacerc`), using one JSON file per workspace.  
 - On startup, load the last active workspace (if configured) and send the data to the renderer so it can restore tabs and layout.  
 - keep in mind we may extend this later to allow multiple workspaces but NOT now
 ---

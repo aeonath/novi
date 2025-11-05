@@ -13,6 +13,7 @@ import { saveRecoveryFiles, getRecoveryFiles, deleteRecoveryFile, clearAllRecove
 import { logSuccess, logError as logFSError } from './services/fs-logger';
 import { gitService } from './services/git-service';
 import { terminalService } from './services/terminal-service';
+import { workspaceManager } from './services/workspace-service';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -399,6 +400,46 @@ void app.whenReady().then(() => {
       return await gitService.getDiff(cwd, filePath);
     } catch (error) {
       logError('Failed to get diff', error as Error);
+      throw error;
+    }
+  });
+
+  // Workspace IPC handlers
+  ipcMain.handle('workspace-save', async (_e, state: any) => {
+    try {
+      await workspaceManager.saveWorkspace(state);
+      return { success: true };
+    } catch (error) {
+      logError('Failed to save workspace', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workspace-load', async () => {
+    try {
+      const state = await workspaceManager.loadWorkspace();
+      return state;
+    } catch (error) {
+      logError('Failed to load workspace', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workspace-clear', async () => {
+    try {
+      await workspaceManager.clearWorkspace();
+      return { success: true };
+    } catch (error) {
+      logError('Failed to clear workspace', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('workspace-get-path', async () => {
+    try {
+      return { path: workspaceManager.getWorkspaceFilePath() };
+    } catch (error) {
+      logError('Failed to get workspace path', error as Error);
       throw error;
     }
   });

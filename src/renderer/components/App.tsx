@@ -114,6 +114,144 @@ const AppInner: React.FC = () => {
     };
   }, [activeTab]);
 
+  // Load workspace on startup
+  useEffect(() => {
+    const loadWorkspace = async () => {
+      if (!window.api?.workspaceLoad) {
+        console.warn('[App] Workspace API not available');
+        return;
+      }
+
+      try {
+        console.log('[App] Loading workspace...');
+        const workspace = await window.api.workspaceLoad();
+        
+        if (!workspace) {
+          console.log('[App] No saved workspace found');
+          return;
+        }
+
+        console.log('[App] Restoring workspace:', workspace);
+
+        // Restore workspace root
+        if (workspace.workspaceRoot) {
+          setWorkspaceRoot(workspace.workspaceRoot);
+        }
+
+        // Restore layout
+        if (workspace.layout) {
+          setShowGitPanel(workspace.layout.showGitPanel);
+        }
+
+        // Restore open files
+        if (workspace.openFiles && workspace.openFiles.length > 0) {
+          setShowWelcome(false);
+          
+          const tabBarAPI = (window as any).__tabBarAPI;
+          if (tabBarAPI) {
+            for (const file of workspace.openFiles) {
+              try {
+                const fileName = file.filePath.split(/[\\/]/).pop() || 'untitled';
+                tabBarAPI.addTab({
+                  id: `tab-${Date.now()}-${Math.random()}`,
+                  type: 'file',
+                  filePath: file.filePath,
+                  fileName: fileName,
+                  isDirty: file.isDirty || false,
+                  content: file.content || '',
+                  language: 'typescript',
+                });
+              } catch (error) {
+                console.error('[App] Failed to restore file tab:', file.filePath, error);
+              }
+            }
+          }
+        }
+
+        // Restore terminals (don't recreate, just log)
+        if (workspace.openTerminals && workspace.openTerminals.length > 0) {
+          console.log('[App] Workspace had', workspace.openTerminals.length, 'terminals (not restored)');
+        }
+
+        // Restore nova prompts (don't recreate, just log)
+        if (workspace.openNovaPrompts && workspace.openNovaPrompts.length > 0) {
+          console.log('[App] Workspace had', workspace.openNovaPrompts.length, 'nova prompts (not restored)');
+        }
+
+        // Restore active tab
+        if (workspace.activeTabId && workspace.openFiles.length > 0) {
+          setActiveTab({
+            id: workspace.activeTabId,
+            type: workspace.activeTabType || 'file',
+          });
+        }
+
+        console.log('[App] Workspace restored successfully');
+      } catch (error) {
+        console.error('[App] Failed to load workspace:', error);
+      }
+    };
+
+    loadWorkspace();
+  }, []); // Only run on mount
+
+  // Save workspace when state changes (debounced)
+  useEffect(() => {
+    const saveWorkspace = async () => {
+      if (!window.api?.workspaceSave) {
+        return;
+      }
+
+      try {
+        const tabBarAPI = (window as any).__tabBarAPI;
+        const tabs = tabBarAPI?.getTabs() || [];
+        
+        const openFiles = tabs
+          .filter((t: any) => t.type === 'file')
+          .map((t: any) => ({
+            filePath: t.filePath,
+            content: t.content,
+            isDirty: t.isDirty,
+          }));
+
+        const openTerminals = terminalTabs.map(t => ({
+          id: t.id,
+          name: t.fileName,
+        }));
+
+        const openNovaPrompts = novaPromptTabs.map(t => ({
+          id: t.id,
+          name: t.fileName,
+        }));
+
+        const workspace = {
+          workspaceRoot,
+          openFiles,
+          openTerminals,
+          openNovaPrompts,
+          activeTabId: activeTab?.id || null,
+          activeTabType: activeTab?.type || null,
+          layout: {
+            showGitPanel,
+          },
+          lastSaved: new Date().toISOString(),
+        };
+
+        await window.api.workspaceSave(workspace);
+        console.log('[App] Workspace saved');
+      } catch (error) {
+        console.error('[App] Failed to save workspace:', error);
+      }
+    };
+
+    // Debounce workspace saving
+    const timeoutId = setTimeout(() => {
+      saveWorkspace();
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [workspaceRoot, showGitPanel, activeTab, terminalTabs, novaPromptTabs]);
+
   // Create action handlers
   const actionContext: ActionContext = useMemo(() => ({
     onOpenFile: async () => {

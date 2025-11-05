@@ -43,6 +43,11 @@ contextBridge.exposeInMainWorld('api', {
   gitPush: (cwd: string) => ipcRenderer.invoke('git-push', cwd),
   gitPull: (cwd: string) => ipcRenderer.invoke('git-pull', cwd),
   gitGetDiff: (cwd: string, filePath?: string) => ipcRenderer.invoke('git-get-diff', cwd, filePath),
+  // Workspace operations
+  workspaceSave: (state: any) => ipcRenderer.invoke('workspace-save', state),
+  workspaceLoad: () => ipcRenderer.invoke('workspace-load'),
+  workspaceClear: () => ipcRenderer.invoke('workspace-clear'),
+  workspaceGetPath: () => ipcRenderer.invoke('workspace-get-path'),
   // Window controls
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),
