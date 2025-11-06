@@ -417,8 +417,18 @@ class GitService {
   async push(cwd: string): Promise<{ success: boolean; error?: string; needsAuth?: boolean }> {
     return gitWatcher.queueGitOperation('push', async () => {
       try {
-        // First attempt without credentials
-        const result = await execAsync('git push', { cwd });
+        // First attempt without credentials - disable all external credential helpers
+        const result = await execAsync('git push', { 
+          cwd,
+          env: {
+            ...process.env,
+            GIT_TERMINAL_PROMPT: '0',              // Disable terminal prompts
+            GCM_INTERACTIVE: 'never',              // Disable Git Credential Manager interactive mode
+            GIT_ASKPASS: '',                        // Disable askpass scripts
+            SSH_ASKPASS: '',                        // Disable SSH askpass
+            GIT_SSH_COMMAND: 'ssh -o BatchMode=yes -o StrictHostKeyChecking=no', // SSH non-interactive
+          }
+        });
         await this.log('push', result.stdout || 'Success', true);
         console.log('[Git] Push succeeded:', result.stdout || 'Success');
         return { success: true };
@@ -528,16 +538,30 @@ class GitService {
         return { success: true };
       } catch (error: any) {
         const errorMsg = error.message || String(error);
+        console.error('[Git] Pull failed:', errorMsg);
+        
+        // Check remote type before attempting credential auth
+        const remoteUrl = await this.getRemoteUrl(cwd);
+        const isSsh = remoteUrl ? this.isSshRemote(remoteUrl) : false;
         
         // Check if this is an authentication error
         if (this.isAuthenticationError(errorMsg)) {
+          // For SSH remotes, credentials won't help - SSH keys need to be set up
+          if (isSsh) {
+            await this.log('pull', 'SSH authentication failed - check SSH keys', false);
+            return { 
+              success: false, 
+              error: 'SSH authentication failed. Ensure your SSH keys are loaded in ssh-agent or use HTTPS remote.' 
+            };
+          }
+          
+          // For HTTPS, try with credentials
           if (DEBUG_GIT_OPERATIONS) {
             console.log('[Git] Pull failed with authentication error, requesting credentials');
           }
           await this.log('pull', 'Authentication required', false);
           
           try {
-            const remoteUrl = await this.getRemoteUrl(cwd);
             const host = remoteUrl ? this.extractHostFromRemoteUrl(remoteUrl) : 'remote repository';
             
             const credentials = await gitCredentialHelper.requestCredentials({
@@ -553,6 +577,7 @@ class GitService {
 
             await this.pullWithCredentials(cwd, credentials.password);
             await this.log('pull', 'Success (with authentication)', true);
+            console.log('[Git] Pull succeeded with credentials');
             return { success: true };
             
           } catch (retryError: any) {

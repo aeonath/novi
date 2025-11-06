@@ -97,12 +97,11 @@ class GitCredentialHelper {
    */
   getCredentialEnvironment(): Record<string, string> {
     return {
-      // Disable Git credential manager
-      GIT_TERMINAL_PROMPT: '0',
-      // Disable SSH key passphrase prompts (we'll handle via SSH_ASKPASS if needed)
-      GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
-      // Prevent credential helper from prompting
-      GCM_INTERACTIVE: 'never',
+      GIT_TERMINAL_PROMPT: '0',              // Disable terminal prompts
+      GCM_INTERACTIVE: 'never',              // Disable Git Credential Manager interactive mode
+      GIT_ASKPASS: '',                        // Disable askpass scripts
+      SSH_ASKPASS: '',                        // Disable SSH askpass
+      GIT_SSH_COMMAND: 'ssh -o BatchMode=yes -o StrictHostKeyChecking=no', // SSH non-interactive
     };
   }
 }
