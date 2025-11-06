@@ -13,6 +13,7 @@ import { promisify } from 'util';
 import { appendFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { gitWatcher } from './git-watcher.js';
+import { gitCredentialHelper } from './git-credential-helper.js';
 
 const execAsync = promisify(exec);
 
@@ -290,28 +291,176 @@ class GitService {
     });
   }
 
-  async push(cwd: string): Promise<{ success: boolean; error?: string }> {
+  private isAuthenticationError(error: string): boolean {
+    const authErrors = [
+      'Authentication failed',
+      'authentication',
+      'Permission denied',
+      'could not read Username',
+      'could not read Password',
+      'fatal: could not read',
+      'Invalid username or password',
+      'remote: Invalid credentials',
+    ];
+    const errorLower = error.toLowerCase();
+    return authErrors.some(msg => errorLower.includes(msg.toLowerCase()));
+  }
+
+  private async getRemoteUrl(cwd: string): Promise<string | null> {
+    try {
+      const result = await execAsync('git remote get-url origin', { cwd });
+      return result.stdout.trim();
+    } catch {
+      return null;
+    }
+  }
+
+  private async pushWithCredentials(cwd: string, username: string, password: string): Promise<void> {
+    // Get the current remote URL
+    const remoteUrl = await this.getRemoteUrl(cwd);
+    if (!remoteUrl) {
+      throw new Error('No remote repository configured');
+    }
+
+    // Only works with HTTPS URLs
+    if (!remoteUrl.startsWith('https://')) {
+      throw new Error('Credential authentication only supported for HTTPS remotes');
+    }
+
+    // Parse URL and inject credentials
+    const url = new URL(remoteUrl);
+    url.username = encodeURIComponent(username);
+    url.password = encodeURIComponent(password);
+    const authUrl = url.toString();
+
+    // Push using the authenticated URL (credentials are only in memory, never stored)
+    await execAsync(`git push "${authUrl}"`, { 
+      cwd,
+      env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
+    });
+  }
+
+  async push(cwd: string): Promise<{ success: boolean; error?: string; needsAuth?: boolean }> {
     return gitWatcher.queueGitOperation('push', async () => {
       try {
-        const result = await execAsync('git push', { cwd });
+        // First attempt without credentials
+        const result = await execAsync('git push', { 
+          cwd,
+          env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
+        });
         await this.log('push', result.stdout || 'Success', true);
         return { success: true };
       } catch (error: any) {
         const errorMsg = error.message || String(error);
+        
+        // Check if this is an authentication error
+        if (this.isAuthenticationError(errorMsg)) {
+          console.log('[Git] Push failed with authentication error, requesting credentials');
+          await this.log('push', 'Authentication required', false);
+          
+          try {
+            // Request credentials from user via Nova UI
+            const remoteUrl = await this.getRemoteUrl(cwd);
+            const host = remoteUrl ? new URL(remoteUrl).host : 'remote repository';
+            
+            const credentials = await gitCredentialHelper.requestCredentials({
+              type: 'password',
+              prompt: `Enter credentials for ${host}`,
+              host,
+            });
+
+            if (credentials.cancelled || !credentials.password) {
+              await this.log('push', 'Authentication cancelled by user', false);
+              return { success: false, error: 'Authentication cancelled' };
+            }
+
+            // Retry push with credentials
+            const username = credentials.username || 'git';
+            await this.pushWithCredentials(cwd, username, credentials.password);
+            await this.log('push', 'Success (with authentication)', true);
+            return { success: true };
+            
+          } catch (retryError: any) {
+            const retryErrorMsg = retryError.message || String(retryError);
+            console.error('[Git] Push failed after authentication:', retryErrorMsg);
+            await this.log('push', `Auth retry failed: ${retryErrorMsg}`, false);
+            return { success: false, error: 'Authentication failed: ' + retryErrorMsg };
+          }
+        }
+        
+        // Not an auth error, just fail normally
         await this.log('push', `Error: ${errorMsg}`, false);
         return { success: false, error: errorMsg };
       }
     });
   }
 
+  private async pullWithCredentials(cwd: string, username: string, password: string): Promise<void> {
+    const remoteUrl = await this.getRemoteUrl(cwd);
+    if (!remoteUrl) {
+      throw new Error('No remote repository configured');
+    }
+
+    if (!remoteUrl.startsWith('https://')) {
+      throw new Error('Credential authentication only supported for HTTPS remotes');
+    }
+
+    const url = new URL(remoteUrl);
+    url.username = encodeURIComponent(username);
+    url.password = encodeURIComponent(password);
+    const authUrl = url.toString();
+
+    await execAsync(`git pull "${authUrl}"`, { 
+      cwd,
+      env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
+    });
+  }
+
   async pull(cwd: string): Promise<{ success: boolean; error?: string }> {
     return gitWatcher.queueGitOperation('pull', async () => {
       try {
-        const result = await execAsync('git pull', { cwd });
+        const result = await execAsync('git pull', { 
+          cwd,
+          env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
+        });
         await this.log('pull', result.stdout || 'Success', true);
         return { success: true };
       } catch (error: any) {
         const errorMsg = error.message || String(error);
+        
+        // Check if this is an authentication error
+        if (this.isAuthenticationError(errorMsg)) {
+          console.log('[Git] Pull failed with authentication error, requesting credentials');
+          await this.log('pull', 'Authentication required', false);
+          
+          try {
+            const remoteUrl = await this.getRemoteUrl(cwd);
+            const host = remoteUrl ? new URL(remoteUrl).host : 'remote repository';
+            
+            const credentials = await gitCredentialHelper.requestCredentials({
+              type: 'password',
+              prompt: `Enter credentials for ${host}`,
+              host,
+            });
+
+            if (credentials.cancelled || !credentials.password) {
+              await this.log('pull', 'Authentication cancelled by user', false);
+              return { success: false, error: 'Authentication cancelled' };
+            }
+
+            const username = credentials.username || 'git';
+            await this.pullWithCredentials(cwd, username, credentials.password);
+            await this.log('pull', 'Success (with authentication)', true);
+            return { success: true };
+            
+          } catch (retryError: any) {
+            const retryErrorMsg = retryError.message || String(retryError);
+            console.error('[Git] Pull failed after authentication:', retryErrorMsg);
+            await this.log('pull', `Auth retry failed: ${retryErrorMsg}`, false);
+            return { success: false, error: 'Authentication failed: ' + retryErrorMsg };
+          }
+        }
+        
         await this.log('pull', `Error: ${errorMsg}`, false);
         return { success: false, error: errorMsg };
       }

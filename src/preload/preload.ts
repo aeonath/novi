@@ -55,6 +55,16 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.removeAllListeners('git-change');
   },
   gitManualRefresh: (cwd: string) => ipcRenderer.invoke('git-manual-refresh', cwd),
+  
+  // Git credential handling
+  gitOnCredentialRequest: (callback: (request: any) => void) => {
+    const handler = (_event: any, request: any) => callback(request);
+    ipcRenderer.on('git-credential-request', handler);
+  },
+  gitRemoveCredentialListener: () => {
+    ipcRenderer.removeAllListeners('git-credential-request');
+  },
+  gitProvideCredentials: (response: any) => ipcRenderer.invoke('git-credential-response', response),
   // Workspace operations
   workspaceSave: (state: any) => ipcRenderer.invoke('workspace-save', state),
   workspaceLoad: () => ipcRenderer.invoke('workspace-load'),

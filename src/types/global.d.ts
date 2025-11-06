@@ -69,6 +69,20 @@ export interface GitOperationResult {
   error?: string;
 }
 
+export interface GitCredentialRequest {
+  type: 'password' | 'username' | 'passphrase';
+  prompt: string;
+  protocol?: string;
+  host?: string;
+  username?: string;
+}
+
+export interface GitCredentialResponse {
+  username?: string;
+  password?: string;
+  cancelled: boolean;
+}
+
 declare global {
   // Monaco Editor AMD global
   const monaco: typeof import('monaco-editor');
@@ -108,6 +122,9 @@ declare global {
       gitOnChange: (callback: (event: { type: string; path: string }) => void) => void;
       gitRemoveChangeListener: () => void;
       gitManualRefresh: (cwd: string) => Promise<GitStatus>;
+      gitOnCredentialRequest: (callback: (request: GitCredentialRequest) => void) => void;
+      gitRemoveCredentialListener: () => void;
+      gitProvideCredentials: (response: GitCredentialResponse) => Promise<{ success: boolean }>;
       workspaceSave: (state: WorkspaceState) => Promise<{ success: boolean }>;
       workspaceLoad: () => Promise<WorkspaceState | null>;
       workspaceClear: () => Promise<{ success: boolean }>;

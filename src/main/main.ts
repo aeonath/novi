@@ -13,6 +13,7 @@ import { saveRecoveryFiles, getRecoveryFiles, deleteRecoveryFile, clearAllRecove
 import { logSuccess, logError as logFSError } from './services/fs-logger';
 import { gitService } from './services/git-service';
 import { gitWatcher } from './services/git-watcher';
+import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
@@ -123,6 +124,9 @@ function createWindow(): void {
   mainWindow.on('resize', saveBounds);
 
   mainWindowRef = mainWindow;
+  
+  // Set main window for credential helper
+  gitCredentialHelper.setMainWindow(mainWindow);
 }
 
 void app.whenReady().then(() => {
@@ -454,6 +458,18 @@ void app.whenReady().then(() => {
       return await gitService.getStatus(cwd);
     } catch (error) {
       logError('Failed to manually refresh git status', error as Error);
+      throw error;
+    }
+  });
+
+  // Git credential response handler
+  ipcMain.handle('git-credential-response', async (_e, response: any) => {
+    try {
+      console.log('[Git] Credential response received');
+      gitCredentialHelper.provideCredentials(response);
+      return { success: true };
+    } catch (error) {
+      logError('Failed to handle credential response', error as Error);
       throw error;
     }
   });

@@ -27,9 +27,11 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   const [success, setSuccess] = useState<string | null>(null);
   const [needsCredentials, setNeedsCredentials] = useState(false);
   const [credentialInput, setCredentialInput] = useState('');
+  const [credentialUsername, setCredentialUsername] = useState('');
   const [credentialPrompt, setCredentialPrompt] = useState('');
   const [pendingOperation, setPendingOperation] = useState<'push' | 'pull' | null>(null);
   const [explicitlyUnstagedFiles, setExplicitlyUnstagedFiles] = useState<Set<string>>(new Set());
+  const [currentCredentialRequest, setCurrentCredentialRequest] = useState<any>(null);
 
   const refreshStatus = useCallback(async () => {
     if (!workspaceRoot || !window.api?.gitManualRefresh) return;
@@ -135,6 +137,75 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       });
     }
   }, [gitStatus?.files.length, workspaceRoot, explicitlyUnstagedFiles, refreshStatus]);
+
+  // Listen for credential requests from git operations
+  useEffect(() => {
+    if (!window.api?.gitOnCredentialRequest || !window.api?.gitRemoveCredentialListener) return;
+
+    const handleCredentialRequest = (request: any) => {
+      console.log('[GitPanel] Credential request received:', request);
+      setCurrentCredentialRequest(request);
+      setCredentialPrompt(request.prompt);
+      setNeedsCredentials(true);
+      setCredentialInput('');
+      setCredentialUsername('');
+      setError(null);
+      setSuccess(null);
+    };
+
+    window.api.gitOnCredentialRequest(handleCredentialRequest);
+
+    return () => {
+      window.api?.gitRemoveCredentialListener?.();
+    };
+  }, []);
+
+  // Handle credential submission
+  const handleCredentialSubmit = useCallback(async () => {
+    if (!credentialInput.trim() || !window.api?.gitProvideCredentials) return;
+
+    const response = {
+      username: credentialUsername.trim() || undefined,
+      password: credentialInput,
+      cancelled: false,
+    };
+
+    try {
+      await window.api.gitProvideCredentials(response);
+      console.log('[GitPanel] Credentials submitted');
+    } catch (err) {
+      console.error('[GitPanel] Failed to submit credentials:', err);
+    }
+
+    // Clear the form
+    setNeedsCredentials(false);
+    setCredentialInput('');
+    setCredentialUsername('');
+    setCurrentCredentialRequest(null);
+  }, [credentialInput, credentialUsername]);
+
+  // Handle credential cancellation
+  const handleCredentialCancel = useCallback(async () => {
+    if (!window.api?.gitProvideCredentials) return;
+
+    const response = {
+      cancelled: true,
+    };
+
+    try {
+      await window.api.gitProvideCredentials(response);
+      console.log('[GitPanel] Credentials cancelled');
+    } catch (err) {
+      console.error('[GitPanel] Failed to cancel credentials:', err);
+    }
+
+    setNeedsCredentials(false);
+    setCredentialInput('');
+    setCredentialUsername('');
+    setCurrentCredentialRequest(null);
+    setError('Authentication cancelled');
+    setTimeout(() => setError(null), 3000);
+  }, []);
 
   const handleStageFile = useCallback(async (filePath: string) => {
     if (!workspaceRoot || !window.api?.gitStageFile) return;
@@ -265,33 +336,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     }
   }, [workspaceRoot, refreshStatus]);
 
-  const handleCredentialSubmit = useCallback(async () => {
-    if (!credentialInput.trim() || !pendingOperation) return;
-
-    setNeedsCredentials(false);
-    const credentials = credentialInput;
-    setCredentialInput('');
-
-    // For now, show that we received credentials
-    // In a real implementation, you'd pass these to a git credential helper
-    setSuccess(`Credentials received, retrying ${pendingOperation}...`);
-    
-    // TODO: Implement actual credential passing to git commands
-    // This would require updating the git-service to accept credentials
-    console.log('[GitPanel] Credentials provided for:', pendingOperation);
-    
-    setPendingOperation(null);
-    setTimeout(() => setSuccess(null), 3000);
-  }, [credentialInput, pendingOperation]);
-
-  const handleCredentialCancel = useCallback(() => {
-    setNeedsCredentials(false);
-    setCredentialInput('');
-    setPendingOperation(null);
-    setError(`${pendingOperation} cancelled`);
-    setTimeout(() => setError(null), 3000);
-  }, [pendingOperation]);
-
   if (!workspaceRoot) {
     return (
       <div style={styles.container}>
@@ -402,9 +446,28 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
             <div style={styles.credentialInputContainer}>
               <div style={styles.credentialPrompt}>{credentialPrompt}</div>
               <input
+                type="text"
+                style={styles.credentialInput}
+                placeholder="Username (optional, default: git)"
+                value={credentialUsername}
+                onChange={(e) => setCredentialUsername(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    // Move focus to password field if username is entered
+                    const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement;
+                    passwordInput?.focus();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCredentialCancel();
+                  }
+                }}
+                autoFocus
+              />
+              <input
                 type="password"
                 style={styles.credentialInput}
-                placeholder="username:password or username:token"
+                placeholder="Password or Personal Access Token"
                 value={credentialInput}
                 onChange={(e) => setCredentialInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -416,7 +479,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
                     handleCredentialCancel();
                   }
                 }}
-                autoFocus
               />
               <div style={styles.credentialHint}>Press Enter to submit, Escape to cancel</div>
             </div>
