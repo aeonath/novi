@@ -289,12 +289,17 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
 
   // Method to programmatically load a directory (for workspace restore)
   const loadDirectoryProgrammatically = useCallback(async (dirPath: string) => {
-    setRootPath(dirPath);
-    await loadDirectory(dirPath);
-    
-    // Notify parent of directory change
-    if (onDirectoryOpen) {
-      onDirectoryOpen(dirPath);
+    try {
+      setRootPath(dirPath);
+      await loadDirectory(dirPath);
+      
+      // Notify parent of directory change
+      if (onDirectoryOpen) {
+        onDirectoryOpen(dirPath);
+      }
+    } catch (error) {
+      console.error('[FileTree] Failed to load directory programmatically:', dirPath, error);
+      // Don't crash, just log the error
     }
   }, [onDirectoryOpen]);
 
