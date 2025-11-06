@@ -14,12 +14,13 @@ import { tmpdir } from 'os';
 
 /**
  * Create a temporary SSH_ASKPASS script that communicates with Nova
- * Returns the path to the script
+ * Returns the path to the executable
  */
 export function createSshAskpassScript(): string {
+  const isWindows = process.platform === 'win32';
+  
   // Create a Node.js script that will be called by SSH
-  const scriptContent = `#!/usr/bin/env node
-const fs = require('fs');
+  const scriptContent = `const fs = require('fs');
 const path = require('path');
 
 // Get the request file path from environment
@@ -71,11 +72,24 @@ function checkResponse() {
 checkResponse();
 `;
 
-  // Write script to temp directory
+  // Write Node.js script
   const scriptPath = join(tmpdir(), 'nova-ssh-askpass.js');
   writeFileSync(scriptPath, scriptContent, { mode: 0o755 });
   
-  return scriptPath;
+  if (isWindows) {
+    // On Windows, create a batch wrapper that SSH can execute
+    const batchPath = join(tmpdir(), 'nova-ssh-askpass.bat');
+    const batchContent = `@echo off
+node "${scriptPath}" %*`;
+    writeFileSync(batchPath, batchContent);
+    return batchPath;
+  } else {
+    // On Unix, make the script executable with shebang
+    const unixScriptPath = join(tmpdir(), 'nova-ssh-askpass.sh');
+    const unixContent = `#!/usr/bin/env node\n${scriptContent}`;
+    writeFileSync(unixScriptPath, unixContent, { mode: 0o755 });
+    return unixScriptPath;
+  }
 }
 
 /**
@@ -85,7 +99,7 @@ export function getSshAskpassEnvironment(requestFile: string, responseFile: stri
   const scriptPath = createSshAskpassScript();
   
   return {
-    SSH_ASKPASS: `node ${scriptPath}`,
+    SSH_ASKPASS: scriptPath,       // Path to executable script (bat on Windows, sh on Unix)
     SSH_ASKPASS_REQUIRE: 'force',  // Force SSH to use SSH_ASKPASS even with terminal
     DISPLAY: ':0',                  // Required for SSH_ASKPASS on some systems
     NOVA_SSH_REQUEST_FILE: requestFile,

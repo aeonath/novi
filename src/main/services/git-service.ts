@@ -431,11 +431,16 @@ class GitService {
       void this.pollForSshPassphraseRequest(requestFile, responseFile);
       
       // Execute git command with custom SSH_ASKPASS
+      const sshAskpassEnv = getSshAskpassEnvironment(requestFile, responseFile);
       const env = {
         ...process.env,
-        ...getSshAskpassEnvironment(requestFile, responseFile),
+        ...sshAskpassEnv,
         GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no',
+        // Ensure SSH uses our askpass by clearing terminal
+        GIT_TERMINAL_PROMPT: '0',
       };
+      
+      console.log('[Git] SSH_ASKPASS set to:', sshAskpassEnv.SSH_ASKPASS);
       
       const result = await execAsync(command, { cwd, env });
       
@@ -447,6 +452,7 @@ class GitService {
     } catch (error: any) {
       const errorMsg = error.message || String(error);
       console.error(`[Git] ${operationName} failed:`, errorMsg);
+      console.error('[Git] Full error:', error);
       await this.log(operationName, `Error: ${errorMsg}`, false);
       return { success: false, error: errorMsg };
     } finally {
