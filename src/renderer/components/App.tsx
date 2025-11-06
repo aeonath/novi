@@ -39,6 +39,9 @@ const AppInner: React.FC = () => {
   // Context menu state for welcome screen
   const [welcomeContextMenu, setWelcomeContextMenu] = useState<{ x: number; y: number } | null>(null);
   
+  // Untitled file counter for new buffers
+  const [untitledCounter, setUntitledCounter] = useState(1);
+  
   // Save prompt state
   const [savePrompt, setSavePrompt] = useState<{
     show: boolean;
@@ -433,18 +436,53 @@ const AppInner: React.FC = () => {
         // Mark as saved
         monacoAPI.markAsSaved();
         
-        // Update tab
-        if ((window as any).__tabBarAPI) {
+        // Update or create tab
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (tabBarAPI) {
           const fileName = result.path.split(/[\\/]/).pop() || 'untitled';
-          (window as any).__tabBarAPI.addTab({
-            id: `tab-${Date.now()}`,
-            type: 'file',
-            filePath: result.path,
-            fileName: fileName,
-            isDirty: false,
-            content: content,
-            language: 'typescript',
-          });
+          const currentTab = tabBarAPI.getActiveTab();
+          
+          // Check if current tab is an untitled buffer
+          const isUntitled = currentTab && currentTab.filePath === '';
+          
+          if (isUntitled) {
+            // Update the existing untitled tab
+            const tabs = tabBarAPI.getTabs();
+            const updatedTabs = tabs.map((tab: any) => 
+              tab.id === currentTab.id 
+                ? { ...tab, filePath: result.path, fileName: fileName, isDirty: false }
+                : tab
+            );
+            
+            // Force update by removing and re-adding
+            tabBarAPI.removeTab(currentTab.id);
+            tabBarAPI.addTab({
+              id: currentTab.id,
+              type: 'file',
+              filePath: result.path,
+              fileName: fileName,
+              isDirty: false,
+              content: content,
+              language: result.path.endsWith('.ts') || result.path.endsWith('.tsx') ? 'typescript' : 
+                        result.path.endsWith('.js') || result.path.endsWith('.jsx') ? 'javascript' : 'plaintext',
+            });
+            
+            console.log('[App] Updated untitled tab to:', fileName);
+          } else {
+            // Create new tab for Save As on existing file
+            tabBarAPI.addTab({
+              id: `tab-${Date.now()}`,
+              type: 'file',
+              filePath: result.path,
+              fileName: fileName,
+              isDirty: false,
+              content: content,
+              language: result.path.endsWith('.ts') || result.path.endsWith('.tsx') ? 'typescript' : 
+                        result.path.endsWith('.js') || result.path.endsWith('.jsx') ? 'javascript' : 'plaintext',
+            });
+            
+            console.log('[App] Created new tab for Save As:', fileName);
+          }
         }
 
         // Update status bar
@@ -700,8 +738,29 @@ const AppInner: React.FC = () => {
     // Map menu commands to action handlers
     switch (command) {
       case 'new-file':
-        // TODO: Implement new file creation
-        console.log('[App] New file not yet implemented');
+        // Create a new untitled buffer
+        {
+          const fileName = `Untitled-${untitledCounter}`;
+          const tabId = `untitled-${untitledCounter}-${Date.now()}`;
+          
+          // Add tab to TabBar
+          if ((window as any).__tabBarAPI) {
+            (window as any).__tabBarAPI.addTab({
+              id: tabId,
+              type: 'file',
+              filePath: '', // Empty path indicates untitled file
+              fileName: fileName,
+              isDirty: false,
+              content: '',
+              language: 'plaintext',
+            });
+          }
+          
+          // Increment counter for next untitled file
+          setUntitledCounter(prev => prev + 1);
+          
+          console.log('[App] Created new untitled buffer:', fileName);
+        }
         break;
       case 'open-file':
         await actionContext.onOpenFile?.();
@@ -779,7 +838,7 @@ const AppInner: React.FC = () => {
       default:
         console.warn('[App] Unknown menu command:', command);
     }
-  }, [actionContext]);
+  }, [actionContext, untitledCounter]);
 
   // Terminal data listener is set up globally at the top of this component (line 40)
   // Removed duplicate listener that was causing periodic redraws
@@ -1086,7 +1145,18 @@ const AppInner: React.FC = () => {
                 display: activeTab?.type === 'file' && !showWelcome ? 'flex' : 'none',
                 overflow: 'hidden',
               }}>
-                <MonacoEditor />
+                <MonacoEditor 
+                  onDirtyChange={(isDirty) => {
+                    // Update the active tab's dirty state
+                    if (activeTab && activeTab.type === 'file') {
+                      const tabBarAPI = (window as any).__tabBarAPI;
+                      if (tabBarAPI) {
+                        tabBarAPI.updateTabDirty(activeTab.id, isDirty);
+                        console.log('[App] Updated tab dirty state:', activeTab.id, isDirty);
+                      }
+                    }
+                  }}
+                />
               </div>
             </div>
           </main>
