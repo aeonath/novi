@@ -154,18 +154,31 @@ class GitService {
         console.log(`[GitService] Staging file: ${filePath} in ${cwd}`);
         await execAsync(`git add -- "${filePath}"`, { cwd });
         
-        // Verify the file was actually staged by checking status
-        const verifyResult = await execAsync(`git diff --cached --name-only -- "${filePath}"`, { cwd });
-        const wasStaged = verifyResult.stdout.trim().length > 0;
+        // Verify the file was actually staged by checking git status
+        // We need to check both diff (for modified) and status (for new files)
+        const statusResult = await execAsync(`git status --porcelain -- "${filePath}"`, { cwd });
+        const statusLines = statusResult.stdout.trim().split('\n').filter(line => line.trim());
         
-        if (!wasStaged) {
-          console.warn(`[GitService] File appears not to be staged: ${filePath}`);
-          await this.log('stageFile', `WARNING: File may not be staged: ${filePath}`, false);
+        if (statusLines.length === 0) {
+          // File is not in git status at all - might already be committed
+          console.log(`[GitService] File not in git status (may be unchanged): ${filePath}`);
+          await this.log('stageFile', filePath, true);
+          return true;
+        }
+        
+        // Check if the file is staged (first character should not be space or ?)
+        const firstStatusLine = statusLines[0];
+        const statusCode = firstStatusLine.substring(0, 2);
+        const isStaged = statusCode[0] !== ' ' && statusCode[0] !== '?';
+        
+        if (!isStaged) {
+          console.warn(`[GitService] File appears not to be staged (status: ${statusCode}): ${filePath}`);
+          await this.log('stageFile', `WARNING: File may not be staged (${statusCode}): ${filePath}`, false);
           return false;
         }
         
         await this.log('stageFile', filePath, true);
-        console.log(`[GitService] Successfully staged: ${filePath}`);
+        console.log(`[GitService] Successfully staged (${statusCode}): ${filePath}`);
         return true;
       } catch (error: any) {
         const errorMsg = error.message || String(error);
