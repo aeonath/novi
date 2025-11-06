@@ -417,6 +417,8 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           backgroundColor: '#1e1e1e',
           boxSizing: 'border-box',
           overflow: 'hidden',
+          opacity: isReady ? 1 : 0,
+          transition: 'opacity 0.2s ease-in',
         }}
         data-terminal-id={terminalId}
       />
