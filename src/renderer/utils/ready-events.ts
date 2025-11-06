@@ -21,18 +21,26 @@ export type ReadyEventType =
  */
 export function waitForReady(eventType: ReadyEventType, timeoutMs = 5000): Promise<void> {
   return new Promise((resolve, reject) => {
+    let resolved = false;
+    
     const handler = () => {
+      if (resolved) return;
+      resolved = true;
       clearTimeout(timeout);
       window.removeEventListener(eventType, handler);
+      console.log(`[ReadyEvents] Received: ${eventType}`);
       resolve();
     };
 
     const timeout = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
       window.removeEventListener(eventType, handler);
+      console.warn(`[ReadyEvents] Timeout waiting for ${eventType} after ${timeoutMs}ms`);
       reject(new Error(`Timeout waiting for ${eventType} after ${timeoutMs}ms`));
     }, timeoutMs);
 
-    window.addEventListener(eventType, handler);
+    window.addEventListener(eventType, handler, { once: true });
   });
 }
 
@@ -44,7 +52,8 @@ export async function waitForMultipleReady(
   eventTypes: ReadyEventType[],
   timeoutMs = 5000
 ): Promise<void> {
-  await Promise.all(eventTypes.map(type => waitForReady(type, timeoutMs)));
+  // Use ensureReady to handle case where events already fired
+  await Promise.all(eventTypes.map(type => ensureReady(type, timeoutMs)));
 }
 
 /**
@@ -62,8 +71,14 @@ export function signalReady(eventType: ReadyEventType, detail?: any): void {
 const readyStates = new Set<ReadyEventType>();
 
 export function markReady(eventType: ReadyEventType): void {
-  readyStates.add(eventType);
-  signalReady(eventType);
+  // Only signal if not already marked ready (prevents duplicate signals)
+  if (!readyStates.has(eventType)) {
+    readyStates.add(eventType);
+    signalReady(eventType);
+    console.log(`[ReadyEvents] Marked ready: ${eventType}`);
+  } else {
+    console.log(`[ReadyEvents] Already ready (skipping duplicate): ${eventType}`);
+  }
 }
 
 export function isReady(eventType: ReadyEventType): boolean {
