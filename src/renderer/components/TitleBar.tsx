@@ -361,10 +361,7 @@ const styles = {
     alignItems: 'center',
     gap: '12px',
     flex: 1,
-    // WebKit-specific property
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    WebkitAppRegion: 'no-drag',
+    // Keep this draggable - we'll disable drag on interactive elements
   },
   title: {
     fontSize: '12px',
@@ -372,11 +369,16 @@ const styles = {
     color: '#cccccc',
     paddingRight: '12px',
     borderRight: '1px solid #3e3e42',
+    // Title area is draggable (inherits from container)
   },
   menuBar: {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
+    // Menu bar needs no-drag for interactive buttons
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    WebkitAppRegion: 'no-drag',
   },
   menuButton: {
     padding: '0 10px',
