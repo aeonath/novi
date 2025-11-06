@@ -416,39 +416,56 @@ class GitService {
 
   async push(cwd: string): Promise<{ success: boolean; error?: string; needsAuth?: boolean }> {
     return gitWatcher.queueGitOperation('push', async () => {
+      // Check remote type first
+      const remoteUrl = await this.getRemoteUrl(cwd);
+      const isSsh = remoteUrl ? this.isSshRemote(remoteUrl) : false;
+      
       try {
-        // First attempt without credentials - disable all external credential helpers
-        const result = await execAsync('git push', { 
-          cwd,
-          env: {
-            ...process.env,
-            GIT_TERMINAL_PROMPT: '0',              // Disable terminal prompts
-            GCM_INTERACTIVE: 'never',              // Disable Git Credential Manager interactive mode
-            GIT_ASKPASS: '',                        // Disable askpass scripts
-            SSH_ASKPASS: '',                        // Disable SSH askpass
-            GIT_SSH_COMMAND: 'ssh -o BatchMode=yes -o StrictHostKeyChecking=no', // SSH non-interactive
-          }
-        });
+        // For SSH, try with normal ssh-agent (don't block SSH_ASKPASS completely)
+        // For HTTPS, block all credential helpers so we can handle auth ourselves
+        const env = isSsh ? {
+          ...process.env,
+          GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no',
+        } : {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: '0',
+          GCM_INTERACTIVE: 'never',
+          GIT_ASKPASS: '',
+        };
+        
+        const result = await execAsync('git push', { cwd, env });
         await this.log('push', result.stdout || 'Success', true);
         console.log('[Git] Push succeeded:', result.stdout || 'Success');
         return { success: true };
       } catch (error: any) {
         const errorMsg = error.message || String(error);
         console.error('[Git] Push failed:', errorMsg);
-        
-        // Check remote type before attempting credential auth
-        const remoteUrl = await this.getRemoteUrl(cwd);
-        const isSsh = remoteUrl ? this.isSshRemote(remoteUrl) : false;
+        console.error('[Git] Remote type:', isSsh ? 'SSH' : 'HTTPS');
+        console.error('[Git] Remote URL:', remoteUrl);
         
         // Check if this is an authentication error
         if (this.isAuthenticationError(errorMsg)) {
-          // For SSH remotes, credentials won't help - SSH keys need to be set up
+          // For SSH remotes, try one more time allowing ssh-agent/ssh-askpass
           if (isSsh) {
-            await this.log('push', 'SSH authentication failed - check SSH keys', false);
-            return { 
-              success: false, 
-              error: 'SSH authentication failed. Ensure your SSH keys are loaded in ssh-agent or use HTTPS remote.' 
-            };
+            console.log('[Git] Retrying SSH push with ssh-agent...');
+            try {
+              const retryResult = await execAsync('git push', { 
+                cwd,
+                env: {
+                  ...process.env,
+                  GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no',
+                }
+              });
+              await this.log('push', retryResult.stdout || 'Success with SSH', true);
+              console.log('[Git] Push succeeded with ssh-agent');
+              return { success: true };
+            } catch (retryError: any) {
+              await this.log('push', 'SSH authentication failed', false);
+              return { 
+                success: false, 
+                error: 'SSH authentication failed. Run: ssh-add ~/.ssh/id_rsa (or switch to HTTPS remote)' 
+              };
+            }
           }
           
           // For HTTPS, try with credentials
