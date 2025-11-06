@@ -351,6 +351,34 @@ class GitService {
     }
   }
 
+  private extractHostFromRemoteUrl(remoteUrl: string): string {
+    try {
+      // Try HTTPS URL parsing
+      if (this.isHttpsRemote(remoteUrl)) {
+        const url = new URL(remoteUrl);
+        return url.host;
+      }
+      
+      // Handle SSH format: git@github.com:user/repo.git or ssh://git@github.com/user/repo.git
+      if (this.isSshRemote(remoteUrl)) {
+        if (remoteUrl.startsWith('ssh://')) {
+          const url = new URL(remoteUrl);
+          return url.host;
+        } else {
+          // git@github.com:user/repo.git format
+          const match = remoteUrl.match(/^[^@]+@([^:]+):/);
+          if (match) {
+            return match[1];
+          }
+        }
+      }
+      
+      return 'remote repository';
+    } catch {
+      return 'remote repository';
+    }
+  }
+
   private async pushWithCredentials(cwd: string, password: string): Promise<void> {
     const remoteUrl = await this.getRemoteUrl(cwd);
     if (!remoteUrl) {
@@ -409,11 +437,11 @@ class GitService {
           try {
             // Request credentials from user via Nova UI
             const remoteUrl = await this.getRemoteUrl(cwd);
-            const host = remoteUrl ? new URL(remoteUrl).host : 'remote repository';
+            const host = remoteUrl ? this.extractHostFromRemoteUrl(remoteUrl) : 'remote repository';
             
             const credentials = await gitCredentialHelper.requestCredentials({
               type: 'password',
-              prompt: `Enter credentials for ${host}`,
+              prompt: host,
               host,
             });
 
@@ -497,11 +525,11 @@ class GitService {
           
           try {
             const remoteUrl = await this.getRemoteUrl(cwd);
-            const host = remoteUrl ? new URL(remoteUrl).host : 'remote repository';
+            const host = remoteUrl ? this.extractHostFromRemoteUrl(remoteUrl) : 'remote repository';
             
             const credentials = await gitCredentialHelper.requestCredentials({
               type: 'password',
-              prompt: `Enter credentials for ${host}`,
+              prompt: host,
               host,
             });
 
