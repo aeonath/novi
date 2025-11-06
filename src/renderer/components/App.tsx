@@ -24,6 +24,7 @@ import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
 import { SavePrompt } from './SavePrompt.js';
 import { createDefaultActions, ActionContext } from './actions.js';
+import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 
 
 const AppInner: React.FC = () => {
@@ -154,8 +155,8 @@ const AppInner: React.FC = () => {
         if (workspace.workspaceRoot) {
           setWorkspaceRoot(workspace.workspaceRoot);
           
-          // Tell FileTree to load the directory
-          setTimeout(() => {
+          // Wait for FileTree to be ready, then load the directory
+          ensureReady('filetree-ready').then(() => {
             try {
               const fileTreeAPI = (window as any).__fileTreeAPI;
               if (fileTreeAPI && fileTreeAPI.loadDirectory) {
@@ -165,7 +166,9 @@ const AppInner: React.FC = () => {
             } catch (error) {
               console.error('[App] Failed to restore FileTree directory:', error);
             }
-          }, 100);
+          }).catch(error => {
+            console.error('[App] Timeout waiting for FileTree:', error);
+          });
         }
 
         // Restore layout
@@ -175,8 +178,8 @@ const AppInner: React.FC = () => {
 
         // Restore open files
         if (workspace.openFiles && workspace.openFiles.length > 0) {
-          // Wait for Monaco and FileTree to be ready before hiding welcome
-          setTimeout(async () => {
+          // Wait for Monaco and TabBar to be ready
+          waitForMultipleReady(['monaco-ready', 'tabbar-ready']).then(async () => {
             try {
               const monacoAPI = (window as any).__monacoEditorAPI;
               const tabBarAPI = (window as any).__tabBarAPI;
@@ -235,12 +238,15 @@ const AppInner: React.FC = () => {
               console.error('[App] Critical error during workspace file restoration:', error);
               // Don't crash the app, just log the error
             }
-          }, 500);
+          }).catch(error => {
+            console.error('[App] Timeout waiting for Monaco/TabBar:', error);
+          });
         }
 
         // Restore terminals
         if (workspace.openTerminals && workspace.openTerminals.length > 0) {
-          setTimeout(() => {
+          // Wait for TabBar to be ready
+          ensureReady('tabbar-ready').then(() => {
             try {
               const tabBarAPI = (window as any).__tabBarAPI;
               if (!tabBarAPI) {
@@ -271,12 +277,15 @@ const AppInner: React.FC = () => {
             } catch (error) {
               console.error('[App] Failed to restore terminals:', error);
             }
-          }, 600);
+          }).catch(error => {
+            console.error('[App] Timeout waiting for TabBar (terminals):', error);
+          });
         }
 
         // Restore nova prompts
         if (workspace.openNovaPrompts && workspace.openNovaPrompts.length > 0) {
-          setTimeout(() => {
+          // Wait for TabBar to be ready
+          ensureReady('tabbar-ready').then(() => {
             try {
               const tabBarAPI = (window as any).__tabBarAPI;
               if (!tabBarAPI) {
@@ -307,7 +316,9 @@ const AppInner: React.FC = () => {
             } catch (error) {
               console.error('[App] Failed to restore nova prompts:', error);
             }
-          }, 600);
+          }).catch(error => {
+            console.error('[App] Timeout waiting for TabBar (nova prompts):', error);
+          });
         }
 
         // Restore active tab
@@ -696,13 +707,7 @@ const AppInner: React.FC = () => {
           setActiveTab({ id: terminalId, type: 'terminal' });
           console.log('[App] Switched to terminal tab:', terminalId);
           
-          // Focus the terminal after a short delay to ensure it's rendered
-          setTimeout(() => {
-            if ((window as any).__terminalAPI && (window as any).__terminalAPI[terminalId]) {
-              console.log('[App] Focusing terminal:', terminalId);
-              (window as any).__terminalAPI[terminalId].focus();
-            }
-          }, 100);
+          // Terminal will focus itself when it becomes active via its ResizeObserver
         }
 
         // Update status bar

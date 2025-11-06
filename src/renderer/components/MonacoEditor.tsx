@@ -10,6 +10,7 @@
 import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { useAppContext } from '../contexts/AppContext.js';
 import { EditorService } from '../services/editor-service.js';
+import { markReady } from '../utils/ready-events.js';
 
 declare const monaco: typeof import('monaco-editor');
 
@@ -430,6 +431,10 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       clearDiagnostics,
       focus,
     };
+    
+    // Signal that Monaco is ready for use
+    markReady('monaco-ready');
+    
     return () => {
       delete (window as any).__monacoEditorAPI;
     };

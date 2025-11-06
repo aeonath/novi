@@ -7,7 +7,8 @@
  * TabBar - Tab management for multiple open files (React)
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { markReady } from '../utils/ready-events.js';
 
 export interface Tab {
   id: string;
@@ -118,6 +119,10 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
       getActiveTab,
       getTabs,
     };
+    
+    // Signal that TabBar is ready for use
+    markReady('tabbar-ready');
+    
     return () => {
       delete (window as any).__tabBarAPI;
     };

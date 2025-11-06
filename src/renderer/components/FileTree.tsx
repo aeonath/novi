@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useAppContext } from '../contexts/AppContext.js';
+import { markReady } from '../utils/ready-events.js';
 
 export interface FileTreeProps {
   onFileOpen?: (filePath: string) => void;
@@ -310,6 +311,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       loadDirectory: loadDirectoryProgrammatically,
       refresh: () => rootPath && loadDirectory(rootPath),
     };
+    
+    // Signal that FileTree is ready for use
+    markReady('filetree-ready');
+    
     return () => {
       delete (window as any).__fileTreeAPI;
     };
