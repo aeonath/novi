@@ -27,7 +27,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   const [success, setSuccess] = useState<string | null>(null);
   const [needsCredentials, setNeedsCredentials] = useState(false);
   const [credentialInput, setCredentialInput] = useState('');
-  const [credentialUsername, setCredentialUsername] = useState('');
   const [credentialPrompt, setCredentialPrompt] = useState('');
   const [pendingOperation, setPendingOperation] = useState<'push' | 'pull' | null>(null);
   const [explicitlyUnstagedFiles, setExplicitlyUnstagedFiles] = useState<Set<string>>(new Set());
@@ -148,7 +147,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       setCredentialPrompt(request.prompt);
       setNeedsCredentials(true);
       setCredentialInput('');
-      setCredentialUsername('');
       setError(null);
       setSuccess(null);
     };
@@ -165,7 +163,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     if (!credentialInput.trim() || !window.api?.gitProvideCredentials) return;
 
     const response = {
-      username: credentialUsername.trim() || undefined,
       password: credentialInput,
       cancelled: false,
     };
@@ -180,9 +177,8 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     // Clear the form
     setNeedsCredentials(false);
     setCredentialInput('');
-    setCredentialUsername('');
     setCurrentCredentialRequest(null);
-  }, [credentialInput, credentialUsername]);
+  }, [credentialInput]);
 
   // Handle credential cancellation
   const handleCredentialCancel = useCallback(async () => {
@@ -201,7 +197,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
 
     setNeedsCredentials(false);
     setCredentialInput('');
-    setCredentialUsername('');
     setCurrentCredentialRequest(null);
     setError('Authentication cancelled');
     setTimeout(() => setError(null), 3000);
@@ -446,25 +441,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
             <div style={styles.credentialInputContainer}>
               <div style={styles.credentialPrompt}>{credentialPrompt}</div>
               <input
-                type="text"
-                style={styles.credentialInput}
-                placeholder="Username (optional, default: git)"
-                value={credentialUsername}
-                onChange={(e) => setCredentialUsername(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    // Move focus to password field if username is entered
-                    const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement;
-                    passwordInput?.focus();
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    handleCredentialCancel();
-                  }
-                }}
-                autoFocus
-              />
-              <input
                 type="password"
                 style={styles.credentialInput}
                 placeholder="Password or Personal Access Token"
@@ -479,6 +455,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
                     handleCredentialCancel();
                   }
                 }}
+                autoFocus
               />
               <div style={styles.credentialHint}>Press Enter to submit, Escape to cancel</div>
             </div>
@@ -732,7 +709,7 @@ const styles = {
   },
   credentialInputContainer: {
     width: '100%',
-    padding: '8px 0',
+    padding: '8px 12px',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '6px',

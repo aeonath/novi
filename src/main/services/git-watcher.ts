@@ -119,9 +119,9 @@ export class GitWatcher extends EventEmitter {
     // Watch for file changes, ignoring .git directory and node_modules
     this.watcher = watch(repoPath, {
       ignored: [
-        /(^|[\/\\])\../,           // Dot files/folders
+        /(^|[\/\\])\../,           // Dot files/folders (except .git tracked below)
         /node_modules/,            // Node modules
-        /\.git[\/\\](?!HEAD|refs)/, // .git except HEAD and refs (for branch changes)
+        /\.git[\/\\](?!HEAD|refs|FETCH_HEAD|ORIG_HEAD)/, // .git except important files
         /dist/,                    // Build output
         /\.log$/,                  // Log files
       ],

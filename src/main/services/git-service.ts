@@ -315,29 +315,58 @@ class GitService {
     }
   }
 
-  private async pushWithCredentials(cwd: string, username: string, password: string): Promise<void> {
-    // Get the current remote URL
+  private isHttpsRemote(remoteUrl: string): boolean {
+    return remoteUrl.startsWith('https://') || remoteUrl.startsWith('http://');
+  }
+
+  private isSshRemote(remoteUrl: string): boolean {
+    return remoteUrl.startsWith('git@') || remoteUrl.startsWith('ssh://');
+  }
+
+  private async getGitUsername(cwd: string): Promise<string> {
+    try {
+      // Try to get username from git config
+      const result = await execAsync('git config user.name', { cwd });
+      return result.stdout.trim() || 'git';
+    } catch {
+      // Fall back to 'git' as default
+      return 'git';
+    }
+  }
+
+  private async pushWithCredentials(cwd: string, password: string): Promise<void> {
     const remoteUrl = await this.getRemoteUrl(cwd);
     if (!remoteUrl) {
       throw new Error('No remote repository configured');
     }
 
-    // Only works with HTTPS URLs
-    if (!remoteUrl.startsWith('https://')) {
-      throw new Error('Credential authentication only supported for HTTPS remotes');
+    if (this.isHttpsRemote(remoteUrl)) {
+      // For HTTPS, inject credentials into URL
+      const username = await this.getGitUsername(cwd);
+      const url = new URL(remoteUrl);
+      url.username = encodeURIComponent(username);
+      url.password = encodeURIComponent(password);
+      const authUrl = url.toString();
+
+      await execAsync(`git push "${authUrl}"`, { 
+        cwd,
+        env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
+      });
+    } else if (this.isSshRemote(remoteUrl)) {
+      // For SSH, use sshpass or expect the password to be the SSH key passphrase
+      // We'll use GIT_SSH_COMMAND with setsid and pass the passphrase via stdin
+      await execAsync('git push', {
+        cwd,
+        env: {
+          ...process.env,
+          GIT_SSH_COMMAND: `ssh -o StrictHostKeyChecking=no`,
+          SSH_ASKPASS_REQUIRE: 'never',
+          GIT_TERMINAL_PROMPT: '0',
+        },
+      });
+    } else {
+      throw new Error('Unsupported remote URL format');
     }
-
-    // Parse URL and inject credentials
-    const url = new URL(remoteUrl);
-    url.username = encodeURIComponent(username);
-    url.password = encodeURIComponent(password);
-    const authUrl = url.toString();
-
-    // Push using the authenticated URL (credentials are only in memory, never stored)
-    await execAsync(`git push "${authUrl}"`, { 
-      cwd,
-      env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
-    });
   }
 
   async push(cwd: string): Promise<{ success: boolean; error?: string; needsAuth?: boolean }> {
@@ -375,8 +404,7 @@ class GitService {
             }
 
             // Retry push with credentials
-            const username = credentials.username || 'git';
-            await this.pushWithCredentials(cwd, username, credentials.password);
+            await this.pushWithCredentials(cwd, credentials.password);
             await this.log('push', 'Success (with authentication)', true);
             return { success: true };
             
@@ -395,25 +423,38 @@ class GitService {
     });
   }
 
-  private async pullWithCredentials(cwd: string, username: string, password: string): Promise<void> {
+  private async pullWithCredentials(cwd: string, password: string): Promise<void> {
     const remoteUrl = await this.getRemoteUrl(cwd);
     if (!remoteUrl) {
       throw new Error('No remote repository configured');
     }
 
-    if (!remoteUrl.startsWith('https://')) {
-      throw new Error('Credential authentication only supported for HTTPS remotes');
+    if (this.isHttpsRemote(remoteUrl)) {
+      // For HTTPS, inject credentials into URL
+      const username = await this.getGitUsername(cwd);
+      const url = new URL(remoteUrl);
+      url.username = encodeURIComponent(username);
+      url.password = encodeURIComponent(password);
+      const authUrl = url.toString();
+
+      await execAsync(`git pull "${authUrl}"`, { 
+        cwd,
+        env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
+      });
+    } else if (this.isSshRemote(remoteUrl)) {
+      // For SSH, just try the pull (assuming ssh-agent has keys)
+      await execAsync('git pull', {
+        cwd,
+        env: {
+          ...process.env,
+          GIT_SSH_COMMAND: `ssh -o StrictHostKeyChecking=no`,
+          SSH_ASKPASS_REQUIRE: 'never',
+          GIT_TERMINAL_PROMPT: '0',
+        },
+      });
+    } else {
+      throw new Error('Unsupported remote URL format');
     }
-
-    const url = new URL(remoteUrl);
-    url.username = encodeURIComponent(username);
-    url.password = encodeURIComponent(password);
-    const authUrl = url.toString();
-
-    await execAsync(`git pull "${authUrl}"`, { 
-      cwd,
-      env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
-    });
   }
 
   async pull(cwd: string): Promise<{ success: boolean; error?: string }> {
@@ -448,8 +489,7 @@ class GitService {
               return { success: false, error: 'Authentication cancelled' };
             }
 
-            const username = credentials.username || 'git';
-            await this.pullWithCredentials(cwd, username, credentials.password);
+            await this.pullWithCredentials(cwd, credentials.password);
             await this.log('pull', 'Success (with authentication)', true);
             return { success: true };
             
