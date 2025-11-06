@@ -55,31 +55,49 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     // Clear explicitly unstaged files when workspace changes
     setExplicitlyUnstagedFiles(new Set());
     
-    // Start watching the repository for file changes
-    window.api.gitStartWatching(workspaceRoot).catch((err) => {
-      console.error('[GitPanel] Failed to start git watcher:', err);
-    });
-    
-    // Initial status fetch
-    refreshStatus();
+    // Defer git watcher initialization slightly to avoid flash on startup
+    // This ensures all components are fully mounted before we start watching
+    const initTimer = setTimeout(() => {
+      // Start watching the repository for file changes
+      window.api.gitStartWatching(workspaceRoot).catch((err) => {
+        console.error('[GitPanel] Failed to start git watcher:', err);
+      });
+      
+      // Initial status fetch
+      refreshStatus();
+    }, 100); // Small delay to ensure smooth startup
     
     // Listen for file change events
     const handleGitChange = (event: { type: string; path: string }) => {
       console.log('[GitPanel] Change detected:', event.type, '-', event.path);
-      // Refresh status when changes are detected
-      refreshStatus();
+      // Call refreshStatus directly to avoid closure issues
+      if (workspaceRoot && window.api?.gitManualRefresh) {
+        window.api.gitManualRefresh(workspaceRoot)
+          .then(status => {
+            setGitStatus(status);
+            setError(null);
+            onRefreshStatus?.();
+          })
+          .catch(err => {
+            console.error('[GitPanel] Failed to get status:', err);
+            setError('Failed to get Git status');
+          });
+      }
     };
     
     window.api.gitOnChange(handleGitChange);
     
     return () => {
+      clearTimeout(initTimer);
       console.log('[GitPanel] Cleaning up Git watcher');
       window.api?.gitRemoveChangeListener?.();
       window.api?.gitStopWatching?.().catch((err) => {
         console.error('[GitPanel] Failed to stop git watcher:', err);
       });
     };
-  }, [workspaceRoot, refreshStatus]);
+    // Only depend on workspaceRoot to prevent re-initialization
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceRoot]);
 
   // Auto-stage unstaged files (unless explicitly unstaged by user)
   useEffect(() => {

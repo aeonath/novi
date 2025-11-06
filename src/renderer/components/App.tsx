@@ -321,12 +321,20 @@ const AppInner: React.FC = () => {
           });
         }
 
-        // Restore active tab
-        if (workspace.activeTabId && workspace.openFiles.length > 0) {
-          setActiveTab({
-            id: workspace.activeTabId,
-            type: workspace.activeTabType || 'file',
-          });
+        // Restore active tab (for any tab type)
+        if (workspace.activeTabId) {
+          const hasAnyTabs = 
+            (workspace.openFiles && workspace.openFiles.length > 0) ||
+            (workspace.openTerminals && workspace.openTerminals.length > 0) ||
+            (workspace.openNovaPrompts && workspace.openNovaPrompts.length > 0);
+          
+          if (hasAnyTabs) {
+            setActiveTab({
+              id: workspace.activeTabId,
+              type: workspace.activeTabType || 'file',
+            });
+            console.log('[App] Restored active tab:', workspace.activeTabId, 'type:', workspace.activeTabType);
+          }
         }
 
         console.log('[App] Workspace restored successfully');
