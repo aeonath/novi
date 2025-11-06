@@ -375,24 +375,24 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
           <button
             style={{
               ...styles.button,
-              ...(isPushing ? styles.buttonDisabled : {}),
+              ...(isPushing || gitStatus.ahead === 0 ? styles.buttonDisabled : {}),
             }}
             onClick={handlePush}
-            disabled={isPushing}
-            title="Push"
+            disabled={isPushing || gitStatus.ahead === 0}
+            title={gitStatus.ahead === 0 ? 'No commits to push' : 'Push'}
           >
-            {isPushing ? '...' : '↑ Push'}
+            {isPushing ? '...' : `↑ Push${gitStatus.ahead > 0 ? ` (${gitStatus.ahead})` : ''}`}
           </button>
           <button
             style={{
               ...styles.button,
-              ...(isPulling ? styles.buttonDisabled : {}),
+              ...(isPulling || gitStatus.behind === 0 ? styles.buttonDisabled : {}),
             }}
             onClick={handlePull}
-            disabled={isPulling}
-            title="Pull"
+            disabled={isPulling || gitStatus.behind === 0}
+            title={gitStatus.behind === 0 ? 'No commits to pull' : 'Pull'}
           >
-            {isPulling ? '...' : '↓ Pull'}
+            {isPulling ? '...' : `↓ Pull${gitStatus.behind > 0 ? ` (${gitStatus.behind})` : ''}`}
           </button>
         </div>
         
