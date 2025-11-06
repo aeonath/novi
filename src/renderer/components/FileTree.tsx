@@ -287,16 +287,28 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     return () => window.removeEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
   }, []);
 
+  // Method to programmatically load a directory (for workspace restore)
+  const loadDirectoryProgrammatically = useCallback(async (dirPath: string) => {
+    setRootPath(dirPath);
+    await loadDirectory(dirPath);
+    
+    // Notify parent of directory change
+    if (onDirectoryOpen) {
+      onDirectoryOpen(dirPath);
+    }
+  }, [onDirectoryOpen]);
+
   // Expose methods for compatibility
   useEffect(() => {
     (window as any).__fileTreeAPI = {
       openDirectory,
+      loadDirectory: loadDirectoryProgrammatically,
       refresh: () => rootPath && loadDirectory(rootPath),
     };
     return () => {
       delete (window as any).__fileTreeAPI;
     };
-  }, [openDirectory, rootPath]);
+  }, [openDirectory, loadDirectoryProgrammatically, rootPath]);
 
   const contextValue: FileTreeContextValue = {
     expandedDirs,
@@ -340,6 +352,15 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
           </div>
         ) : (
           <div className="file-tree-scroll" style={styles.tree}>
+            {/* Show inline input at root level if creating new file at root */}
+            {newFileInput && newFileInput.parentPath === rootPath && !newFileInput.parentNode && (
+              <NewFileInput 
+                level={0}
+                onSubmit={handleNewFileSubmit}
+                onCancel={() => setNewFileInput(null)}
+              />
+            )}
+            
             {tree.map((node) => (
               <FileTreeNode key={node.path} node={node} level={0} newFileInput={newFileInput} onNewFileSubmit={handleNewFileSubmit} onNewFileCancel={() => setNewFileInput(null)} />
             ))}
@@ -499,15 +520,6 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, newFileInput, 
             <FileTreeNode key={child.path} node={child} level={level + 1} newFileInput={newFileInput} onNewFileSubmit={onNewFileSubmit} onNewFileCancel={onNewFileCancel} />
           ))}
         </div>
-      )}
-      
-      {/* Show inline input at root level if no parent node */}
-      {!node.isDirectory && newFileInput && !newFileInput.parentNode && newFileInput.parentPath === node.path.substring(0, node.path.lastIndexOf('/')) && (
-        <NewFileInput 
-          level={level}
-          onSubmit={onNewFileSubmit}
-          onCancel={onNewFileCancel}
-        />
       )}
     </div>
   );

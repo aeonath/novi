@@ -150,9 +150,18 @@ const AppInner: React.FC = () => {
 
         console.log('[App] Restoring workspace:', workspace);
 
-        // Restore workspace root
+        // Restore workspace root and FileTree directory
         if (workspace.workspaceRoot) {
           setWorkspaceRoot(workspace.workspaceRoot);
+          
+          // Tell FileTree to load the directory
+          setTimeout(() => {
+            const fileTreeAPI = (window as any).__fileTreeAPI;
+            if (fileTreeAPI && fileTreeAPI.loadDirectory) {
+              fileTreeAPI.loadDirectory(workspace.workspaceRoot);
+              console.log('[App] Restored FileTree directory:', workspace.workspaceRoot);
+            }
+          }, 100);
         }
 
         // Restore layout
@@ -164,25 +173,46 @@ const AppInner: React.FC = () => {
         if (workspace.openFiles && workspace.openFiles.length > 0) {
           setShowWelcome(false);
           
-          const tabBarAPI = (window as any).__tabBarAPI;
-          if (tabBarAPI) {
-            for (const file of workspace.openFiles) {
+          // Wait for Monaco and FileTree to be ready
+          setTimeout(async () => {
+            const monacoAPI = (window as any).__monacoEditorAPI;
+            const tabBarAPI = (window as any).__tabBarAPI;
+            
+            if (!monacoAPI || !tabBarAPI || !window.api?.readFile) {
+              console.error('[App] APIs not ready for workspace restore');
+              return;
+            }
+            
+            for (let i = 0; i < workspace.openFiles.length; i++) {
+              const file = workspace.openFiles[i];
               try {
+                // Read file content from disk
+                const content = await window.api.readFile(file.filePath);
                 const fileName = file.filePath.split(/[\\/]/).pop() || 'untitled';
+                
+                // Add tab
                 tabBarAPI.addTab({
-                  id: `tab-${Date.now()}-${Math.random()}`,
+                  id: `tab-${Date.now()}-${i}`,
                   type: 'file',
                   filePath: file.filePath,
                   fileName: fileName,
-                  isDirty: file.isDirty || false,
-                  content: file.content || '',
+                  isDirty: false, // Always start clean on restore
+                  content: content,
                   language: 'typescript',
                 });
+                
+                // Load into Monaco if this is the first file (will be active)
+                if (i === 0) {
+                  monacoAPI.loadFile(file.filePath, content);
+                  console.log('[App] Loaded first file into Monaco:', fileName);
+                }
               } catch (error) {
                 console.error('[App] Failed to restore file tab:', file.filePath, error);
               }
             }
-          }
+            
+            console.log('[App] Restored', workspace.openFiles.length, 'file tabs');
+          }, 500);
         }
 
         // Restore terminals (don't recreate, just log)
