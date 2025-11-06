@@ -196,8 +196,8 @@ const AppInner: React.FC = () => {
                 }
                 
                 try {
-                  // Read file content from disk
-                  const content = await window.api.readFile(file.filePath);
+                  // Read file content from disk - readFile returns {path, content, size, modified}
+                  const fileData = await window.api.readFile(file.filePath);
                   const fileName = file.filePath.split(/[\\/]/).pop() || 'untitled';
                   
                   // Add tab
@@ -207,13 +207,13 @@ const AppInner: React.FC = () => {
                     filePath: file.filePath,
                     fileName: fileName,
                     isDirty: false, // Always start clean on restore
-                    content: content,
+                    content: fileData.content, // FIX: Use .content property from the returned object
                     language: 'typescript',
                   });
                   
                   // Load into Monaco if this is the first file (will be active)
                   if (i === 0) {
-                    monacoAPI.loadFile(file.filePath, content);
+                    monacoAPI.loadFile(file.filePath, fileData.content);
                     console.log('[App] Loaded first file into Monaco:', fileName);
                   }
                   
@@ -1218,7 +1218,6 @@ const AppInner: React.FC = () => {
         <StatusBar />
         
         {/* Modal components */}
-        {/* ActionHUD disabled - Ctrl+K functionality not working reliably on startup */}
         <ActionHUD actions={actions} />
         <SettingsPanel />
         <DiagnosticsPanel />

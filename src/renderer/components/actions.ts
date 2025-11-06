@@ -15,6 +15,7 @@ export interface ActionContext {
   onReloadFile?: () => void | Promise<void>;
   onCloseFile?: () => void | Promise<void>;
   onNewTerminal?: () => void | Promise<void>;
+  onNovaPrompt?: () => void | Promise<void>;
   onOpenSettings?: () => void | Promise<void>;
   // Editor commands
   onFormatDocument?: () => void | Promise<void>;
