@@ -108,7 +108,15 @@ class GitService {
       if (line.length < 4) continue;
 
       const statusCode = line.substring(0, 2);
-      const filePath = line.substring(3);
+      let filePath = line.substring(3);
+
+      // Git may wrap paths with quotes if they contain spaces or special chars
+      // Remove surrounding quotes if present
+      if (filePath.startsWith('"') && filePath.endsWith('"')) {
+        filePath = filePath.substring(1, filePath.length - 1);
+        // Unescape any escaped characters (e.g., \" becomes ")
+        filePath = filePath.replace(/\\(.)/g, '$1');
+      }
 
       let status: GitFileStatus['status'] = 'modified';
       let staged = false;
@@ -141,11 +149,28 @@ class GitService {
   async stageFile(cwd: string, filePath: string): Promise<boolean> {
     return gitWatcher.queueGitOperation('stage-file', async () => {
       try {
-        await execAsync(`git add "${filePath}"`, { cwd });
+        // Use -- separator to indicate end of options and start of paths
+        // This handles special characters and spaces more reliably
+        console.log(`[GitService] Staging file: ${filePath} in ${cwd}`);
+        await execAsync(`git add -- "${filePath}"`, { cwd });
+        
+        // Verify the file was actually staged by checking status
+        const verifyResult = await execAsync(`git diff --cached --name-only -- "${filePath}"`, { cwd });
+        const wasStaged = verifyResult.stdout.trim().length > 0;
+        
+        if (!wasStaged) {
+          console.warn(`[GitService] File appears not to be staged: ${filePath}`);
+          await this.log('stageFile', `WARNING: File may not be staged: ${filePath}`, false);
+          return false;
+        }
+        
         await this.log('stageFile', filePath, true);
+        console.log(`[GitService] Successfully staged: ${filePath}`);
         return true;
-      } catch (error) {
-        await this.log('stageFile', `Error: ${error}`, false);
+      } catch (error: any) {
+        const errorMsg = error.message || String(error);
+        console.error(`[GitService] Failed to stage ${filePath}:`, errorMsg);
+        await this.log('stageFile', `Error for ${filePath}: ${errorMsg}`, false);
         return false;
       }
     });
@@ -154,11 +179,15 @@ class GitService {
   async unstageFile(cwd: string, filePath: string): Promise<boolean> {
     return gitWatcher.queueGitOperation('unstage-file', async () => {
       try {
-        await execAsync(`git reset HEAD "${filePath}"`, { cwd });
+        console.log(`[GitService] Unstaging file: ${filePath} in ${cwd}`);
+        await execAsync(`git reset HEAD -- "${filePath}"`, { cwd });
         await this.log('unstageFile', filePath, true);
+        console.log(`[GitService] Successfully unstaged: ${filePath}`);
         return true;
-      } catch (error) {
-        await this.log('unstageFile', `Error: ${error}`, false);
+      } catch (error: any) {
+        const errorMsg = error.message || String(error);
+        console.error(`[GitService] Failed to unstage ${filePath}:`, errorMsg);
+        await this.log('unstageFile', `Error for ${filePath}: ${errorMsg}`, false);
         return false;
       }
     });

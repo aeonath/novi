@@ -106,21 +106,35 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     const unstagedFiles = gitStatus.files.filter((f) => !f.staged && !explicitlyUnstagedFiles.has(f.path));
     
     if (unstagedFiles.length > 0) {
-      console.log('[GitPanel] Auto-staging', unstagedFiles.length, 'unstaged files');
+      console.log('[GitPanel] Auto-staging', unstagedFiles.length, 'unstaged files:', unstagedFiles.map(f => f.path));
       
       // Stage all unstaged files in parallel
       Promise.all(
-        unstagedFiles.map((file) =>
-          window.api.gitStageFile(workspaceRoot, file.path).catch((err) => {
-            console.error('[GitPanel] Failed to auto-stage file:', file.path, err);
-          })
-        )
-      ).then(() => {
+        unstagedFiles.map(async (file) => {
+          try {
+            const success = await window.api.gitStageFile(workspaceRoot, file.path);
+            if (!success) {
+              console.error('[GitPanel] Failed to auto-stage file:', file.path);
+              setError(`Failed to stage: ${file.path}`);
+            } else {
+              console.log('[GitPanel] Successfully auto-staged:', file.path);
+            }
+            return success;
+          } catch (err) {
+            console.error('[GitPanel] Error auto-staging file:', file.path, err);
+            setError(`Error staging: ${file.path}`);
+            return false;
+          }
+        })
+      ).then((results) => {
+        const successCount = results.filter(r => r).length;
+        console.log(`[GitPanel] Auto-staging complete: ${successCount}/${unstagedFiles.length} succeeded`);
+        
         // Refresh status after staging
         refreshStatus();
       });
     }
-  }, [gitStatus?.files.length, workspaceRoot, explicitlyUnstagedFiles]);
+  }, [gitStatus?.files.length, workspaceRoot, explicitlyUnstagedFiles, refreshStatus]);
 
   const handleStageFile = useCallback(async (filePath: string) => {
     if (!workspaceRoot || !window.api?.gitStageFile) return;
