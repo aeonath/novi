@@ -118,29 +118,37 @@ class GitService {
         filePath = filePath.replace(/\\(.)/g, '$1');
       }
 
-      let status: GitFileStatus['status'] = 'modified';
-      let staged = false;
+      // Git status codes: XY where X=index (staged), Y=worktree (unstaged)
+      const indexStatus = statusCode[0]; // Staged changes
+      const worktreeStatus = statusCode[1]; // Unstaged changes
 
-      // Parse status codes
+      // Handle untracked files
       if (statusCode === '??') {
-        status = 'untracked';
-      } else if (statusCode[0] === 'A' || statusCode[1] === 'A') {
-        status = 'added';
-        staged = statusCode[0] !== ' ';
-      } else if (statusCode[0] === 'D' || statusCode[1] === 'D') {
-        status = 'deleted';
-        staged = statusCode[0] !== ' ';
-      } else if (statusCode[0] === 'R' || statusCode[1] === 'R') {
-        status = 'renamed';
-        staged = statusCode[0] !== ' ';
-      } else if (statusCode[0] === 'M' || statusCode[1] === 'M') {
-        status = 'modified';
-        staged = statusCode[0] !== ' ';
-      } else {
-        staged = statusCode[0] !== ' ' && statusCode[0] !== '?';
+        files.push({ path: filePath, status: 'untracked', staged: false });
+        continue;
       }
 
-      files.push({ path: filePath, status, staged });
+      // Check if file has staged changes (index)
+      if (indexStatus !== ' ' && indexStatus !== '?') {
+        let stagedStatus: GitFileStatus['status'] = 'modified';
+        if (indexStatus === 'A') stagedStatus = 'added';
+        else if (indexStatus === 'D') stagedStatus = 'deleted';
+        else if (indexStatus === 'R') stagedStatus = 'renamed';
+        else if (indexStatus === 'M') stagedStatus = 'modified';
+        
+        files.push({ path: filePath, status: stagedStatus, staged: true });
+      }
+
+      // Check if file has unstaged changes (worktree)
+      if (worktreeStatus !== ' ' && worktreeStatus !== '?') {
+        let unstagedStatus: GitFileStatus['status'] = 'modified';
+        if (worktreeStatus === 'A') unstagedStatus = 'added';
+        else if (worktreeStatus === 'D') unstagedStatus = 'deleted';
+        else if (worktreeStatus === 'R') unstagedStatus = 'renamed';
+        else if (worktreeStatus === 'M') unstagedStatus = 'modified';
+        
+        files.push({ path: filePath, status: unstagedStatus, staged: false });
+      }
     }
 
     return files;
