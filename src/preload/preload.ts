@@ -43,6 +43,18 @@ contextBridge.exposeInMainWorld('api', {
   gitPush: (cwd: string) => ipcRenderer.invoke('git-push', cwd),
   gitPull: (cwd: string) => ipcRenderer.invoke('git-pull', cwd),
   gitGetDiff: (cwd: string, filePath?: string) => ipcRenderer.invoke('git-get-diff', cwd, filePath),
+  
+  // Git watcher (event-driven monitoring)
+  gitStartWatching: (repoPath: string) => ipcRenderer.invoke('git-start-watching', repoPath),
+  gitStopWatching: () => ipcRenderer.invoke('git-stop-watching'),
+  gitOnChange: (callback: (event: { type: string; path: string }) => void) => {
+    const handler = (_event: any, data: { type: string; path: string }) => callback(data);
+    ipcRenderer.on('git-change', handler);
+  },
+  gitRemoveChangeListener: () => {
+    ipcRenderer.removeAllListeners('git-change');
+  },
+  gitManualRefresh: (cwd: string) => ipcRenderer.invoke('git-manual-refresh', cwd),
   // Workspace operations
   workspaceSave: (state: any) => ipcRenderer.invoke('workspace-save', state),
   workspaceLoad: () => ipcRenderer.invoke('workspace-load'),

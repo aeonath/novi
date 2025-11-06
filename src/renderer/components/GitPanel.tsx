@@ -32,11 +32,11 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   const [explicitlyUnstagedFiles, setExplicitlyUnstagedFiles] = useState<Set<string>>(new Set());
 
   const refreshStatus = useCallback(async () => {
-    if (!workspaceRoot || !window.api?.gitGetStatus) return;
+    if (!workspaceRoot || !window.api?.gitManualRefresh) return;
 
     try {
-      console.log('[GitPanel] Fetching Git status for:', workspaceRoot);
-      const status = await window.api.gitGetStatus(workspaceRoot);
+      console.log('[GitPanel] Manual refresh - Fetching Git status for:', workspaceRoot);
+      const status = await window.api.gitManualRefresh(workspaceRoot);
       setGitStatus(status);
       setError(null);
       onRefreshStatus?.();
@@ -46,26 +46,40 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     }
   }, [workspaceRoot, onRefreshStatus]);
 
-  // Initial load and polling - FIXED: removed refreshStatus from deps to prevent infinite loop
+  // Event-driven git monitoring - NO POLLING
   useEffect(() => {
-    if (!workspaceRoot) return;
+    if (!workspaceRoot || !window.api?.gitStartWatching || !window.api?.gitOnChange) return;
     
-    console.log('[GitPanel] Setting up Git status polling for:', workspaceRoot);
+    console.log('[GitPanel] Starting event-driven Git monitoring for:', workspaceRoot);
+    
     // Clear explicitly unstaged files when workspace changes
     setExplicitlyUnstagedFiles(new Set());
+    
+    // Start watching the repository for file changes
+    window.api.gitStartWatching(workspaceRoot).catch((err) => {
+      console.error('[GitPanel] Failed to start git watcher:', err);
+    });
+    
+    // Initial status fetch
     refreshStatus();
     
-    // Poll every 10 seconds for responsive Git status updates
-    const interval = setInterval(() => {
-      console.log('[GitPanel] Polling Git status');
+    // Listen for file change events
+    const handleGitChange = (event: { type: string; path: string }) => {
+      console.log('[GitPanel] Change detected:', event.type, '-', event.path);
+      // Refresh status when changes are detected
       refreshStatus();
-    }, 10000);
+    };
+    
+    window.api.gitOnChange(handleGitChange);
     
     return () => {
-      console.log('[GitPanel] Cleaning up Git status polling');
-      clearInterval(interval);
+      console.log('[GitPanel] Cleaning up Git watcher');
+      window.api?.gitRemoveChangeListener?.();
+      window.api?.gitStopWatching?.().catch((err) => {
+        console.error('[GitPanel] Failed to stop git watcher:', err);
+      });
     };
-  }, [workspaceRoot]); // Only depend on workspaceRoot, not refreshStatus
+  }, [workspaceRoot, refreshStatus]);
 
   // Auto-stage unstaged files (unless explicitly unstaged by user)
   useEffect(() => {

@@ -12,6 +12,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { appendFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { gitWatcher } from './git-watcher.js';
 
 const execAsync = promisify(exec);
 
@@ -58,7 +59,8 @@ class GitService {
   }
 
   async getStatus(cwd: string): Promise<GitStatus> {
-    try {
+    return gitWatcher.queueGitOperation('get-status', async () => {
+      try {
       // Check if it's a git repo
       const isRepoResult = await execAsync('git rev-parse --is-inside-work-tree', { cwd });
       const isRepo = isRepoResult.stdout.trim() === 'true';
@@ -90,11 +92,12 @@ class GitService {
 
       await this.log('getStatus', `Branch: ${branch}, Files: ${files.length}`, true);
       
-      return { isRepo: true, branch, files, ahead, behind };
-    } catch (error) {
-      await this.log('getStatus', `Error: ${error}`, false);
-      return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
-    }
+        return { isRepo: true, branch, files, ahead, behind };
+      } catch (error) {
+        await this.log('getStatus', `Error: ${error}`, false);
+        return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
+      }
+    });
   }
 
   private parseGitStatus(output: string): GitFileStatus[] {
@@ -136,74 +139,137 @@ class GitService {
   }
 
   async stageFile(cwd: string, filePath: string): Promise<boolean> {
-    try {
-      await execAsync(`git add "${filePath}"`, { cwd });
-      await this.log('stageFile', filePath, true);
-      return true;
-    } catch (error) {
-      await this.log('stageFile', `Error: ${error}`, false);
-      return false;
-    }
+    return gitWatcher.queueGitOperation('stage-file', async () => {
+      try {
+        await execAsync(`git add "${filePath}"`, { cwd });
+        await this.log('stageFile', filePath, true);
+        return true;
+      } catch (error) {
+        await this.log('stageFile', `Error: ${error}`, false);
+        return false;
+      }
+    });
   }
 
   async unstageFile(cwd: string, filePath: string): Promise<boolean> {
-    try {
-      await execAsync(`git reset HEAD "${filePath}"`, { cwd });
-      await this.log('unstageFile', filePath, true);
-      return true;
-    } catch (error) {
-      await this.log('unstageFile', `Error: ${error}`, false);
-      return false;
-    }
+    return gitWatcher.queueGitOperation('unstage-file', async () => {
+      try {
+        await execAsync(`git reset HEAD "${filePath}"`, { cwd });
+        await this.log('unstageFile', filePath, true);
+        return true;
+      } catch (error) {
+        await this.log('unstageFile', `Error: ${error}`, false);
+        return false;
+      }
+    });
+  }
+
+  /**
+   * Pre-commit sanity check
+   * Verifies repository state before allowing commit
+   */
+  async preCommitCheck(cwd: string): Promise<{ 
+    canCommit: boolean; 
+    stagedFiles: number; 
+    unstagedFiles: number; 
+    error?: string 
+  }> {
+    return gitWatcher.queueGitOperation('pre-commit-check', async () => {
+      try {
+        // Check if there are staged changes
+        const statusResult = await execAsync('git diff --cached --name-only', { cwd });
+        const stagedFiles = statusResult.stdout.trim().split('\n').filter(f => f).length;
+
+        // Check for unstaged changes
+        const unstagedResult = await execAsync('git diff --name-only', { cwd });
+        const unstagedFiles = unstagedResult.stdout.trim().split('\n').filter(f => f).length;
+
+        await this.log('preCommitCheck', `Staged: ${stagedFiles}, Unstaged: ${unstagedFiles}`, true);
+
+        return {
+          canCommit: stagedFiles > 0,
+          stagedFiles,
+          unstagedFiles,
+        };
+      } catch (error: any) {
+        const errorMsg = error.message || String(error);
+        await this.log('preCommitCheck', `Error: ${errorMsg}`, false);
+        return {
+          canCommit: false,
+          stagedFiles: 0,
+          unstagedFiles: 0,
+          error: errorMsg,
+        };
+      }
+    });
   }
 
   async commit(cwd: string, message: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const escapedMessage = message.replace(/"/g, '\\"');
-      await execAsync(`git commit -m "${escapedMessage}"`, { cwd });
-      await this.log('commit', `Message: "${message}"`, true);
-      return { success: true };
-    } catch (error: any) {
-      const errorMsg = error.message || String(error);
-      await this.log('commit', `Error: ${errorMsg}`, false);
-      return { success: false, error: errorMsg };
+    // Run pre-commit check first
+    const preCheck = await this.preCommitCheck(cwd);
+    
+    if (!preCheck.canCommit) {
+      const error = preCheck.error || 'No staged changes to commit';
+      await this.log('commit', `Pre-commit check failed: ${error}`, false);
+      return { success: false, error };
     }
+
+    console.log('[Git] Pre-commit check passed, proceeding with commit');
+
+    return gitWatcher.queueGitOperation('commit', async () => {
+      try {
+        const escapedMessage = message.replace(/"/g, '\\"');
+        await execAsync(`git commit -m "${escapedMessage}"`, { cwd });
+        await this.log('commit', `Message: "${message}"`, true);
+        return { success: true };
+      } catch (error: any) {
+        const errorMsg = error.message || String(error);
+        await this.log('commit', `Error: ${errorMsg}`, false);
+        return { success: false, error: errorMsg };
+      }
+    });
   }
 
   async push(cwd: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const result = await execAsync('git push', { cwd });
-      await this.log('push', result.stdout || 'Success', true);
-      return { success: true };
-    } catch (error: any) {
-      const errorMsg = error.message || String(error);
-      await this.log('push', `Error: ${errorMsg}`, false);
-      return { success: false, error: errorMsg };
-    }
+    return gitWatcher.queueGitOperation('push', async () => {
+      try {
+        const result = await execAsync('git push', { cwd });
+        await this.log('push', result.stdout || 'Success', true);
+        return { success: true };
+      } catch (error: any) {
+        const errorMsg = error.message || String(error);
+        await this.log('push', `Error: ${errorMsg}`, false);
+        return { success: false, error: errorMsg };
+      }
+    });
   }
 
   async pull(cwd: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const result = await execAsync('git pull', { cwd });
-      await this.log('pull', result.stdout || 'Success', true);
-      return { success: true };
-    } catch (error: any) {
-      const errorMsg = error.message || String(error);
-      await this.log('pull', `Error: ${errorMsg}`, false);
-      return { success: false, error: errorMsg };
-    }
+    return gitWatcher.queueGitOperation('pull', async () => {
+      try {
+        const result = await execAsync('git pull', { cwd });
+        await this.log('pull', result.stdout || 'Success', true);
+        return { success: true };
+      } catch (error: any) {
+        const errorMsg = error.message || String(error);
+        await this.log('pull', `Error: ${errorMsg}`, false);
+        return { success: false, error: errorMsg };
+      }
+    });
   }
 
   async getDiff(cwd: string, filePath?: string): Promise<string> {
-    try {
-      const cmd = filePath ? `git diff "${filePath}"` : 'git diff';
-      const result = await execAsync(cmd, { cwd });
-      await this.log('getDiff', filePath || 'all files', true);
-      return result.stdout;
-    } catch (error) {
-      await this.log('getDiff', `Error: ${error}`, false);
-      return '';
-    }
+    return gitWatcher.queueGitOperation('get-diff', async () => {
+      try {
+        const cmd = filePath ? `git diff "${filePath}"` : 'git diff';
+        const result = await execAsync(cmd, { cwd });
+        await this.log('getDiff', filePath || 'all files', true);
+        return result.stdout;
+      } catch (error) {
+        await this.log('getDiff', `Error: ${error}`, false);
+        return '';
+      }
+    });
   }
 }
 

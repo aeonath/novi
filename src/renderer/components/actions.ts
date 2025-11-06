@@ -17,6 +17,7 @@ export interface ActionContext {
   onNewTerminal?: () => void | Promise<void>;
   onNovaPrompt?: () => void | Promise<void>;
   onOpenSettings?: () => void | Promise<void>;
+  onGitRefresh?: () => void | Promise<void>;
   // Editor commands
   onFormatDocument?: () => void | Promise<void>;
   onGoToDefinition?: () => void | Promise<void>;
@@ -94,6 +95,15 @@ export function createDefaultActions(context: ActionContext): Action[] {
     label: 'Settings',
     handler: () => {
       callHandler(context.onOpenSettings);
+    },
+  });
+
+  // Git Refresh action
+  actions.push({
+    id: 'git-refresh',
+    label: 'Refresh Git Status',
+    handler: () => {
+      callHandler(context.onGitRefresh);
     },
   });
 

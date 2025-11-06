@@ -12,6 +12,7 @@ import { saveCrashReport, getDiagnosticsInfo, getCrashesDirectory } from './cras
 import { saveRecoveryFiles, getRecoveryFiles, deleteRecoveryFile, clearAllRecoveryFiles, cleanupOldRecoveryFiles } from './recovery';
 import { logSuccess, logError as logFSError } from './services/fs-logger';
 import { gitService } from './services/git-service';
+import { gitWatcher } from './services/git-watcher';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
@@ -424,6 +425,47 @@ void app.whenReady().then(() => {
       logError('Failed to get diff', error as Error);
       throw error;
     }
+  });
+
+  // Git watcher IPC handlers (event-driven monitoring)
+  ipcMain.handle('git-start-watching', async (_e, repoPath: string) => {
+    try {
+      await gitWatcher.watch(repoPath);
+      logInfo(`Started watching git repository: ${repoPath}`);
+    } catch (error) {
+      logError('Failed to start git watcher', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-stop-watching', async () => {
+    try {
+      await gitWatcher.unwatch();
+      logInfo('Stopped watching git repository');
+    } catch (error) {
+      logError('Failed to stop git watcher', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('git-manual-refresh', async (_e, cwd: string) => {
+    try {
+      console.log('[Git] Manual refresh requested');
+      return await gitService.getStatus(cwd);
+    } catch (error) {
+      logError('Failed to manually refresh git status', error as Error);
+      throw error;
+    }
+  });
+
+  // Forward git change events to renderer
+  gitWatcher.on('change', (event) => {
+    mainWindow?.webContents.send('git-change', event);
+  });
+
+  gitWatcher.on('batch-change', (files) => {
+    console.log('[Git] Batch change event, files:', files.length);
+    mainWindow?.webContents.send('git-batch-change', files);
   });
 
   // Workspace IPC handlers

@@ -103,6 +103,11 @@ declare global {
       gitPush: (cwd: string) => Promise<GitOperationResult>;
       gitPull: (cwd: string) => Promise<GitOperationResult>;
       gitGetDiff: (cwd: string, filePath?: string) => Promise<string>;
+      gitStartWatching: (repoPath: string) => Promise<void>;
+      gitStopWatching: () => Promise<void>;
+      gitOnChange: (callback: (event: { type: string; path: string }) => void) => void;
+      gitRemoveChangeListener: () => void;
+      gitManualRefresh: (cwd: string) => Promise<GitStatus>;
       workspaceSave: (state: WorkspaceState) => Promise<{ success: boolean }>;
       workspaceLoad: () => Promise<WorkspaceState | null>;
       workspaceClear: () => Promise<{ success: boolean }>;

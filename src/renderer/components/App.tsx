@@ -760,7 +760,37 @@ const AppInner: React.FC = () => {
         (window as any).__monacoEditorAPI.runLinting();
       }
     },
-  }), []);
+    onGitRefresh: async () => {
+      console.log('[App] Git Refresh action triggered (Ctrl+Shift+G)');
+      if (!workspaceRoot || !window.api?.gitManualRefresh) {
+        console.error('[App] Git refresh not available');
+        return;
+      }
+      
+      try {
+        console.log('[App] Refreshing git status for:', workspaceRoot);
+        const status = await window.api.gitManualRefresh(workspaceRoot);
+        setGitStatus(status);
+        
+        // Update status bar
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Git status refreshed');
+          setTimeout(() => {
+            if ((window as any).__statusBarAPI) {
+              (window as any).__statusBarAPI.setStatus('Ready');
+            }
+          }, 2000);
+        }
+        
+        console.log('[App] Git status refreshed successfully');
+      } catch (error) {
+        console.error('[App] Failed to refresh git status:', error);
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus('Git refresh failed');
+        }
+      }
+    },
+  }), [workspaceRoot]);
 
   // Create actions
   const actions = useMemo(() => createDefaultActions(actionContext), [actionContext]);
@@ -843,13 +873,20 @@ const AppInner: React.FC = () => {
           }
         }
       }
+      
+      // Ctrl+Shift+G: Refresh Git Status
+      if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        console.log('[App] Ctrl+Shift+G pressed, triggering git refresh');
+        void actionContext.onGitRefresh?.();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => {
       document.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
-  }, [actionContext.onOpenFile, actionContext.onSaveFile]);
+  }, [actionContext.onOpenFile, actionContext.onSaveFile, actionContext.onGitRefresh]);
 
   // Handle menu commands
   const handleMenuCommand = useCallback(async (command: string) => {
