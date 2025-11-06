@@ -31,7 +31,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   const [needsCredentials, setNeedsCredentials] = useState(false);
   const [credentialInput, setCredentialInput] = useState('');
   const [credentialPrompt, setCredentialPrompt] = useState('');
-  const [pendingOperation, setPendingOperation] = useState<'push' | 'pull' | null>(null);
   const [explicitlyUnstagedFiles, setExplicitlyUnstagedFiles] = useState<Set<string>>(new Set());
   const [currentCredentialRequest, setCurrentCredentialRequest] = useState<any>(null);
 
@@ -293,17 +292,11 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       const result = await window.api.gitPush(workspaceRoot);
       if (result.success) {
         setSuccess('Pushed successfully');
+        // Force refresh to update ahead/behind counts
         await refreshStatus();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        // Check if error indicates credentials needed
-        if (result.error && (result.error.includes('Authentication') || result.error.includes('credentials') || result.error.includes('Username'))) {
-          setNeedsCredentials(true);
-          setCredentialPrompt('Enter credentials (username:token or username:password)');
-          setPendingOperation('push');
-        } else {
-          setError(result.error || 'Push failed');
-        }
+        setError(result.error || 'Push failed');
       }
     } catch (err) {
       console.error('[GitPanel] Failed to push:', err);
@@ -324,17 +317,11 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       const result = await window.api.gitPull(workspaceRoot);
       if (result.success) {
         setSuccess('Pulled successfully');
+        // Force refresh to update ahead/behind counts
         await refreshStatus();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        // Check if error indicates credentials needed
-        if (result.error && (result.error.includes('Authentication') || result.error.includes('credentials') || result.error.includes('Username'))) {
-          setNeedsCredentials(true);
-          setCredentialPrompt('Enter credentials (username:token or username:password)');
-          setPendingOperation('pull');
-        } else {
-          setError(result.error || 'Pull failed');
-        }
+        setError(result.error || 'Pull failed');
       }
     } catch (err) {
       console.error('[GitPanel] Failed to pull:', err);

@@ -418,17 +418,30 @@ class GitService {
     return gitWatcher.queueGitOperation('push', async () => {
       try {
         // First attempt without credentials
-        const result = await execAsync('git push', { 
-          cwd,
-          env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
-        });
+        const result = await execAsync('git push', { cwd });
         await this.log('push', result.stdout || 'Success', true);
+        console.log('[Git] Push succeeded:', result.stdout || 'Success');
         return { success: true };
       } catch (error: any) {
         const errorMsg = error.message || String(error);
+        console.error('[Git] Push failed:', errorMsg);
+        
+        // Check remote type before attempting credential auth
+        const remoteUrl = await this.getRemoteUrl(cwd);
+        const isSsh = remoteUrl ? this.isSshRemote(remoteUrl) : false;
         
         // Check if this is an authentication error
         if (this.isAuthenticationError(errorMsg)) {
+          // For SSH remotes, credentials won't help - SSH keys need to be set up
+          if (isSsh) {
+            await this.log('push', 'SSH authentication failed - check SSH keys', false);
+            return { 
+              success: false, 
+              error: 'SSH authentication failed. Ensure your SSH keys are loaded in ssh-agent or use HTTPS remote.' 
+            };
+          }
+          
+          // For HTTPS, try with credentials
           if (DEBUG_GIT_OPERATIONS) {
             console.log('[Git] Push failed with authentication error, requesting credentials');
           }
@@ -436,7 +449,6 @@ class GitService {
           
           try {
             // Request credentials from user via Nova UI
-            const remoteUrl = await this.getRemoteUrl(cwd);
             const host = remoteUrl ? this.extractHostFromRemoteUrl(remoteUrl) : 'remote repository';
             
             const credentials = await gitCredentialHelper.requestCredentials({
@@ -453,6 +465,7 @@ class GitService {
             // Retry push with credentials
             await this.pushWithCredentials(cwd, credentials.password);
             await this.log('push', 'Success (with authentication)', true);
+            console.log('[Git] Push succeeded with credentials');
             return { success: true };
             
           } catch (retryError: any) {
