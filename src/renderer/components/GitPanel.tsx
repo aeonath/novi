@@ -175,14 +175,16 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   }, [workspaceRoot, refreshStatus]);
 
   const handleCommit = useCallback(async () => {
-    if (!workspaceRoot || !window.api?.gitCommit || !commitMessage.trim()) return;
+    if (!workspaceRoot || !window.api?.gitCommit) return;
 
     setIsCommitting(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const result = await window.api.gitCommit(workspaceRoot, commitMessage);
+      // Commit message is optional - use empty string if not provided
+      const message = commitMessage.trim();
+      const result = await window.api.gitCommit(workspaceRoot, message);
       if (result.success) {
         setSuccess('Committed successfully');
         setCommitMessage('');
@@ -351,7 +353,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       <div style={styles.commitSection}>
         <textarea
           style={styles.commitInput}
-          placeholder="Commit message..."
+          placeholder="Commit message (optional)..."
           value={commitMessage}
           onChange={(e) => setCommitMessage(e.target.value)}
           disabled={isCommitting || stagedFiles.length === 0}
@@ -361,12 +363,12 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
             style={{
               ...styles.button,
               ...styles.commitButton,
-              ...(isCommitting || !commitMessage.trim() || stagedFiles.length === 0
+              ...(isCommitting || stagedFiles.length === 0
                 ? styles.buttonDisabled
                 : {}),
             }}
             onClick={handleCommit}
-            disabled={isCommitting || !commitMessage.trim() || stagedFiles.length === 0}
+            disabled={isCommitting || stagedFiles.length === 0}
           >
             {isCommitting ? 'Committing...' : `Commit (${stagedFiles.length})`}
           </button>

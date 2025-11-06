@@ -268,9 +268,19 @@ class GitService {
 
     return gitWatcher.queueGitOperation('commit', async () => {
       try {
-        const escapedMessage = message.replace(/"/g, '\\"');
-        await execAsync(`git commit -m "${escapedMessage}"`, { cwd });
-        await this.log('commit', `Message: "${message}"`, true);
+        // Commit messages are optional per studio policy
+        // Use --allow-empty-message flag when message is empty
+        let commitCmd: string;
+        if (message.trim() === '') {
+          commitCmd = 'git commit --allow-empty-message -m ""';
+          console.log('[Git] Committing with empty message (per studio policy)');
+        } else {
+          const escapedMessage = message.replace(/"/g, '\\"');
+          commitCmd = `git commit -m "${escapedMessage}"`;
+        }
+        
+        await execAsync(commitCmd, { cwd });
+        await this.log('commit', message ? `Message: "${message}"` : 'Empty message commit', true);
         return { success: true };
       } catch (error: any) {
         const errorMsg = error.message || String(error);
