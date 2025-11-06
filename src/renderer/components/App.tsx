@@ -238,14 +238,76 @@ const AppInner: React.FC = () => {
           }, 500);
         }
 
-        // Restore terminals (don't recreate, just log)
+        // Restore terminals
         if (workspace.openTerminals && workspace.openTerminals.length > 0) {
-          console.log('[App] Workspace had', workspace.openTerminals.length, 'terminals (not restored)');
+          setTimeout(() => {
+            try {
+              const tabBarAPI = (window as any).__tabBarAPI;
+              if (!tabBarAPI) {
+                console.error('[App] TabBar API not ready for terminal restore');
+                return;
+              }
+              
+              for (const terminalInfo of workspace.openTerminals) {
+                const terminalId = `terminal-${Date.now()}-${Math.random()}`;
+                
+                // Add terminal tab
+                tabBarAPI.addTab({
+                  id: terminalId,
+                  type: 'terminal',
+                  filePath: terminalId,
+                  fileName: terminalInfo.name || 'bash',
+                  isDirty: false,
+                  content: '',
+                  language: 'terminal',
+                });
+                
+                // Add to terminal tabs state
+                setTerminalTabs(prev => [...prev, { id: terminalId, fileName: terminalInfo.name || 'bash', workspaceRoot }]);
+                console.log('[App] Restored terminal tab:', terminalId);
+              }
+              
+              console.log('[App] Restored', workspace.openTerminals.length, 'terminal tabs');
+            } catch (error) {
+              console.error('[App] Failed to restore terminals:', error);
+            }
+          }, 600);
         }
 
-        // Restore nova prompts (don't recreate, just log)
+        // Restore nova prompts
         if (workspace.openNovaPrompts && workspace.openNovaPrompts.length > 0) {
-          console.log('[App] Workspace had', workspace.openNovaPrompts.length, 'nova prompts (not restored)');
+          setTimeout(() => {
+            try {
+              const tabBarAPI = (window as any).__tabBarAPI;
+              if (!tabBarAPI) {
+                console.error('[App] TabBar API not ready for nova prompt restore');
+                return;
+              }
+              
+              for (const promptInfo of workspace.openNovaPrompts) {
+                const promptId = `nova-prompt-${Date.now()}-${Math.random()}`;
+                
+                // Add nova prompt tab
+                tabBarAPI.addTab({
+                  id: promptId,
+                  type: 'nova-prompt',
+                  filePath: promptId,
+                  fileName: promptInfo.name || 'nova>',
+                  isDirty: false,
+                  content: '',
+                  language: 'plaintext',
+                });
+                
+                // Add to nova prompt tabs state
+                setNovaPromptTabs(prev => [...prev, { id: promptId, fileName: promptInfo.name || 'nova>' }]);
+                console.log('[App] Restored nova prompt tab:', promptId);
+              }
+              
+              console.log('[App] Restored', workspace.openNovaPrompts.length, 'nova prompt tabs');
+            } catch (error) {
+              console.error('[App] Failed to restore nova prompts:', error);
+            }
+          }, 600);
         }
 
         // Restore active tab

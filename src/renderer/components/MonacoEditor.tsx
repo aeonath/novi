@@ -48,6 +48,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [isDirtyFlag, setIsDirtyFlag] = useState(false);
   const [savedContent, setSavedContent] = useState('');
+  const savedContentRef = useRef(''); // Ref for accessing current saved content in closures
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   // Initialize Monaco on mount
@@ -131,7 +132,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       const disposable = editorRef.current.onDidChangeModelContent(() => {
         if (editorRef.current) {
           const currentContent = editorRef.current.getValue();
-          const dirty = currentContent !== savedContent;
+          const dirty = currentContent !== savedContentRef.current; // Use ref to get current value
           
           if (dirty !== isDirtyFlag) {
             setIsDirtyFlag(dirty);
@@ -304,6 +305,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     setCurrentFilePath(filePath);
     setActiveFilePath(filePath);
     setSavedContent(content);
+    savedContentRef.current = content; // Update ref so change listener has current value
     setIsDirtyFlag(false);
     onDirtyChange?.(false);
 
@@ -324,6 +326,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   const markAsSaved = useCallback(() => {
     const content = editorRef.current?.getValue() ?? '';
     setSavedContent(content);
+    savedContentRef.current = content; // Update ref so change listener has current value
     setIsDirtyFlag(false);
     onDirtyChange?.(false);
   }, [onDirtyChange]);
