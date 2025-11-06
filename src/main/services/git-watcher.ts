@@ -139,9 +139,10 @@ export class GitWatcher extends EventEmitter {
     this.watcher.on('unlink', (path) => this.handleFileChange(path, 'deleted'));
 
     // Handle errors
-    this.watcher.on('error', (error) => {
+    this.watcher.on('error', (error: unknown) => {
       console.error('[GitWatcher] Watcher error:', error);
-      this.log('ERROR', error.message);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.log('ERROR', errorMsg);
       this.emit('error', error);
     });
 

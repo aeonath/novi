@@ -460,12 +460,12 @@ void app.whenReady().then(() => {
 
   // Forward git change events to renderer
   gitWatcher.on('change', (event) => {
-    mainWindow?.webContents.send('git-change', event);
+    mainWindowRef?.webContents.send('git-change', event);
   });
 
   gitWatcher.on('batch-change', (files) => {
     console.log('[Git] Batch change event, files:', files.length);
-    mainWindow?.webContents.send('git-batch-change', files);
+    mainWindowRef?.webContents.send('git-batch-change', files);
   });
 
   // Workspace IPC handlers
