@@ -10,10 +10,13 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { appendFile, mkdir } from 'fs/promises';
+import { appendFile, mkdir, readFile, unlink, writeFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import { gitWatcher } from './git-watcher.js';
 import { gitCredentialHelper } from './git-credential-helper.js';
+import { getSshAskpassEnvironment } from './ssh-askpass-helper.js';
 
 const execAsync = promisify(exec);
 
@@ -414,19 +417,112 @@ class GitService {
     }
   }
 
+  private async executeSshOperationWithAskpass(
+    command: string,
+    cwd: string,
+    operationName: string
+  ): Promise<{ success: boolean; error?: string }> {
+    // Set up temporary files for IPC with SSH_ASKPASS script
+    const requestFile = join(tmpdir(), `nova-ssh-request-${Date.now()}.json`);
+    const responseFile = join(tmpdir(), `nova-ssh-response-${Date.now()}.json`);
+    
+    try {
+      // Start polling for SSH passphrase requests (background)
+      void this.pollForSshPassphraseRequest(requestFile, responseFile);
+      
+      // Execute git command with custom SSH_ASKPASS
+      const env = {
+        ...process.env,
+        ...getSshAskpassEnvironment(requestFile, responseFile),
+        GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no',
+      };
+      
+      const result = await execAsync(command, { cwd, env });
+      
+      // Stop polling
+      await this.log(operationName, result.stdout || 'Success', true);
+      console.log(`[Git] ${operationName} succeeded with SSH`);
+      return { success: true };
+      
+    } catch (error: any) {
+      const errorMsg = error.message || String(error);
+      console.error(`[Git] ${operationName} failed:`, errorMsg);
+      await this.log(operationName, `Error: ${errorMsg}`, false);
+      return { success: false, error: errorMsg };
+    } finally {
+      // Clean up temp files
+      try {
+        if (existsSync(requestFile)) await unlink(requestFile);
+        if (existsSync(responseFile)) await unlink(responseFile);
+      } catch {}
+    }
+  }
+
+  private async pollForSshPassphraseRequest(
+    requestFile: string,
+    responseFile: string
+  ): Promise<void> {
+    const startTime = Date.now();
+    const timeout = 300000; // 5 minutes
+    
+    const poll = async () => {
+      if (Date.now() - startTime > timeout) {
+        return; // Timeout
+      }
+      
+      try {
+        if (existsSync(requestFile)) {
+          const requestData = JSON.parse(await readFile(requestFile, 'utf8'));
+          console.log('[Git] SSH passphrase requested:', requestData.prompt);
+          
+          // Request passphrase from user via Nova UI
+          const credentials = await gitCredentialHelper.requestCredentials({
+            type: 'passphrase',
+            prompt: 'SSH Key Passphrase',
+            host: requestData.prompt,
+          });
+          
+          // Write response
+          if (credentials.cancelled || !credentials.password) {
+            await writeFile(responseFile, JSON.stringify({ cancelled: true }));
+          } else {
+            await writeFile(responseFile, JSON.stringify({ 
+              password: credentials.password,
+              cancelled: false 
+            }));
+          }
+          
+          // Delete request file
+          await unlink(requestFile);
+          return; // Done
+        }
+      } catch (err) {
+        console.error('[Git] Error polling for SSH request:', err);
+      }
+      
+      // Continue polling
+      setTimeout(poll, 100);
+    };
+    
+    // Start polling in background (don't await)
+    poll();
+  }
+
   async push(cwd: string): Promise<{ success: boolean; error?: string; needsAuth?: boolean }> {
     return gitWatcher.queueGitOperation('push', async () => {
       // Check remote type first
       const remoteUrl = await this.getRemoteUrl(cwd);
       const isSsh = remoteUrl ? this.isSshRemote(remoteUrl) : false;
       
+      // For SSH, use custom SSH_ASKPASS to capture passphrase in Nova
+      if (isSsh) {
+        console.log('[Git] Using SSH remote, will prompt for passphrase in Nova if needed');
+        return await this.executeSshOperationWithAskpass('git push', cwd, 'push');
+      }
+      
+      // For HTTPS, handle normally
       try {
-        // For SSH, try with normal ssh-agent (don't block SSH_ASKPASS completely)
-        // For HTTPS, block all credential helpers so we can handle auth ourselves
-        const env = isSsh ? {
-          ...process.env,
-          GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no',
-        } : {
+        const env = {
           ...process.env,
           GIT_TERMINAL_PROMPT: '0',
           GCM_INTERACTIVE: 'never',
@@ -440,33 +536,9 @@ class GitService {
       } catch (error: any) {
         const errorMsg = error.message || String(error);
         console.error('[Git] Push failed:', errorMsg);
-        console.error('[Git] Remote type:', isSsh ? 'SSH' : 'HTTPS');
-        console.error('[Git] Remote URL:', remoteUrl);
         
         // Check if this is an authentication error
         if (this.isAuthenticationError(errorMsg)) {
-          // For SSH remotes, try one more time allowing ssh-agent/ssh-askpass
-          if (isSsh) {
-            console.log('[Git] Retrying SSH push with ssh-agent...');
-            try {
-              const retryResult = await execAsync('git push', { 
-                cwd,
-                env: {
-                  ...process.env,
-                  GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no',
-                }
-              });
-              await this.log('push', retryResult.stdout || 'Success with SSH', true);
-              console.log('[Git] Push succeeded with ssh-agent');
-              return { success: true };
-            } catch (retryError: any) {
-              await this.log('push', 'SSH authentication failed', false);
-              return { 
-                success: false, 
-                error: 'SSH authentication failed. Run: ssh-add ~/.ssh/id_rsa (or switch to HTTPS remote)' 
-              };
-            }
-          }
           
           // For HTTPS, try with credentials
           if (DEBUG_GIT_OPERATIONS) {
@@ -546,10 +618,26 @@ class GitService {
 
   async pull(cwd: string): Promise<{ success: boolean; error?: string }> {
     return gitWatcher.queueGitOperation('pull', async () => {
+      // Check remote type first
+      const remoteUrl = await this.getRemoteUrl(cwd);
+      const isSsh = remoteUrl ? this.isSshRemote(remoteUrl) : false;
+      
+      // For SSH, use custom SSH_ASKPASS to capture passphrase in Nova
+      if (isSsh) {
+        console.log('[Git] Using SSH remote, will prompt for passphrase in Nova if needed');
+        return await this.executeSshOperationWithAskpass('git pull', cwd, 'pull');
+      }
+      
+      // For HTTPS, handle normally
       try {
         const result = await execAsync('git pull', { 
           cwd,
-          env: { ...process.env, ...gitCredentialHelper.getCredentialEnvironment() }
+          env: {
+            ...process.env,
+            GIT_TERMINAL_PROMPT: '0',
+            GCM_INTERACTIVE: 'never',
+            GIT_ASKPASS: '',
+          }
         });
         await this.log('pull', result.stdout || 'Success', true);
         return { success: true };
@@ -557,20 +645,8 @@ class GitService {
         const errorMsg = error.message || String(error);
         console.error('[Git] Pull failed:', errorMsg);
         
-        // Check remote type before attempting credential auth
-        const remoteUrl = await this.getRemoteUrl(cwd);
-        const isSsh = remoteUrl ? this.isSshRemote(remoteUrl) : false;
-        
         // Check if this is an authentication error
         if (this.isAuthenticationError(errorMsg)) {
-          // For SSH remotes, credentials won't help - SSH keys need to be set up
-          if (isSsh) {
-            await this.log('pull', 'SSH authentication failed - check SSH keys', false);
-            return { 
-              success: false, 
-              error: 'SSH authentication failed. Ensure your SSH keys are loaded in ssh-agent or use HTTPS remote.' 
-            };
-          }
           
           // For HTTPS, try with credentials
           if (DEBUG_GIT_OPERATIONS) {
