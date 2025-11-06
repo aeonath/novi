@@ -11,6 +11,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { GitStatus, GitFileStatus } from '../../types/global';
 
+// Debug flag - set to true to enable verbose git operation logging
+const DEBUG_GIT_OPERATIONS = false;
+
 export interface GitPanelProps {
   workspaceRoot: string | null;
   onRefreshStatus?: () => void;
@@ -51,7 +54,9 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   useEffect(() => {
     if (!workspaceRoot || !window.api?.gitStartWatching || !window.api?.gitOnChange) return;
     
-    console.log('[GitPanel] Starting event-driven Git monitoring for:', workspaceRoot);
+    if (DEBUG_GIT_OPERATIONS) {
+      console.log('[GitPanel] Starting event-driven Git monitoring for:', workspaceRoot);
+    }
     
     // Clear explicitly unstaged files when workspace changes
     setExplicitlyUnstagedFiles(new Set());
@@ -70,7 +75,9 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     
     // Listen for file change events
     const handleGitChange = (event: { type: string; path: string }) => {
-      console.log('[GitPanel] Change detected:', event.type, '-', event.path);
+      if (DEBUG_GIT_OPERATIONS) {
+        console.log('[GitPanel] Change detected:', event.type, '-', event.path);
+      }
       // Call refreshStatus directly to avoid closure issues
       if (workspaceRoot && window.api?.gitManualRefresh) {
         window.api.gitManualRefresh(workspaceRoot)
@@ -90,7 +97,9 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     
     return () => {
       clearTimeout(initTimer);
-      console.log('[GitPanel] Cleaning up Git watcher');
+      if (DEBUG_GIT_OPERATIONS) {
+        console.log('[GitPanel] Cleaning up Git watcher');
+      }
       window.api?.gitRemoveChangeListener?.();
       window.api?.gitStopWatching?.().catch((err) => {
         console.error('[GitPanel] Failed to stop git watcher:', err);
@@ -107,7 +116,9 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     const unstagedFiles = gitStatus.files.filter((f) => !f.staged && !explicitlyUnstagedFiles.has(f.path));
     
     if (unstagedFiles.length > 0) {
-      console.log('[GitPanel] Auto-staging', unstagedFiles.length, 'unstaged files:', unstagedFiles.map(f => f.path));
+      if (DEBUG_GIT_OPERATIONS) {
+        console.log('[GitPanel] Auto-staging', unstagedFiles.length, 'unstaged files:', unstagedFiles.map(f => f.path));
+      }
       
       // Stage all unstaged files in parallel
       Promise.all(
@@ -117,7 +128,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
             if (!success) {
               console.error('[GitPanel] Failed to auto-stage file:', file.path);
               setError(`Failed to stage: ${file.path}`);
-            } else {
+            } else if (DEBUG_GIT_OPERATIONS) {
               console.log('[GitPanel] Successfully auto-staged:', file.path);
             }
             return success;
@@ -129,7 +140,9 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
         })
       ).then((results) => {
         const successCount = results.filter(r => r).length;
-        console.log(`[GitPanel] Auto-staging complete: ${successCount}/${unstagedFiles.length} succeeded`);
+        if (DEBUG_GIT_OPERATIONS) {
+          console.log(`[GitPanel] Auto-staging complete: ${successCount}/${unstagedFiles.length} succeeded`);
+        }
         
         // Refresh status after staging
         refreshStatus();

@@ -17,6 +17,9 @@ import { gitCredentialHelper } from './git-credential-helper.js';
 
 const execAsync = promisify(exec);
 
+// Debug flag - set to true to enable verbose git operation logging
+const DEBUG_GIT_OPERATIONS = false;
+
 export interface GitStatus {
   isRepo: boolean;
   branch: string | null;
@@ -160,7 +163,9 @@ class GitService {
       try {
         // Use -- separator to indicate end of options and start of paths
         // This handles special characters and spaces more reliably
-        console.log(`[GitService] Staging file: ${filePath} in ${cwd}`);
+        if (DEBUG_GIT_OPERATIONS) {
+          console.log(`[GitService] Staging file: ${filePath} in ${cwd}`);
+        }
         await execAsync(`git add -- "${filePath}"`, { cwd });
         
         // Verify the file was actually staged by checking git status
@@ -170,7 +175,9 @@ class GitService {
         
         if (statusLines.length === 0) {
           // File is not in git status at all - might already be committed
-          console.log(`[GitService] File not in git status (may be unchanged): ${filePath}`);
+          if (DEBUG_GIT_OPERATIONS) {
+            console.log(`[GitService] File not in git status (may be unchanged): ${filePath}`);
+          }
           await this.log('stageFile', filePath, true);
           return true;
         }
@@ -187,7 +194,9 @@ class GitService {
         }
         
         await this.log('stageFile', filePath, true);
-        console.log(`[GitService] Successfully staged (${statusCode}): ${filePath}`);
+        if (DEBUG_GIT_OPERATIONS) {
+          console.log(`[GitService] Successfully staged (${statusCode}): ${filePath}`);
+        }
         return true;
       } catch (error: any) {
         const errorMsg = error.message || String(error);
@@ -201,10 +210,14 @@ class GitService {
   async unstageFile(cwd: string, filePath: string): Promise<boolean> {
     return gitWatcher.queueGitOperation('unstage-file', async () => {
       try {
-        console.log(`[GitService] Unstaging file: ${filePath} in ${cwd}`);
+        if (DEBUG_GIT_OPERATIONS) {
+          console.log(`[GitService] Unstaging file: ${filePath} in ${cwd}`);
+        }
         await execAsync(`git reset HEAD -- "${filePath}"`, { cwd });
         await this.log('unstageFile', filePath, true);
-        console.log(`[GitService] Successfully unstaged: ${filePath}`);
+        if (DEBUG_GIT_OPERATIONS) {
+          console.log(`[GitService] Successfully unstaged: ${filePath}`);
+        }
         return true;
       } catch (error: any) {
         const errorMsg = error.message || String(error);
@@ -265,7 +278,9 @@ class GitService {
       return { success: false, error };
     }
 
-    console.log('[Git] Pre-commit check passed, proceeding with commit');
+    if (DEBUG_GIT_OPERATIONS) {
+      console.log('[Git] Pre-commit check passed, proceeding with commit');
+    }
 
     return gitWatcher.queueGitOperation('commit', async () => {
       try {
@@ -274,7 +289,9 @@ class GitService {
         let commitCmd: string;
         if (message.trim() === '') {
           commitCmd = 'git commit --allow-empty-message -m ""';
-          console.log('[Git] Committing with empty message (per studio policy)');
+          if (DEBUG_GIT_OPERATIONS) {
+            console.log('[Git] Committing with empty message (per studio policy)');
+          }
         } else {
           const escapedMessage = message.replace(/"/g, '\\"');
           commitCmd = `git commit -m "${escapedMessage}"`;
@@ -384,7 +401,9 @@ class GitService {
         
         // Check if this is an authentication error
         if (this.isAuthenticationError(errorMsg)) {
-          console.log('[Git] Push failed with authentication error, requesting credentials');
+          if (DEBUG_GIT_OPERATIONS) {
+            console.log('[Git] Push failed with authentication error, requesting credentials');
+          }
           await this.log('push', 'Authentication required', false);
           
           try {
@@ -471,7 +490,9 @@ class GitService {
         
         // Check if this is an authentication error
         if (this.isAuthenticationError(errorMsg)) {
-          console.log('[Git] Pull failed with authentication error, requesting credentials');
+          if (DEBUG_GIT_OPERATIONS) {
+            console.log('[Git] Pull failed with authentication error, requesting credentials');
+          }
           await this.log('pull', 'Authentication required', false);
           
           try {

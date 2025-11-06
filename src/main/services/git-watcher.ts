@@ -14,6 +14,9 @@ import { EventEmitter } from 'events';
 import { appendFile, mkdir } from 'fs/promises';
 import { join, relative } from 'path';
 
+// Debug flag - set to true to enable verbose git operation logging
+const DEBUG_GIT_OPERATIONS = false;
+
 interface QueuedOperation<T> {
   operation: () => Promise<T>;
   resolve: (value: T) => void;
@@ -45,7 +48,9 @@ class AsyncQueue {
 
     while (this.queue.length > 0) {
       const item = this.queue.shift()!;
-      console.log(`[GitQueue] Processing: ${item.name}`);
+      if (DEBUG_GIT_OPERATIONS) {
+        console.log(`[GitQueue] Processing: ${item.name}`);
+      }
 
       try {
         const result = await item.operation();
@@ -113,7 +118,9 @@ export class GitWatcher extends EventEmitter {
 
     this.watchedPath = repoPath;
 
-    console.log('[GitWatcher] Starting watch on:', repoPath);
+    if (DEBUG_GIT_OPERATIONS) {
+      console.log('[GitWatcher] Starting watch on:', repoPath);
+    }
     await this.log('WATCH_START', repoPath);
 
     // Watch for file changes, ignoring .git directory and node_modules
@@ -154,7 +161,9 @@ export class GitWatcher extends EventEmitter {
    */
   async unwatch(): Promise<void> {
     if (this.watcher) {
-      console.log('[GitWatcher] Stopping watch on:', this.watchedPath);
+      if (DEBUG_GIT_OPERATIONS) {
+        console.log('[GitWatcher] Stopping watch on:', this.watchedPath);
+      }
       await this.log('WATCH_STOP', this.watchedPath || 'unknown');
       
       await this.watcher.close();
@@ -180,7 +189,9 @@ export class GitWatcher extends EventEmitter {
     // Get relative path from repo root
     const relativePath = relative(this.watchedPath, absolutePath);
     
-    console.log(`[GitWatcher] Change detected: ${changeType} - ${relativePath}`);
+    if (DEBUG_GIT_OPERATIONS) {
+      console.log(`[GitWatcher] Change detected: ${changeType} - ${relativePath}`);
+    }
     this.log('FILE_CHANGE', `${changeType}: ${relativePath}`);
 
     // Track changed file
@@ -200,7 +211,9 @@ export class GitWatcher extends EventEmitter {
 
     this.changeDebounceTimer = setTimeout(() => {
       const changes = Array.from(this.changedFiles);
-      console.log(`[GitWatcher] Batch change complete: ${changes.length} files`);
+      if (DEBUG_GIT_OPERATIONS) {
+        console.log(`[GitWatcher] Batch change complete: ${changes.length} files`);
+      }
       this.log('BATCH_CHANGE', `${changes.length} files: ${changes.join(', ')}`);
       
       this.emit('batch-change', changes);
