@@ -212,7 +212,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE', onComman
   return (
     <div style={styles.container}>
       <div style={styles.leftSection}>
-        <div style={styles.title}>{title}</div>
+        <div style={styles.logoContainer}>
+          <img src="assets/nova_logo.png" alt="Nova IDE" style={styles.logo} />
+        </div>
         <div style={styles.menuBar}>
           {Object.keys(menus).map((menuName) => (
             <div
@@ -363,13 +365,19 @@ const styles = {
     flex: 1,
     // Keep this draggable - we'll disable drag on interactive elements
   },
-  title: {
-    fontSize: '12px',
-    fontWeight: 400,
-    color: '#cccccc',
+  logoContainer: {
+    display: 'flex',
+    alignItems: 'center',
     paddingRight: '12px',
     borderRight: '1px solid #3e3e42',
-    // Title area is draggable (inherits from container)
+    height: '32px',
+    // Logo area is draggable (inherits from container)
+  },
+  logo: {
+    height: '20px',
+    width: 'auto',
+    objectFit: 'contain',
+    userSelect: 'none',
   },
   menuBar: {
     display: 'flex',
