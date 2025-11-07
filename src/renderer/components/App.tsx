@@ -135,8 +135,15 @@ const AppInner: React.FC = () => {
   // Load workspace on startup
   useEffect(() => {
     const loadWorkspace = async () => {
-      if (!window.api?.workspaceLoad) {
+      if (!window.api?.workspaceLoad || !window.api?.getCommandLineArgs) {
         console.warn('[App] Workspace API not available');
+        return;
+      }
+
+      // Check for --clean flag to skip workspace restoration
+      const args = await window.api.getCommandLineArgs();
+      if (args.includes('--clean')) {
+        console.log('[App] --clean flag detected, skipping workspace restoration');
         return;
       }
 

@@ -141,6 +141,9 @@ void app.whenReady().then(() => {
   // IPC handler for app version
   ipcMain.handle('get-version', () => app.getVersion());
 
+  // IPC handler for command-line args
+  ipcMain.handle('get-command-line-args', () => process.argv);
+
   // Generic settings IPC
   ipcMain.handle('get-setting', (_e, key: string, defaults?: unknown) => getSetting(key, defaults));
   ipcMain.handle('set-setting', (_e, key: string, value: unknown) => setSetting(key, value));
@@ -454,7 +457,7 @@ void app.whenReady().then(() => {
 
   ipcMain.handle('git-manual-refresh', async (_e, cwd: string) => {
     try {
-      console.log('[Git] Manual refresh requested');
+      // Removed noisy console log - this happens frequently via event-driven updates
       return await gitService.getStatus(cwd);
     } catch (error) {
       logError('Failed to manually refresh git status', error as Error);

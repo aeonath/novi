@@ -38,7 +38,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
     if (!workspaceRoot || !window.api?.gitManualRefresh) return;
 
     try {
-      console.log('[GitPanel] Manual refresh - Fetching Git status for:', workspaceRoot);
+      // Quietly fetch git status - event-driven updates happen frequently
       const status = await window.api.gitManualRefresh(workspaceRoot);
       setGitStatus(status);
       setError(null);
@@ -143,11 +143,11 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
           console.log(`[GitPanel] Auto-staging complete: ${successCount}/${unstagedFiles.length} succeeded`);
         }
         
-        // Refresh status after staging
-        refreshStatus();
+        // NOTE: No need to refresh here - the git watcher will automatically
+        // detect the staging changes and trigger a refresh via the event system
       });
     }
-  }, [gitStatus?.files.length, workspaceRoot, explicitlyUnstagedFiles, refreshStatus]);
+  }, [gitStatus?.files.length, workspaceRoot, explicitlyUnstagedFiles]);
 
   // Listen for credential requests from git operations
   useEffect(() => {

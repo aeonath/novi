@@ -90,6 +90,7 @@ declare global {
   interface Window {
     api: {
       getVersion: () => Promise<string>;
+      getCommandLineArgs: () => Promise<string[]>;
       ping: () => Promise<string>;
       getSetting: <T = unknown>(key: string, defaults?: T) => Promise<T | undefined>;
       setSetting: (key: string, value: unknown) => Promise<unknown>;

@@ -9,6 +9,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('api', {
   getVersion: () => ipcRenderer.invoke('get-version'),
+  getCommandLineArgs: () => ipcRenderer.invoke('get-command-line-args'),
   ping: () => Promise.resolve('pong'),
   getSetting: <T = unknown>(key: string, defaults?: T) =>
     ipcRenderer.invoke('get-setting', key, defaults),
