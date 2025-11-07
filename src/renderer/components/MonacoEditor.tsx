@@ -50,7 +50,13 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   const [isDirtyFlag, setIsDirtyFlag] = useState(false);
   const [savedContent, setSavedContent] = useState('');
   const savedContentRef = useRef(''); // Ref for accessing current saved content in closures
+  const onDirtyChangeRef = useRef(onDirtyChange); // Ref for accessing current callback in closures
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // Update the onDirtyChange ref whenever the prop changes
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  }, [onDirtyChange]);
 
   // Initialize Monaco on mount
   useEffect(() => {
@@ -137,7 +143,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
           
           if (dirty !== isDirtyFlag) {
             setIsDirtyFlag(dirty);
-            onDirtyChange?.(dirty);
+            onDirtyChangeRef.current?.(dirty); // Use ref to get current callback
           }
         }
       });

@@ -161,6 +161,8 @@ interface TabItemProps {
 const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose }) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  console.log('[TabItem] Rendering:', tab.fileName, 'isDirty:', tab.isDirty, 'type:', tab.type);
+
   return (
     <div
       style={{
