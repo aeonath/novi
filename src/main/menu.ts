@@ -37,6 +37,7 @@ export type MenuCommand =
   | 'nova-prompt'
   | 'nova-agile'
   | 'command-palette'
+  | 'reset-workspace'
   | 'about'
   | 'documentation'
   | 'check-updates';
@@ -218,6 +219,11 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
     {
       label: 'Nova',
       submenu: [
+        {
+          label: 'Reset Workspace',
+          click: () => executeCommand('reset-workspace', mainWindow),
+        },
+        { type: 'separator' },
         {
           label: 'New Terminal',
           accelerator: 'CmdOrCtrl+T',

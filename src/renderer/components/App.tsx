@@ -995,6 +995,72 @@ const AppInner: React.FC = () => {
         // TODO: Implement Command Palette
         console.log('[App] Command Palette not yet implemented');
         break;
+      case 'reset-workspace':
+        {
+          console.log('[App] Resetting workspace');
+          
+          // Get all tabs
+          const tabBarAPI = (window as any).__tabBarAPI;
+          if (!tabBarAPI) {
+            console.warn('[App] TabBar API not available');
+            break;
+          }
+          
+          const allTabs = tabBarAPI.getTabs();
+          
+          // Check for any dirty tabs
+          const dirtyTabs = allTabs.filter((tab: any) => tab.type === 'file' && tab.isDirty);
+          
+          if (dirtyTabs.length > 0) {
+            // Prompt user to save each dirty file
+            for (const tab of dirtyTabs) {
+              const shouldSave = await new Promise<boolean>((resolve) => {
+                setSavePrompt({
+                  show: true,
+                  fileName: tab.fileName,
+                  tabId: tab.id,
+                  resolve,
+                });
+              });
+              
+              if (shouldSave) {
+                // Save the file
+                const monacoEditorAPI = (window as any).__monacoEditorAPI;
+                if (monacoEditorAPI) {
+                  const content = monacoEditorAPI.getValue();
+                  if (tab.filePath) {
+                    await window.api?.writeFile(tab.filePath, content);
+                    console.log('[App] Saved file:', tab.filePath);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Close all tabs
+          for (const tab of allTabs) {
+            tabBarAPI.removeTab(tab.id);
+          }
+          
+          // Clear terminal and nova prompt tabs state
+          setTerminalTabs([]);
+          setNovaPromptTabs([]);
+          setActiveTab(null);
+          
+          // Close file tree
+          setWorkspaceRoot(null);
+          
+          // Show welcome screen
+          setShowWelcome(true);
+          
+          // Stop Git watching if active
+          if (window.api?.gitStopWatching) {
+            await window.api.gitStopWatching();
+          }
+          
+          console.log('[App] Workspace reset complete');
+        }
+        break;
       case 'about':
         // TODO: Implement About dialog
         console.log('[App] About dialog not yet implemented');
@@ -1010,7 +1076,7 @@ const AppInner: React.FC = () => {
       default:
         console.warn('[App] Unknown menu command:', command);
     }
-  }, [actionContext, untitledCounter]);
+  }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt]);
 
   // Terminal data listener is set up globally at the top of this component (line 40)
   // Removed duplicate listener that was causing periodic redraws

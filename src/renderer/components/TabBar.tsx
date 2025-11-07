@@ -161,8 +161,6 @@ interface TabItemProps {
 const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  console.log('[TabItem] Rendering:', tab.fileName, 'isDirty:', tab.isDirty, 'type:', tab.type);
-
   return (
     <div
       style={{
@@ -245,19 +243,18 @@ const styles = {
   },
   closeButton: {
     marginLeft: '8px',
-    width: '18px',
-    height: '18px',
     border: 'none',
     background: 'transparent',
     color: '#cccccc',
-    fontSize: '18px',
+    fontSize: '16px',
+    lineHeight: '13px',
     cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     padding: 0,
     opacity: 1,
     transition: 'opacity 0.15s ease',
+    verticalAlign: 'middle',
+    position: 'relative' as const,
+    top: '2px'
   },
   closeButtonVisible: {
     opacity: 1,
