@@ -38,6 +38,7 @@ export type MenuCommand =
   | 'nova-agile'
   | 'command-palette'
   | 'reset-workspace'
+  | 'toggle-devtools'
   | 'about'
   | 'documentation'
   | 'check-updates';
@@ -239,6 +240,12 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           label: 'Command Palette',
           accelerator: 'CmdOrCtrl+P',
           click: () => executeCommand('command-palette', mainWindow),
+        },
+        { type: 'separator' },
+        {
+          label: 'Debug',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          click: () => executeCommand('toggle-devtools', mainWindow),
         },
         { type: 'separator' },
         {

@@ -35,7 +35,14 @@ async function handleMenuCommand(command: MenuCommand, window: BrowserWindow): P
   // Record command execution for stats
   commandStatsService.recordCommand(command);
   
-  // Send command to renderer
+  // Handle DevTools toggle directly in main process
+  if (command === 'toggle-devtools') {
+    window.webContents.toggleDevTools();
+    logInfo('[Menu] DevTools toggled');
+    return;
+  }
+  
+  // Send other commands to renderer
   window.webContents.send('menu-command', command);
 }
 
