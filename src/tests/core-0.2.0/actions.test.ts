@@ -20,7 +20,7 @@ describe('Actions', () => {
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(7); // Core IDE actions (editor commands removed for simplicity)
+      expect(actions).toHaveLength(8); // Core IDE actions including git-refresh
       expect(actions[0].id).toBe('open-file');
       expect(actions[0].label).toBe('Open File');
       expect(actions[1].id).toBe('save-file');
@@ -35,6 +35,8 @@ describe('Actions', () => {
       expect(actions[5].label).toBe('New Terminal');
       expect(actions[6].id).toBe('settings');
       expect(actions[6].label).toBe('Settings');
+      expect(actions[7].id).toBe('git-refresh');
+      expect(actions[7].label).toBe('Refresh Git Status');
     });
 
     it('should call onOpenFile handler when Open File action is executed', () => {
@@ -90,7 +92,7 @@ describe('Actions', () => {
 
       const actions = createDefaultActions(context);
 
-      expect(actions).toHaveLength(7); // Core IDE actions (editor commands removed for simplicity)
+      expect(actions).toHaveLength(8); // Core IDE actions including git-refresh
       // Should not throw when handlers are missing
       actions.forEach((action) => {
         expect(() => {

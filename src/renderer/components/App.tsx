@@ -210,7 +210,7 @@ const AppInner: React.FC = () => {
                   const fileData = await window.api.readFile(file.filePath);
                   const fileName = file.filePath.split(/[\\/]/).pop() || 'untitled';
                   
-                  // Add tab
+                  // Add tab (but don't make it active - user will click to activate)
                   tabBarAPI.addTab({
                     id: `tab-${Date.now()}-${i}`,
                     type: 'file',
@@ -221,11 +221,8 @@ const AppInner: React.FC = () => {
                     language: 'typescript',
                   });
                   
-                  // Load into Monaco if this is the first file (will be active)
-                  if (i === 0) {
-                    monacoAPI.loadFile(file.filePath, fileData.content);
-                    console.log('[App] Loaded first file into Monaco:', fileName);
-                  }
+                  // NOTE: Don't load into Monaco or set as active - show home screen instead
+                  // User will click the tab to activate it
                   
                   successfullyLoadedCount++;
                 } catch (error) {
@@ -234,13 +231,11 @@ const AppInner: React.FC = () => {
                 }
               }
               
-              // Only hide welcome screen if we successfully loaded at least one file
-              if (successfullyLoadedCount > 0) {
-                setShowWelcome(false);
-                console.log('[App] Restored', successfullyLoadedCount, 'file tabs');
-              } else {
-                console.warn('[App] No files could be restored, keeping welcome screen');
-              }
+              // Keep welcome screen visible even if tabs were restored
+              // User will click a tab to hide it and show the editor
+              console.log('[App] Restored', successfullyLoadedCount, 'file tabs (home screen still visible)');
+              setShowWelcome(true);
+              setActiveTab(null);
             } catch (error) {
               console.error('[App] Critical error during workspace file restoration:', error);
               // Don't crash the app, just log the error
@@ -915,6 +910,9 @@ const AppInner: React.FC = () => {
           const fileName = `Untitled-${untitledCounter}`;
           const tabId = `untitled-${untitledCounter}-${Date.now()}`;
           
+          // Hide welcome screen
+          setShowWelcome(false);
+          
           // Add tab to TabBar
           if ((window as any).__tabBarAPI) {
             (window as any).__tabBarAPI.addTab({
@@ -922,9 +920,17 @@ const AppInner: React.FC = () => {
               type: 'file',
               filePath: '', // Empty path indicates untitled file
               fileName: fileName,
-              isDirty: false,
+              isDirty: true, // Mark as dirty since it's a new unsaved file
               content: '',
               language: 'plaintext',
+            });
+            
+            // Set as active tab
+            setActiveTab({
+              id: tabId,
+              type: 'file',
+              filePath: '',
+              fileName: fileName,
             });
           }
           
@@ -1037,6 +1043,22 @@ const AppInner: React.FC = () => {
             }
           }
           
+          // Stop Git watching if active
+          if (window.api?.gitStopWatching) {
+            await window.api.gitStopWatching();
+          }
+          
+          // Hide Git panel and close file tree
+          setShowGitPanel(false);
+          setWorkspaceRoot(null);
+          
+          // Reset FileTree internal state
+          const fileTreeAPI = (window as any).__fileTreeAPI;
+          if (fileTreeAPI?.reset) {
+            fileTreeAPI.reset();
+            console.log('[App] FileTree reset');
+          }
+          
           // Close all tabs
           for (const tab of allTabs) {
             tabBarAPI.removeTab(tab.id);
@@ -1047,16 +1069,11 @@ const AppInner: React.FC = () => {
           setNovaPromptTabs([]);
           setActiveTab(null);
           
-          // Close file tree
-          setWorkspaceRoot(null);
+          // Clear Git status
+          setGitStatus(null);
           
           // Show welcome screen
           setShowWelcome(true);
-          
-          // Stop Git watching if active
-          if (window.api?.gitStopWatching) {
-            await window.api.gitStopWatching();
-          }
           
           console.log('[App] Workspace reset complete');
         }
@@ -1076,7 +1093,7 @@ const AppInner: React.FC = () => {
       default:
         console.warn('[App] Unknown menu command:', command);
     }
-  }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt]);
+  }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt, setShowGitPanel, setGitStatus]);
 
   // Terminal data listener is set up globally at the top of this component (line 40)
   // Removed duplicate listener that was causing periodic redraws
@@ -1250,6 +1267,9 @@ const AppInner: React.FC = () => {
               onTabSwitch={(tab) => {
                 console.log('[App] Tab switched to:', tab.fileName, 'type:', tab.type);
                 setActiveTab({ id: tab.id, type: tab.type });
+                
+                // Hide welcome screen when a tab is clicked
+                setShowWelcome(false);
                 
                 if (tab.type === 'file') {
                   // Load the tab's content into Monaco

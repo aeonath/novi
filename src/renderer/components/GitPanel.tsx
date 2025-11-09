@@ -558,10 +558,10 @@ const GitFileItem: React.FC<GitFileItemProps> = ({ file, onAction, actionLabel, 
 
   return (
     <div
-      style={{
-        ...styles.fileItem,
-        backgroundColor: isHovered ? '#2a2d2e' : 'transparent',
-      }}
+        style={{
+          ...styles.fileItem,
+          backgroundColor: isHovered ? '#2a2d2e' : 'transparent',
+        }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

@@ -220,11 +220,6 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
       label: 'Nova',
       submenu: [
         {
-          label: 'Reset Workspace',
-          click: () => executeCommand('reset-workspace', mainWindow),
-        },
-        { type: 'separator' },
-        {
           label: 'New Terminal',
           accelerator: 'CmdOrCtrl+T',
           click: () => executeCommand('new-terminal', mainWindow),
@@ -244,6 +239,11 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           label: 'Command Palette',
           accelerator: 'CmdOrCtrl+P',
           click: () => executeCommand('command-palette', mainWindow),
+        },
+        { type: 'separator' },
+        {
+          label: 'Reset Workspace',
+          click: () => executeCommand('reset-workspace', mainWindow),
         },
       ],
     },
@@ -277,6 +277,18 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
  */
 export function buildMenu(mainWindow: BrowserWindow): Menu {
   const template = createMenuTemplate(mainWindow);
+  
+  // Debug: Log all top-level menu items
+  console.log('[Menu] Top-level menus:', template.map((item: any) => item.label));
+  
+  // Debug: Log the Nova menu structure
+  const novaMenu = template.find((item: any) => item.label === 'Nova');
+  if (novaMenu && novaMenu.submenu) {
+    console.log('[Menu] Nova submenu items:', (novaMenu.submenu as any[]).map(item => item.label || item.type));
+  } else {
+    console.warn('[Menu] Nova menu not found in template!');
+  }
+  
   const menu = Menu.buildFromTemplate(template);
   
   logInfo('[Menu] Application menu built');

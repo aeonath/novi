@@ -66,6 +66,18 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.removeAllListeners('git-credential-request');
   },
   gitProvideCredentials: (response: any) => ipcRenderer.invoke('git-credential-response', response),
+  
+  // File tree watcher
+  fileTreeStartWatching: (dirPath: string) => ipcRenderer.invoke('filetree-start-watching', dirPath),
+  fileTreeStopWatching: () => ipcRenderer.invoke('filetree-stop-watching'),
+  fileTreeOnChange: (callback: (event: { type: string; path: string }) => void) => {
+    const handler = (_event: any, data: { type: string; path: string }) => callback(data);
+    ipcRenderer.on('filetree-change', handler);
+  },
+  fileTreeRemoveChangeListener: () => {
+    ipcRenderer.removeAllListeners('filetree-change');
+  },
+  
   // Workspace operations
   workspaceSave: (state: any) => ipcRenderer.invoke('workspace-save', state),
   workspaceLoad: () => ipcRenderer.invoke('workspace-load'),

@@ -114,6 +114,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE', onComman
       { label: 'Nova Agile', command: 'nova-agile', shortcut: 'Ctrl+Shift+A' },
       { separator: true },
       { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P' },
+      { separator: true },
+      { label: 'Reset Workspace', command: 'reset-workspace' },
     ],
     Help: [
       { label: 'About Nova', command: 'about' },

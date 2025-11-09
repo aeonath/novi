@@ -304,12 +304,74 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     }
   }, [onDirectoryOpen]);
 
+  // Reset the file tree to initial state
+  const resetFileTree = useCallback(() => {
+    setRootPath(null);
+    setTree([]);
+    setExpandedDirs(new Set());
+    setContextMenu(null);
+    setNewFileInput(null);
+  }, []);
+
+  // Watch for file system changes
+  useEffect(() => {
+    if (!rootPath || !window.api?.fileTreeStartWatching) return;
+
+    // Start watching the directory
+    window.api.fileTreeStartWatching(rootPath);
+    console.log('[FileTree] Started watching:', rootPath);
+
+    // Listen for file tree changes
+    const handleFileTreeChange = async (event: { type: string; path: string }) => {
+      console.log('[FileTree] File system change detected:', event.type, event.path);
+      
+      // Get the directory that needs to be refreshed
+      const pathParts = event.path.split(/[/\\]/);
+      pathParts.pop(); // Remove file name to get directory
+      const dirPath = pathParts.join('/');
+      
+      // If the change is in the root directory, refresh root
+      if (dirPath === rootPath || event.path.startsWith(rootPath)) {
+        // Refresh the affected directory
+        if (event.type === 'add' || event.type === 'unlink' || event.type === 'addDir' || event.type === 'unlinkDir') {
+          // Check if this directory is expanded (if it's not root)
+          const isRootChange = dirPath === rootPath;
+          const isExpanded = isRootChange || expandedDirs.has(dirPath);
+          
+          if (isRootChange) {
+            // Refresh root
+            await loadDirectory(rootPath);
+          } else if (isExpanded) {
+            // Refresh the parent directory
+            await loadDirectory(dirPath, dirPath);
+          }
+        }
+      }
+    };
+
+    if (window.api.fileTreeOnChange) {
+      window.api.fileTreeOnChange(handleFileTreeChange);
+    }
+
+    // Cleanup
+    return () => {
+      if (window.api?.fileTreeStopWatching) {
+        window.api.fileTreeStopWatching();
+        console.log('[FileTree] Stopped watching');
+      }
+      if (window.api?.fileTreeRemoveChangeListener) {
+        window.api.fileTreeRemoveChangeListener();
+      }
+    };
+  }, [rootPath, expandedDirs]);
+
   // Expose methods for compatibility
   useEffect(() => {
     (window as any).__fileTreeAPI = {
       openDirectory,
       loadDirectory: loadDirectoryProgrammatically,
       refresh: () => rootPath && loadDirectory(rootPath),
+      reset: resetFileTree,
     };
     
     // Signal that FileTree is ready for use
@@ -318,7 +380,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     return () => {
       delete (window as any).__fileTreeAPI;
     };
-  }, [openDirectory, loadDirectoryProgrammatically, rootPath]);
+  }, [openDirectory, loadDirectoryProgrammatically, rootPath, resetFileTree]);
 
   const contextValue: FileTreeContextValue = {
     expandedDirs,

@@ -16,6 +16,7 @@ import { gitWatcher } from './services/git-watcher';
 import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
+import { fileTreeWatcher } from './services/file-tree-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
 import { commandStatsService } from './services/command-stats-service';
 
@@ -84,6 +85,10 @@ function createWindow(): void {
   // Initialize application menu
   setMenuCommandHandler(handleMenuCommand);
   initializeMenu(mainWindow);
+  
+  // For frameless windows on Windows, make menu accessible via Alt key
+  mainWindow.setAutoHideMenuBar(false);
+  mainWindow.setMenuBarVisibility(true);
 
   // Show window when ready to prevent white screen
   mainWindow.once('ready-to-show', () => {
@@ -214,8 +219,8 @@ void app.whenReady().then(() => {
     const result = await dialog.showOpenDialog(mainWindowRef, {
       properties: ['openFile'],
       filters: [
-        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'yml', 'yaml'] },
         { name: 'All Files', extensions: ['*'] },
+        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'yml', 'yaml'] },
       ],
     });
     if (result.canceled || result.filePaths.length === 0) {
@@ -485,6 +490,32 @@ void app.whenReady().then(() => {
   gitWatcher.on('batch-change', (files) => {
     console.log('[Git] Batch change event, files:', files.length);
     mainWindowRef?.webContents.send('git-batch-change', files);
+  });
+
+  // File tree watcher IPC handlers
+  ipcMain.handle('filetree-start-watching', async (_e, dirPath: string) => {
+    try {
+      fileTreeWatcher.watch(dirPath);
+      logInfo(`Started watching file tree: ${dirPath}`);
+    } catch (error) {
+      logError('Failed to start file tree watcher', error as Error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filetree-stop-watching', async () => {
+    try {
+      fileTreeWatcher.stop();
+      logInfo('Stopped watching file tree');
+    } catch (error) {
+      logError('Failed to stop file tree watcher', error as Error);
+      throw error;
+    }
+  });
+
+  // Forward file tree change events to renderer
+  fileTreeWatcher.on('change', (event) => {
+    mainWindowRef?.webContents.send('filetree-change', event);
   });
 
   // Workspace IPC handlers
