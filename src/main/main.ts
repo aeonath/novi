@@ -395,10 +395,6 @@ void app.whenReady().then(() => {
     }
     const result = await dialog.showOpenDialog(mainWindowRef, {
       properties: ['openFile'],
-      filters: [
-        { name: 'All Files', extensions: ['*'] },
-        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'yml', 'yaml', 'ly'] },
-      ],
     });
     if (result.canceled || result.filePaths.length === 0) {
       return null;
