@@ -85,6 +85,7 @@ contextBridge.exposeInMainWorld('api', {
   workspaceGetPath: () => ipcRenderer.invoke('workspace-get-path'),
   // Extension loading
   loadLyricExtension: () => ipcRenderer.invoke('load-lyric-extension'),
+  loadAllExtensions: () => ipcRenderer.invoke('load-all-extensions'),
   // Window controls
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),

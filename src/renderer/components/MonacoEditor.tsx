@@ -441,31 +441,40 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     // Signal that Monaco is ready for use
     markReady('monaco-ready');
     
-    // Load Lyric syntax extension (from main process via IPC)
-    if (window.api?.loadLyricExtension) {
-      window.api.loadLyricExtension().then((result: any) => {
-        if (result.success) {
-          console.log('[MonacoEditor] Lyric extension loaded successfully');
-          // Register the language with Monaco
-          if (result.languageId && result.extensions) {
-            monaco.languages.register({
-              id: result.languageId,
-              extensions: result.extensions,
-              aliases: result.aliases || [],
-            });
-            
-            // Set up the tokenizer if grammar is provided
-            if (result.grammar) {
-              monaco.languages.setMonarchTokensProvider(result.languageId, result.grammar);
+    // Load all syntax extensions (from main process via IPC)
+    if (window.api?.loadAllExtensions) {
+      window.api.loadAllExtensions().then((result: any) => {
+        if (result.success && result.languages && result.languages.length > 0) {
+          console.log(`[MonacoEditor] Loading ${result.languages.length} syntax extension(s)...`);
+          
+          // Register each language with Monaco
+          result.languages.forEach((lang: any) => {
+            try {
+              monaco.languages.register({
+                id: lang.languageId,
+                extensions: lang.extensions,
+                aliases: lang.aliases || [],
+              });
+              
+              // Set up the tokenizer if grammar is provided
+              if (lang.grammar) {
+                monaco.languages.setMonarchTokensProvider(lang.languageId, lang.grammar);
+              }
+              
+              console.log(`[MonacoEditor] Registered language '${lang.languageId}' for extensions: ${lang.extensions.join(', ')}`);
+            } catch (error) {
+              console.error(`[MonacoEditor] Failed to register language '${lang.languageId}':`, error);
             }
-            
-            console.log(`[MonacoEditor] Registered Lyric language for extensions: ${result.extensions.join(', ')}`);
-          }
+          });
+          
+          console.log(`[MonacoEditor] Loaded ${result.loaded} syntax extension(s), ${result.discarded} discarded.`);
+        } else if (result.success && result.loaded === 0) {
+          console.log('[MonacoEditor] No syntax extensions found');
         } else {
-          console.warn('[MonacoEditor] Failed to load Lyric extension:', result.error);
+          console.warn('[MonacoEditor] Failed to load syntax extensions:', result.error);
         }
       }).catch((error: any) => {
-        console.error('[MonacoEditor] Error loading Lyric extension:', error);
+        console.error('[MonacoEditor] Error loading syntax extensions:', error);
       });
     }
     

@@ -50,6 +50,26 @@ export interface ExtensionLoadResult {
   success: boolean;
   languageId?: string;
   error?: string;
+  loaded?: number;
+  discarded?: number;
+  languages?: Array<{
+    id: string;
+    extensions: string[];
+    aliases: string[];
+  }>;
+}
+
+/**
+ * Single extension load result
+ */
+interface SingleExtensionResult {
+  success: boolean;
+  extensionName: string;
+  languageId?: string;
+  extensions?: string[];
+  aliases?: string[];
+  error?: string;
+  reason?: string; // Why it was discarded
 }
 
 /**
@@ -58,6 +78,182 @@ export interface ExtensionLoadResult {
 export function getExtensionsDir(): string {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '';
   return path.join(homeDir, '.nova', 'extensions');
+}
+
+/**
+ * Check if extension should be loaded (only language extensions)
+ * 
+ * @param manifest - Extension manifest
+ * @returns true if extension should be loaded, false otherwise
+ */
+function shouldLoadExtension(manifest: ExtensionManifest): { load: boolean; reason?: string } {
+  // Check if extension has language contributions
+  if (!manifest.contributes?.languages || !manifest.contributes?.grammars) {
+    return { load: false, reason: 'No language or grammar contributions' };
+  }
+
+  // Check if extension has only onLanguage:* activation events
+  if (manifest.activationEvents) {
+    const hasNonLanguageEvent = manifest.activationEvents.some(
+      event => !event.startsWith('onLanguage:')
+    );
+    if (hasNonLanguageEvent) {
+      return { load: false, reason: 'Has non-language activation events' };
+    }
+  }
+
+  return { load: true };
+}
+
+/**
+ * Load a single extension from a directory
+ * 
+ * @param extensionDir - Path to extension directory
+ * @param extensionName - Name of the extension folder
+ * @returns Promise<SingleExtensionResult> - Load result
+ */
+async function loadSingleExtension(extensionDir: string, extensionName: string): Promise<SingleExtensionResult> {
+  try {
+    const manifestPath = path.join(extensionDir, 'package.json');
+
+    // Check if manifest exists
+    if (!fs.existsSync(manifestPath)) {
+      return {
+        success: false,
+        extensionName,
+        reason: 'No package.json found',
+      };
+    }
+
+    // Read and parse manifest
+    const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
+    const manifest: ExtensionManifest = JSON.parse(manifestContent);
+
+    // Check if we should load this extension
+    const { load, reason } = shouldLoadExtension(manifest);
+    if (!load) {
+      return {
+        success: false,
+        extensionName,
+        reason,
+      };
+    }
+
+    const language = manifest.contributes!.languages![0];
+    const grammar = manifest.contributes!.grammars![0];
+
+    if (!language || !grammar) {
+      return {
+        success: false,
+        extensionName,
+        reason: 'Empty language or grammar contributions',
+      };
+    }
+
+    // Validate grammar file exists
+    const grammarPath = path.join(extensionDir, grammar.path);
+    if (!fs.existsSync(grammarPath)) {
+      return {
+        success: false,
+        extensionName,
+        error: `Grammar file not found: ${grammar.path}`,
+      };
+    }
+
+    // Load and validate grammar JSON
+    const grammarContent = fs.readFileSync(grammarPath, 'utf-8');
+    JSON.parse(grammarContent); // Validate JSON
+
+    return {
+      success: true,
+      extensionName,
+      languageId: language.id,
+      extensions: language.extensions || [],
+      aliases: language.aliases || [],
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      extensionName,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Load all syntax extensions from ~/.nova/extensions/*
+ * 
+ * This function:
+ * 1. Scans all folders under ~/.nova/extensions/
+ * 2. Reads package.json from each folder
+ * 3. Filters by activationEvents (only onLanguage:*)
+ * 4. Validates language and grammar contributions
+ * 5. Returns list of valid extensions to load
+ * 
+ * @returns Promise<ExtensionLoadResult> - Load result with statistics
+ */
+export async function loadAllExtensions(): Promise<ExtensionLoadResult> {
+  try {
+    const extensionsDir = getExtensionsDir();
+
+    // Check if extensions directory exists
+    if (!fs.existsSync(extensionsDir)) {
+      console.log(`[Nova] Extensions directory not found: ${extensionsDir}`);
+      return {
+        success: true,
+        loaded: 0,
+        discarded: 0,
+        languages: [],
+      };
+    }
+
+    // Get all directories in extensions folder
+    const entries = fs.readdirSync(extensionsDir, { withFileTypes: true });
+    const extensionDirs = entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => ({ name: entry.name, path: path.join(extensionsDir, entry.name) }));
+
+    // Load each extension
+    const results = await Promise.all(
+      extensionDirs.map(({ name, path: dirPath }) => loadSingleExtension(dirPath, name))
+    );
+
+    // Separate successful and failed loads
+    const successful = results.filter(r => r.success);
+    const discarded = results.filter(r => !r.success);
+
+    // Log discarded extensions
+    discarded.forEach(result => {
+      const reason = result.reason || result.error || 'Unknown error';
+      console.log(`[Nova] Skipping extension '${result.extensionName}': ${reason}`);
+    });
+
+    // Build language list
+    const languages = successful.map(result => ({
+      id: result.languageId!,
+      extensions: result.extensions!,
+      aliases: result.aliases!,
+    }));
+
+    // Log summary
+    console.log(`[Nova] Loaded ${successful.length} syntax extension(s), ${discarded.length} discarded.`);
+
+    return {
+      success: true,
+      loaded: successful.length,
+      discarded: discarded.length,
+      languages,
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      loaded: 0,
+      discarded: 0,
+    };
+  }
 }
 
 /**

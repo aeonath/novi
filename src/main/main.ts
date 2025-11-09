@@ -19,7 +19,7 @@ import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
 import { commandStatsService } from './services/command-stats-service';
-import { loadLyricExtension } from '../core/extension-loader';
+import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -223,6 +223,73 @@ void app.whenReady().then(() => {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+  
+  // Load all extensions IPC handler
+  ipcMain.handle('load-all-extensions', async () => {
+    try {
+      const result = await loadAllExtensions();
+      
+      if (result.success && result.languages && result.languages.length > 0) {
+        // For each language, create a simplified Monarch grammar
+        const languagesWithGrammar = await Promise.all(
+          result.languages.map(async (lang) => {
+            // Create a basic Monarch grammar
+            const monarchGrammar = {
+              keywords: [],
+              operators: ['=', '>', '<', '!', '+', '-', '*', '/', '%', '&', '|', '^', '~'],
+              tokenizer: {
+                root: [
+                  [/#.*$/, 'comment'],
+                  [/\/\/.*$/, 'comment'],
+                  [/"([^"\\]|\\.)*$/, 'string.invalid'],
+                  [/"/, 'string', '@string'],
+                  [/'([^'\\]|\\.)*$/, 'string.invalid'],
+                  [/'/, 'string', '@singleQuoteString'],
+                  [/\d+\.\d+/, 'number.float'],
+                  [/\d+/, 'number'],
+                  [/[a-zA-Z_]\w*/, 'identifier'],
+                  [/[=><&|!+\-*\/%^~]/, 'operator'],
+                ],
+                string: [
+                  [/[^\\"]+/, 'string'],
+                  [/\\./, 'string.escape'],
+                  [/"/, 'string', '@pop'],
+                ],
+                singleQuoteString: [
+                  [/[^\\']+/, 'string'],
+                  [/\\./, 'string.escape'],
+                  [/'/, 'string', '@pop'],
+                ],
+              },
+            };
+            
+            return {
+              languageId: lang.id,
+              extensions: lang.extensions,
+              aliases: lang.aliases,
+              grammar: monarchGrammar,
+            };
+          })
+        );
+        
+        return {
+          success: true,
+          loaded: result.loaded,
+          discarded: result.discarded,
+          languages: languagesWithGrammar,
+        };
+      }
+      
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        loaded: 0,
+        discarded: 0,
       };
     }
   });

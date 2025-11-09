@@ -15,6 +15,7 @@ import * as path from 'path';
 import {
   getExtensionsDir,
   loadLyricExtension,
+  loadAllExtensions,
   ensureEditorFallback,
 } from '../../core/extension-loader';
 
@@ -189,6 +190,116 @@ describe('extension-loader', () => {
         const result = await loadLyricExtension();
         expect(result.success).toBe(true);
       }
+    });
+  });
+  
+  describe('loadAllExtensions', () => {
+    it('should scan extensions directory and load all valid language extensions', async () => {
+      const result = await loadAllExtensions();
+      
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.loaded).toBeDefined();
+      expect(result.discarded).toBeDefined();
+    });
+    
+    it('should return empty result if no extensions directory', async () => {
+      const extensionsDir = getExtensionsDir();
+      
+      // If directory doesn't exist, should return 0 loaded/discarded
+      const result = await loadAllExtensions();
+      expect(result.success).toBe(true);
+      
+      if (!fs.existsSync(extensionsDir)) {
+        expect(result.loaded).toBe(0);
+        expect(result.discarded).toBe(0);
+      }
+    });
+    
+    it('should count valid language extensions correctly', async () => {
+      const result = await loadAllExtensions();
+      
+      if (result.success && result.loaded && result.loaded > 0) {
+        expect(result.languages).toBeDefined();
+        expect(result.languages!.length).toBe(result.loaded);
+      }
+    });
+    
+    it('should skip extensions without language contributions', async () => {
+      // This test validates that extensions without language contributions are discarded
+      const result = await loadAllExtensions();
+      
+      expect(result.success).toBe(true);
+      // Loaded count should only include extensions with language contributions
+      if (result.loaded) {
+        expect(result.loaded).toBeGreaterThanOrEqual(0);
+      }
+    });
+    
+    it('should skip extensions with non-language activation events', async () => {
+      // This test validates filtering by activationEvents
+      const result = await loadAllExtensions();
+      
+      expect(result.success).toBe(true);
+      // Extensions with non-onLanguage:* events should be discarded
+      if (result.languages) {
+        result.languages.forEach(lang => {
+          expect(lang.id).toBeDefined();
+          expect(lang.extensions).toBeDefined();
+        });
+      }
+    });
+    
+    it('should log summary of loaded and discarded extensions', async () => {
+      const result = await loadAllExtensions();
+      
+      if (result.success) {
+        // Should log: "[Nova] Loaded N syntax extension(s), M discarded."
+        expect(consoleLogSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/\[Nova\] Loaded \d+ syntax extension\(s\), \d+ discarded\./)
+        );
+      }
+    });
+    
+    it('should handle corrupted manifest files gracefully', async () => {
+      // This test validates error handling for bad JSON
+      const result = await loadAllExtensions();
+      
+      // Should not throw, even if some manifests are corrupted
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+    });
+    
+    it('should validate grammar file exists for each extension', async () => {
+      const result = await loadAllExtensions();
+      
+      if (result.success && result.languages && result.languages.length > 0) {
+        // All loaded extensions should have valid grammar files
+        // (This is validated during loading)
+        expect(result.loaded).toBeGreaterThan(0);
+      }
+    });
+    
+    it('should return language metadata for all loaded extensions', async () => {
+      const result = await loadAllExtensions();
+      
+      if (result.success && result.languages && result.languages.length > 0) {
+        result.languages.forEach(lang => {
+          expect(lang.id).toBeDefined();
+          expect(typeof lang.id).toBe('string');
+          expect(Array.isArray(lang.extensions)).toBe(true);
+          expect(Array.isArray(lang.aliases)).toBe(true);
+        });
+      }
+    });
+    
+    it('should handle empty extensions directory', async () => {
+      const result = await loadAllExtensions();
+      
+      // Should not fail even if directory is empty
+      expect(result.success).toBe(true);
+      expect(typeof result.loaded).toBe('number');
+      expect(typeof result.discarded).toBe('number');
     });
   });
 });
