@@ -189,19 +189,42 @@ void app.whenReady().then(() => {
         
         // Convert TextMate grammar to Monarch (simplified)
         const monarchGrammar = {
-          keywords: [],
+          defaultToken: '',
+          tokenPostfix: '.lyric',
+          
+          keywords: [
+            'def', 'class', 'var', 'god', 'bin', 'int', 'flt', 'str', 'rex', 
+            'pyobject', 'None', 'return', 'if', 'else', 'elif', 'for', 'while', 
+            'break', 'continue', 'end', 'done', 'given', 'try', 'fade', 'importpy'
+          ],
+          
           operators: ['=', '>', '<', '!', '+', '-', '*', '/', '%', '&', '|', '^', '~'],
+          
           tokenizer: {
             root: [
+              // Comments
               [/#.*$/, 'comment'],
+              
+              // Strings
               [/"([^"\\]|\\.)*$/, 'string.invalid'],
               [/"/, 'string', '@string'],
-              [/\b(def|class|var|god|bin|int|flt|str|rex|pyobject|None|return|if|else|elif|for|while|break|continue|end|done|given|try|fade)\b/, 'keyword'],
+              
+              // Keywords - using @keywords reference
+              [/[a-zA-Z_]\w*/, {
+                cases: {
+                  '@keywords': 'keyword',
+                  '@default': 'identifier'
+                }
+              }],
+              
+              // Numbers
               [/\d+\.\d+/, 'number.float'],
               [/\d+/, 'number'],
-              [/[a-zA-Z_]\w*/, 'identifier'],
+              
+              // Operators
               [/[=><&|!+\-*\/%^~]/, 'operator'],
             ],
+            
             string: [
               [/[^\\"]+/, 'string'],
               [/\\./, 'string.escape'],
@@ -236,28 +259,53 @@ void app.whenReady().then(() => {
         // For each language, create a simplified Monarch grammar
         const languagesWithGrammar = await Promise.all(
           result.languages.map(async (lang) => {
-            // Create a basic Monarch grammar
+            // Create a basic Monarch grammar with proper keyword matching
             const monarchGrammar = {
-              keywords: [],
+              defaultToken: '',
+              
+              keywords: [
+                'def', 'class', 'var', 'function', 'return', 'if', 'else', 
+                'for', 'while', 'break', 'continue', 'import', 'from', 'as',
+                'try', 'catch', 'finally', 'throw', 'new', 'this', 'super',
+                'const', 'let', 'async', 'await', 'yield', 'export', 'default'
+              ],
+              
               operators: ['=', '>', '<', '!', '+', '-', '*', '/', '%', '&', '|', '^', '~'],
+              
               tokenizer: {
                 root: [
+                  // Comments
                   [/#.*$/, 'comment'],
                   [/\/\/.*$/, 'comment'],
+                  
+                  // Strings
                   [/"([^"\\]|\\.)*$/, 'string.invalid'],
                   [/"/, 'string', '@string'],
                   [/'([^'\\]|\\.)*$/, 'string.invalid'],
                   [/'/, 'string', '@singleQuoteString'],
+                  
+                  // Keywords - using @keywords reference
+                  [/[a-zA-Z_]\w*/, {
+                    cases: {
+                      '@keywords': 'keyword',
+                      '@default': 'identifier'
+                    }
+                  }],
+                  
+                  // Numbers
                   [/\d+\.\d+/, 'number.float'],
                   [/\d+/, 'number'],
-                  [/[a-zA-Z_]\w*/, 'identifier'],
+                  
+                  // Operators
                   [/[=><&|!+\-*\/%^~]/, 'operator'],
                 ],
+                
                 string: [
                   [/[^\\"]+/, 'string'],
                   [/\\./, 'string.escape'],
                   [/"/, 'string', '@pop'],
                 ],
+                
                 singleQuoteString: [
                   [/[^\\']+/, 'string'],
                   [/\\./, 'string.escape'],
@@ -349,7 +397,7 @@ void app.whenReady().then(() => {
       properties: ['openFile'],
       filters: [
         { name: 'All Files', extensions: ['*'] },
-        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'yml', 'yaml'] },
+        { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'xml', 'yml', 'yaml', 'ly'] },
       ],
     });
     if (result.canceled || result.filePaths.length === 0) {
