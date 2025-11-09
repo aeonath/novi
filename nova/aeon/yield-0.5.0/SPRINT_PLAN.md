@@ -30,3 +30,24 @@ Update the ide to handle our lyric syntax extension
 
 
 ## Task 2
+
+Allow generalized syntax support extraction from extensions
+
+- Update loader to scan all folders under ~/.nova/extensions/*.
+
+- For each folder:
+
+-  Read package.json.
+
+- If activationEvents only include onLanguage:*, allow load.
+
+- Discard other parts of the extension other than syntax support
+
+- Skip others, log as ignored.
+
+- Dynamically register grammar and language metadata in Monaco.
+
+- [Nova] Loaded N syntax extensions, M discarded.
+
+- Extend unit tests to verify multiple extensions, bad manifest handling, and caching.
+

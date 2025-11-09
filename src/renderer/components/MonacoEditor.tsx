@@ -441,6 +441,34 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     // Signal that Monaco is ready for use
     markReady('monaco-ready');
     
+    // Load Lyric syntax extension (from main process via IPC)
+    if (window.api?.loadLyricExtension) {
+      window.api.loadLyricExtension().then((result: any) => {
+        if (result.success) {
+          console.log('[MonacoEditor] Lyric extension loaded successfully');
+          // Register the language with Monaco
+          if (result.languageId && result.extensions) {
+            monaco.languages.register({
+              id: result.languageId,
+              extensions: result.extensions,
+              aliases: result.aliases || [],
+            });
+            
+            // Set up the tokenizer if grammar is provided
+            if (result.grammar) {
+              monaco.languages.setMonarchTokensProvider(result.languageId, result.grammar);
+            }
+            
+            console.log(`[MonacoEditor] Registered Lyric language for extensions: ${result.extensions.join(', ')}`);
+          }
+        } else {
+          console.warn('[MonacoEditor] Failed to load Lyric extension:', result.error);
+        }
+      }).catch((error: any) => {
+        console.error('[MonacoEditor] Error loading Lyric extension:', error);
+      });
+    }
+    
     return () => {
       delete (window as any).__monacoEditorAPI;
     };

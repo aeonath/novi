@@ -19,6 +19,7 @@ import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
 import { commandStatsService } from './services/command-stats-service';
+import { loadLyricExtension } from '../core/extension-loader';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -164,6 +165,67 @@ void app.whenReady().then(() => {
     return diagnostics;
   });
   ipcMain.handle('get-crashes-directory', () => getCrashesDirectory());
+  
+  // Extension loader IPC handler
+  ipcMain.handle('load-lyric-extension', async () => {
+    try {
+      const result = await loadLyricExtension();
+      if (result.success) {
+        // Read extension manifest to get language info
+        const { readFile: fsReadFile } = await import('node:fs/promises');
+        const { join: pathJoin } = await import('node:path');
+        const { homedir } = await import('node:os');
+        
+        const extensionsDir = pathJoin(homedir(), '.nova', 'extensions');
+        const manifestPath = pathJoin(extensionsDir, 'lyric-lang', 'package.json');
+        const manifest = JSON.parse(await fsReadFile(manifestPath, 'utf-8'));
+        
+        const language = manifest.contributes?.languages?.[0];
+        const grammar = manifest.contributes?.grammars?.[0];
+        
+        // Read grammar file (for validation, but we'll use hardcoded Monarch grammar)
+        const grammarPath = pathJoin(extensionsDir, 'lyric-lang', grammar.path);
+        await fsReadFile(grammarPath, 'utf-8'); // Just validate it exists
+        
+        // Convert TextMate grammar to Monarch (simplified)
+        const monarchGrammar = {
+          keywords: [],
+          operators: ['=', '>', '<', '!', '+', '-', '*', '/', '%', '&', '|', '^', '~'],
+          tokenizer: {
+            root: [
+              [/#.*$/, 'comment'],
+              [/"([^"\\]|\\.)*$/, 'string.invalid'],
+              [/"/, 'string', '@string'],
+              [/\b(def|class|var|god|bin|int|flt|str|rex|pyobject|None|return|if|else|elif|for|while|break|continue|end|done|given|try|fade)\b/, 'keyword'],
+              [/\d+\.\d+/, 'number.float'],
+              [/\d+/, 'number'],
+              [/[a-zA-Z_]\w*/, 'identifier'],
+              [/[=><&|!+\-*\/%^~]/, 'operator'],
+            ],
+            string: [
+              [/[^\\"]+/, 'string'],
+              [/\\./, 'string.escape'],
+              [/"/, 'string', '@pop'],
+            ],
+          },
+        };
+        
+        return {
+          success: true,
+          languageId: language.id,
+          extensions: language.extensions,
+          aliases: language.aliases,
+          grammar: monarchGrammar,
+        };
+      }
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
   
   // File system IPC handlers
   ipcMain.handle('read-directory', async (_e, path: string) => {
