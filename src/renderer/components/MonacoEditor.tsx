@@ -603,6 +603,7 @@ function detectLanguage(filePath: string): string {
     xml: 'xml',
     yaml: 'yaml', yml: 'yaml',
     sql: 'sql',
+    ly: 'lyric', // Lyric language extension
   };
   return languageMap[ext] ?? 'plaintext';
 }
