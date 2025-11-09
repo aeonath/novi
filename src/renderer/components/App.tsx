@@ -14,6 +14,7 @@ import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
 import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
+import { ImageEditor } from './ImageEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
@@ -25,6 +26,7 @@ import { RecoveryDialog } from './RecoveryDialog.js';
 import { SavePrompt } from './SavePrompt.js';
 import { createDefaultActions, ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
+import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
 
 
 const AppInner: React.FC = () => {
@@ -32,7 +34,7 @@ const AppInner: React.FC = () => {
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'terminal' | 'nova-prompt' } | null>(null);
+  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'nova-prompt' } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string; workspaceRoot?: string | null }>>([]);
   const [novaPromptTabs, setNovaPromptTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const { setGitStatus } = useAppContext();
@@ -445,12 +447,47 @@ const AppInner: React.FC = () => {
 
         console.log('[App] File selected:', filePath);
 
-        // Read file content
-        const fileData = await window.api.readFile(filePath);
-        console.log('[App] File loaded, size:', fileData.content.length, 'bytes');
-
         // Hide welcome screen
         setShowWelcome(false);
+
+        // Check if this is an image file
+        if (isImageFile(filePath)) {
+          const mimeType = getMimeType(filePath);
+          console.log('[App] Image file detected:', filePath);
+          console.log('[App] MIME type:', mimeType);
+
+          // Add image tab
+          if ((window as any).__tabBarAPI) {
+            const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+            const tabId = `tab-${Date.now()}`;
+            (window as any).__tabBarAPI.addTab({
+              id: tabId,
+              type: 'image',
+              filePath: filePath,
+              fileName: fileName,
+              isDirty: false,
+              content: '',
+            });
+
+            // Set as active tab
+            setActiveTab({
+              id: tabId,
+              type: 'image',
+            });
+          }
+
+          // Update status bar
+          if ((window as any).__statusBarAPI) {
+            (window as any).__statusBarAPI.setStatus(`Viewing: ${filePath.split(/[\\/]/).pop()}`);
+          }
+
+          console.log('[App] Image file opened successfully');
+          return;
+        }
+
+        // For text files, read content and load into Monaco
+        const fileData = await window.api.readFile(filePath);
+        console.log('[App] File loaded, size:', fileData.content.length, 'bytes');
 
         // Load into Monaco editor
         if ((window as any).__monacoEditorAPI) {
@@ -1200,12 +1237,47 @@ const AppInner: React.FC = () => {
                   }
 
                   try {
-                    // Read file content
-                    const fileData = await window.api.readFile(filePath);
-                    console.log('[App] File loaded from tree, size:', fileData.content.length, 'bytes');
-
                     // Hide welcome screen
                     setShowWelcome(false);
+
+                    // Check if this is an image file
+                    if (isImageFile(filePath)) {
+                      const mimeType = getMimeType(filePath);
+                      console.log('[App] Image file detected from tree:', filePath);
+                      console.log('[App] MIME type:', mimeType);
+
+                      // Add image tab
+                      if ((window as any).__tabBarAPI) {
+                        const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+                        const tabId = `tab-${Date.now()}`;
+                        (window as any).__tabBarAPI.addTab({
+                          id: tabId,
+                          type: 'image',
+                          filePath: filePath,
+                          fileName: fileName,
+                          isDirty: false,
+                          content: '',
+                        });
+
+                        // Set as active tab
+                        setActiveTab({
+                          id: tabId,
+                          type: 'image',
+                        });
+                      }
+
+                      // Update status bar
+                      if ((window as any).__statusBarAPI) {
+                        (window as any).__statusBarAPI.setStatus(`Viewing: ${filePath.split(/[\\/]/).pop()}`);
+                      }
+
+                      console.log('[App] Image file opened from tree successfully');
+                      return;
+                    }
+
+                    // For text files, read content and load into Monaco
+                    const fileData = await window.api.readFile(filePath);
+                    console.log('[App] File loaded from tree, size:', fileData.content.length, 'bytes');
 
                     // Load into Monaco editor
                     if ((window as any).__monacoEditorAPI) {
@@ -1415,6 +1487,19 @@ const AppInner: React.FC = () => {
                     }
                   }}
                 />
+              </div>
+
+              {/* Image Editor */}
+              <div style={{ 
+                flex: 1, 
+                display: activeTab?.type === 'image' && !showWelcome ? 'flex' : 'none',
+                overflow: 'hidden',
+              }}>
+                {activeTab?.type === 'image' && (() => {
+                  const tabs = ((window as any).__tabBarAPI?.getTabs() || []);
+                  const currentTab = tabs.find((t: any) => t.id === activeTab.id);
+                  return currentTab?.filePath ? <ImageEditor filePath={currentTab.filePath} /> : null;
+                })()}
               </div>
             </div>
           </main>
