@@ -96,7 +96,12 @@ describe('WorkspaceManager', () => {
       (existsSync as jest.Mock).mockReturnValue(true);
       (writeFile as jest.Mock).mockRejectedValue(new Error('Write failed'));
 
+      // Mock console.error to suppress expected error log
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
       await expect(workspaceManager.saveWorkspace(mockState)).rejects.toThrow('Write failed');
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -137,9 +142,14 @@ openNovaPrompts=`;
       (existsSync as jest.Mock).mockReturnValue(true);
       (readFile as jest.Mock).mockRejectedValue(new Error('Read failed'));
 
+      // Mock console.error to suppress expected error log
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
       const result = await workspaceManager.loadWorkspace();
 
       expect(result).toBeNull();
+
+      consoleErrorSpy.mockRestore();
     });
 
     it('should handle invalid config format gracefully', async () => {
@@ -180,7 +190,12 @@ openNovaPrompts=`;
       (existsSync as jest.Mock).mockReturnValue(true);
       (writeFile as jest.Mock).mockRejectedValue(new Error('Write failed'));
 
+      // Mock console.error to suppress expected error log
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
       await expect(workspaceManager.clearWorkspace()).rejects.toThrow('Write failed');
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
