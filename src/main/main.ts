@@ -193,21 +193,28 @@ void app.whenReady().then(() => {
           tokenPostfix: '.lyric',
           
           keywords: [
-            'def', 'class', 'var', 'god', 'bin', 'int', 'flt', 'str', 'rex', 
-            'pyobject', 'None', 'return', 'if', 'else', 'elif', 'for', 'while', 
-            'break', 'continue', 'end', 'done', 'given', 'try', 'fade', 'importpy'
+            'def', 'class', 'var', 'god', 'bin', 'int', 'flt', 'str', 'rex', 'pyobject', 'None', 'return',
+            'if', 'else', 'elif', 'given', 'for', 'done', 'try', 'catch', 'finally', 'raise', 'importpy',
+            'break', 'continue', 'and', 'or', 'not', 'in', 'as', 'true', 'false', 'True', 'False', 'end',
+            'self', 'print', 'input', 'float', 'len', 'range', 'type', 'isinstance', 'open', 'regex', 
+            'append', 'keys', 'values'
           ],
           
           operators: ['=', '>', '<', '!', '+', '-', '*', '/', '%', '&', '|', '^', '~'],
           
           tokenizer: {
             root: [
+              // Special symbols - must come before operators
+              [/\+\+\+/, 'keyword'],
+              
               // Comments
               [/#.*$/, 'comment'],
               
               // Strings
               [/"([^"\\]|\\.)*$/, 'string.invalid'],
               [/"/, 'string', '@string'],
+              [/'([^'\\]|\\.)*$/, 'string.invalid'],
+              [/'/, 'string', '@singleQuoteString'],
               
               // Keywords - using @keywords reference
               [/[a-zA-Z_]\w*/, {
@@ -229,6 +236,12 @@ void app.whenReady().then(() => {
               [/[^\\"]+/, 'string'],
               [/\\./, 'string.escape'],
               [/"/, 'string', '@pop'],
+            ],
+            
+            singleQuoteString: [
+              [/[^\\']+/, 'string'],
+              [/\\./, 'string.escape'],
+              [/'/, 'string', '@pop'],
             ],
           },
         };
@@ -259,8 +272,65 @@ void app.whenReady().then(() => {
         // For each language, create a simplified Monarch grammar
         const languagesWithGrammar = await Promise.all(
           result.languages.map(async (lang) => {
-            // Create a basic Monarch grammar with proper keyword matching
-            const monarchGrammar = {
+            // Create a Monarch grammar based on the extension's language
+            const monarchGrammar = lang.id === 'lyric' ? {
+              defaultToken: '',
+              
+              keywords: [
+                'def', 'class', 'var', 'god', 'bin', 'int', 'flt', 'str', 'rex', 'pyobject', 'None', 'return',
+                'if', 'else', 'elif', 'given', 'for', 'done', 'try', 'catch', 'finally', 'raise', 'importpy',
+                'break', 'continue', 'and', 'or', 'not', 'in', 'as', 'true', 'false', 'True', 'False', 'end',
+                'self', 'print', 'input', 'float', 'len', 'range', 'type', 'isinstance', 'open', 'regex', 
+                'append', 'keys', 'values'
+              ],
+              
+              operators: ['=', '>', '<', '!', '+', '-', '*', '/', '%', '&', '|', '^', '~'],
+              
+              tokenizer: {
+                root: [
+                  // Special symbols - must come before operators
+                  [/\+\+\+/, 'keyword'],
+                  
+                  // Comments
+                  [/#.*$/, 'comment'],
+                  [/\/\/.*$/, 'comment'],
+                  
+                  // Strings
+                  [/"([^"\\]|\\.)*$/, 'string.invalid'],
+                  [/"/, 'string', '@string'],
+                  [/'([^'\\]|\\.)*$/, 'string.invalid'],
+                  [/'/, 'string', '@singleQuoteString'],
+                  
+                  // Keywords - using @keywords reference
+                  [/[a-zA-Z_]\w*/, {
+                    cases: {
+                      '@keywords': 'keyword',
+                      '@default': 'identifier'
+                    }
+                  }],
+                  
+                  // Numbers
+                  [/\d+\.\d+/, 'number.float'],
+                  [/\d+/, 'number'],
+                  
+                  // Operators
+                  [/[=><&|!+\-*\/%^~]/, 'operator'],
+                ],
+                
+                string: [
+                  [/[^\\"]+/, 'string'],
+                  [/\\./, 'string.escape'],
+                  [/"/, 'string', '@pop'],
+                ],
+                
+                singleQuoteString: [
+                  [/[^\\']+/, 'string'],
+                  [/\\./, 'string.escape'],
+                  [/'/, 'string', '@pop'],
+                ],
+              },
+            } : {
+              // Generic grammar for other languages
               defaultToken: '',
               
               keywords: [

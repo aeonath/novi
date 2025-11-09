@@ -219,10 +219,12 @@ describe('Logger', () => {
       const lines = content.trim().split('\n');
       expect(lines.length).toBeGreaterThan(0);
 
-      const logLine = lines[0];
-      expect(logLine).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/); // Starts with timestamp
-      expect(logLine).toContain('[INFO]');
-      expect(logLine).toContain('Format test');
+      // Find the first INFO line (not an ERROR line from crash reporter)
+      const infoLine = lines.find(line => line.includes('[INFO]'));
+      expect(infoLine).toBeDefined();
+      expect(infoLine).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/); // Starts with timestamp
+      expect(infoLine).toContain('[INFO]');
+      expect(infoLine).toContain('Format test');
     });
   });
 
