@@ -213,3 +213,66 @@ export function resizeImage(
   });
 }
 
+/**
+ * Crops an image to a specified region
+ * @param imageDataUrl - Source image as data URL
+ * @param x - X coordinate of crop region (top-left)
+ * @param y - Y coordinate of crop region (top-left)
+ * @param width - Width of crop region
+ * @param height - Height of crop region
+ * @returns Promise resolving to cropped image data URL
+ */
+export function cropImage(
+  imageDataUrl: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    
+    img.onload = () => {
+      try {
+        // Validate crop region
+        if (x < 0 || y < 0 || width <= 0 || height <= 0) {
+          reject(new Error('Invalid crop region dimensions'));
+          return;
+        }
+        
+        if (x + width > img.width || y + height > img.height) {
+          reject(new Error('Crop region exceeds image bounds'));
+          return;
+        }
+        
+        // Create canvas for cropped region
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        
+        // Draw cropped region
+        // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+        ctx.drawImage(img, x, y, width, height, 0, 0, width, height);
+        
+        // Convert to data URL
+        const croppedDataUrl = canvas.toDataURL('image/png');
+        resolve(croppedDataUrl);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for cropping'));
+    };
+    
+    img.src = imageDataUrl;
+  });
+}
+

@@ -3,9 +3,9 @@
  * See the LICENSE file in the project root for full license text.
  */
 
-import React, { useEffect, useState, CSSProperties } from 'react';
+import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import { ImageEditorService } from '../../core/image/image-editor';
-import { getImageDimensions, resizeImage, calculateProportionalDimensions, scaleDimensions } from '../../core/image/image-utils';
+import { getImageDimensions, resizeImage, calculateProportionalDimensions, scaleDimensions, cropImage } from '../../core/image/image-utils';
 
 const styles: Record<string, CSSProperties> = {
   container: {
@@ -58,6 +58,26 @@ const styles: Record<string, CSSProperties> = {
     overflow: 'auto',
     background: 'repeating-conic-gradient(#808080 0% 25%, #404040 0% 50%) 50% / 20px 20px',
     padding: '20px',
+    position: 'relative' as const,
+  },
+  imageContainer: {
+    position: 'relative' as const,
+    display: 'inline-block',
+  },
+  cropOverlay: {
+    position: 'absolute' as const,
+    border: '2px solid #007acc',
+    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
+    cursor: 'move',
+    pointerEvents: 'auto' as const,
+  },
+  cropHandle: {
+    position: 'absolute' as const,
+    width: '10px',
+    height: '10px',
+    background: '#ffffff',
+    border: '2px solid #007acc',
+    borderRadius: '50%',
   },
   image: {
     maxWidth: '100%',
@@ -180,6 +200,18 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
   const [isModified, setIsModified] = useState(false);
   const [processing, setProcessing] = useState(false);
+  
+  // Crop state
+  const [cropMode, setCropMode] = useState(false);
+  const [cropRegion, setCropRegion] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [cropDragging, setCropDragging] = useState(false);
+  const [cropDragStart, setCropDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [showCropPreview, setShowCropPreview] = useState(false);
+  const [cropPreviewUrl, setCropPreviewUrl] = useState<string | null>(null);
+  
+  // Refs
+  const imageRef = useRef<HTMLImageElement>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
 
   // Load the image initially
   useEffect(() => {
@@ -356,7 +388,115 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
       setImageUrl(originalDataUrl);
       setDimensions(originalDimensions);
       setIsModified(false);
+      setCropMode(false);
+      setCropRegion(null);
       console.log('[ImageEditor] Reset to original');
+    }
+  };
+
+  // Crop handlers
+  const handleCropClick = () => {
+    if (dimensions && imageRef.current) {
+      setCropMode(true);
+      // Initialize crop region to center 50% of image
+      const width = Math.floor(dimensions.width * 0.5);
+      const height = Math.floor(dimensions.height * 0.5);
+      const x = Math.floor((dimensions.width - width) / 2);
+      const y = Math.floor((dimensions.height - height) / 2);
+      setCropRegion({ x, y, width, height });
+    }
+  };
+
+  const handleCropCancel = () => {
+    setCropMode(false);
+    setCropRegion(null);
+  };
+
+  const handleCropApply = async () => {
+    if (!cropRegion || !originalDataUrl) return;
+
+    try {
+      setProcessing(true);
+      
+      // Generate preview
+      const cropped = await cropImage(
+        originalDataUrl,
+        cropRegion.x,
+        cropRegion.y,
+        cropRegion.width,
+        cropRegion.height
+      );
+      
+      setCropPreviewUrl(cropped);
+      setShowCropPreview(true);
+    } catch (err) {
+      console.error('[ImageEditor] Failed to generate crop preview:', err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCropConfirm = async () => {
+    if (!cropPreviewUrl) return;
+
+    try {
+      setImageUrl(cropPreviewUrl);
+      
+      // Update dimensions
+      const dims = await getImageDimensions(cropPreviewUrl);
+      setDimensions(dims);
+      
+      setIsModified(true);
+      setShowCropPreview(false);
+      setCropMode(false);
+      setCropRegion(null);
+      console.log(`[ImageEditor] Cropped to ${dims.width}×${dims.height}`);
+    } catch (err) {
+      console.error('[ImageEditor] Failed to apply crop:', err);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  // Mouse handlers for crop selection
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!cropMode || !imageRef.current || !imageContainerRef.current) return;
+
+    const rect = imageRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setCropDragging(true);
+    setCropDragStart({ x, y });
+    
+    // Start new selection
+    setCropRegion({ x: Math.round(x), y: Math.round(y), width: 0, height: 0 });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!cropDragging || !cropDragStart || !imageRef.current) return;
+
+    const rect = imageRef.current.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+
+    const x = Math.min(cropDragStart.x, currentX);
+    const y = Math.min(cropDragStart.y, currentY);
+    const width = Math.abs(currentX - cropDragStart.x);
+    const height = Math.abs(currentY - cropDragStart.y);
+
+    setCropRegion({ 
+      x: Math.round(x), 
+      y: Math.round(y), 
+      width: Math.round(width), 
+      height: Math.round(height) 
+    });
+  };
+
+  const handleMouseUp = () => {
+    if (cropDragging) {
+      setCropDragging(false);
+      setCropDragStart(null);
     }
   };
 
@@ -387,38 +527,64 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
         <button
           style={dimensions ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={handleResizeClick}
-          disabled={!dimensions || processing}
+          disabled={!dimensions || processing || cropMode}
         >
           Resize...
         </button>
         
+        <button
+          style={dimensions && !cropMode ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          onClick={handleCropClick}
+          disabled={!dimensions || processing || cropMode}
+        >
+          Crop
+        </button>
+        
+        {cropMode && (
+          <>
+            <button
+              style={cropRegion && cropRegion.width > 0 && cropRegion.height > 0 ? styles.toolbarButton : styles.toolbarButtonDisabled}
+              onClick={handleCropApply}
+              disabled={!cropRegion || cropRegion.width === 0 || cropRegion.height === 0 || processing}
+            >
+              Apply Crop
+            </button>
+            <button
+              style={styles.toolbarButton}
+              onClick={handleCropCancel}
+            >
+              Cancel
+            </button>
+          </>
+        )}
+        
         <div style={styles.toolbarSeparator} />
         
         <button
-          style={dimensions ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          style={dimensions && !cropMode ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={() => handleQuickScale(0.5)}
-          disabled={!dimensions || processing}
+          disabled={!dimensions || processing || cropMode}
         >
           50%
         </button>
         <button
-          style={dimensions ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          style={dimensions && !cropMode ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={() => handleQuickScale(0.75)}
-          disabled={!dimensions || processing}
+          disabled={!dimensions || processing || cropMode}
         >
           75%
         </button>
         <button
-          style={dimensions ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          style={dimensions && !cropMode ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={() => handleQuickScale(1.5)}
-          disabled={!dimensions || processing}
+          disabled={!dimensions || processing || cropMode}
         >
           150%
         </button>
         <button
-          style={dimensions ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          style={dimensions && !cropMode ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={() => handleQuickScale(2.0)}
-          disabled={!dimensions || processing}
+          disabled={!dimensions || processing || cropMode}
         >
           200%
         </button>
@@ -443,10 +609,74 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
 
       {/* Image Viewport */}
       <div style={styles.viewport}>
-        {imageUrl && <img src={imageUrl} alt={filePath} style={styles.image} />}
+        <div 
+          ref={imageContainerRef}
+          style={styles.imageContainer}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          {imageUrl && (
+            <img 
+              ref={imageRef}
+              src={imageUrl} 
+              alt={filePath} 
+              style={{
+                ...styles.image,
+                cursor: cropMode ? 'crosshair' : 'default'
+              }} 
+            />
+          )}
+          
+          {/* Crop overlay */}
+          {cropMode && cropRegion && cropRegion.width > 0 && cropRegion.height > 0 && (
+            <div
+              style={{
+                ...styles.cropOverlay,
+                left: `${cropRegion.x}px`,
+                top: `${cropRegion.y}px`,
+                width: `${cropRegion.width}px`,
+                height: `${cropRegion.height}px`,
+              }}
+            >
+              {/* Crop region info */}
+              <div style={{
+                position: 'absolute',
+                top: '-25px',
+                left: '0',
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: '#ffffff',
+                padding: '4px 8px',
+                fontSize: '12px',
+                borderRadius: '2px',
+                whiteSpace: 'nowrap',
+              }}>
+                {cropRegion.width} × {cropRegion.height} px
+              </div>
+            </div>
+          )}
+        </div>
+        
         {processing && (
           <div style={{ position: 'absolute', ...styles.loadingMessage }}>
             Processing...
+          </div>
+        )}
+        
+        {cropMode && (
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: '#ffffff',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            fontSize: '13px',
+          }}>
+            Click and drag to select crop region
           </div>
         )}
       </div>
@@ -516,6 +746,51 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
                 onClick={handleResizeApply}
               >
                 Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Crop Preview Dialog */}
+      {showCropPreview && cropPreviewUrl && (
+        <div style={styles.modal} onClick={() => setShowCropPreview(false)}>
+          <div style={{...styles.dialog, minWidth: '500px'}} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.dialogTitle}>Crop Preview</div>
+            <div style={{
+              ...styles.dialogContent,
+              alignItems: 'center',
+            }}>
+              <img 
+                src={cropPreviewUrl} 
+                alt="Crop preview" 
+                style={{
+                  maxWidth: '450px',
+                  maxHeight: '450px',
+                  objectFit: 'contain',
+                  border: '1px solid #3e3e42',
+                }}
+              />
+              <div style={{
+                fontSize: '13px',
+                color: '#cccccc',
+                marginTop: '12px',
+              }}>
+                Preview of cropped image
+              </div>
+            </div>
+            <div style={styles.dialogActions}>
+              <button
+                style={styles.toolbarButton}
+                onClick={() => setShowCropPreview(false)}
+              >
+                Cancel
+              </button>
+              <button
+                style={styles.toolbarButton}
+                onClick={handleCropConfirm}
+              >
+                Confirm Crop
               </button>
             </div>
           </div>
