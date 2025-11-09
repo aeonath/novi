@@ -113,3 +113,103 @@ export function pathToFileUrl(filePath: string): string {
   throw new Error(`Invalid file path: ${filePath}`);
 }
 
+/**
+ * Calculates dimensions for proportional scaling
+ * @param originalWidth - Original width
+ * @param originalHeight - Original height
+ * @param targetWidth - Target width (or null to maintain aspect ratio from height)
+ * @param targetHeight - Target height (or null to maintain aspect ratio from width)
+ * @returns Calculated dimensions maintaining aspect ratio
+ */
+export function calculateProportionalDimensions(
+  originalWidth: number,
+  originalHeight: number,
+  targetWidth: number | null,
+  targetHeight: number | null
+): { width: number; height: number } {
+  const aspectRatio = originalWidth / originalHeight;
+  
+  if (targetWidth && targetHeight) {
+    // Both dimensions specified - return as is
+    return { width: targetWidth, height: targetHeight };
+  } else if (targetWidth) {
+    // Only width specified - calculate height
+    return { width: targetWidth, height: Math.round(targetWidth / aspectRatio) };
+  } else if (targetHeight) {
+    // Only height specified - calculate width
+    return { width: Math.round(targetHeight * aspectRatio), height: targetHeight };
+  } else {
+    // Neither specified - return original
+    return { width: originalWidth, height: originalHeight };
+  }
+}
+
+/**
+ * Scales dimensions by a percentage
+ * @param width - Original width
+ * @param height - Original height
+ * @param scale - Scale factor (e.g., 0.5 for 50%, 2.0 for 200%)
+ * @returns Scaled dimensions
+ */
+export function scaleDimensions(
+  width: number,
+  height: number,
+  scale: number
+): { width: number; height: number } {
+  return {
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
+  };
+}
+
+/**
+ * Resizes an image using canvas
+ * @param imageDataUrl - Source image as data URL
+ * @param width - Target width
+ * @param height - Target height
+ * @returns Promise resolving to resized image data URL
+ */
+export function resizeImage(
+  imageDataUrl: string,
+  width: number,
+  height: number
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    
+    img.onload = () => {
+      try {
+        // Create canvas for resizing
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        
+        // Use high-quality image smoothing
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw resized image
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to data URL
+        const resizedDataUrl = canvas.toDataURL('image/png');
+        resolve(resizedDataUrl);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for resizing'));
+    };
+    
+    img.src = imageDataUrl;
+  });
+}
+
