@@ -454,6 +454,12 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
               closeContextMenu();
               onNovaPrompt?.();
             }}
+            onEditImage={() => {
+              closeContextMenu();
+              if (contextMenu.node) {
+                onFileOpen?.(contextMenu.node.path);
+              }
+            }}
             onRename={() => contextMenu.node && renameNode(contextMenu.node)}
             onDelete={() => contextMenu.node && deleteNode(contextMenu.node)}
             onQuit={() => {
@@ -605,13 +611,24 @@ interface ContextMenuProps {
   onNewFolder: () => void;
   onNewTerminal: () => void;
   onNovaPrompt: () => void;
+  onEditImage: () => void;
   onRename: () => void;
   onDelete: () => void;
   onQuit: () => void;
   onClose: () => void;
 }
 
-const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onNovaPrompt, onRename, onDelete, onQuit, onClose }) => {
+const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onNovaPrompt, onEditImage, onRename, onDelete, onQuit, onClose }) => {
+  // Check if the selected node is an image file
+  const isImage = node && !node.isDirectory && (
+    node.name.endsWith('.png') ||
+    node.name.endsWith('.jpg') ||
+    node.name.endsWith('.jpeg') ||
+    node.name.endsWith('.gif') ||
+    node.name.endsWith('.webp') ||
+    node.name.endsWith('.avif')
+  );
+  
   return (
     <div style={{ ...styles.contextMenu, left: x, top: y }} onClick={(e) => e.stopPropagation()}>
       <div style={styles.menuItem} onClick={onNewFile}>
@@ -629,6 +646,11 @@ const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFil
       {node && (
         <>
           <div style={styles.menuDivider} />
+          {isImage && (
+            <div style={styles.menuItem} onClick={onEditImage}>
+              🖼️ Edit Image
+            </div>
+          )}
           <div style={styles.menuItem} onClick={onRename}>
             ✏️ Rename
           </div>
