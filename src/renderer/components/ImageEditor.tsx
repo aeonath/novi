@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import { ImageEditorService } from '../../core/image/image-editor';
-import { getImageDimensions, resizeImage, calculateProportionalDimensions, scaleDimensions, cropImage, setTransparency, supportsTransparency } from '../../core/image/image-utils';
+import { getImageDimensions, resizeImage, calculateProportionalDimensions, scaleDimensions, cropImage, setTransparency, supportsTransparency, convertFormat, getExtensionForFormat, getMimeTypeForFormat } from '../../core/image/image-utils';
 
 const styles: Record<string, CSSProperties> = {
   container: {
@@ -214,6 +214,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
   const [showTransparencyControls, setShowTransparencyControls] = useState(false);
   const [showCheckerboard, setShowCheckerboard] = useState(false);
   
+  // Save As state
+  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [saveAsFormat, setSaveAsFormat] = useState<'png' | 'jpg' | 'webp' | 'gif' | 'avif'>('png');
+  const [saveAsQuality, setSaveAsQuality] = useState(0.92);
+  
   // Refs
   const imageRef = useRef<HTMLImageElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -379,6 +384,73 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
         console.log('[ImageEditor] Image saved successfully');
         setIsModified(false);
         // TODO: Update tab state to mark as not dirty
+      }
+    } catch (err) {
+      console.error('[ImageEditor] Failed to save image:', err);
+      alert('Failed to save image: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleSaveAs = () => {
+    // Open Save As dialog
+    setShowSaveAsDialog(true);
+    
+    // Set default format based on current MIME type
+    if (mimeType) {
+      const ext = mimeType.replace('image/', '');
+      if (ext === 'jpeg') {
+        setSaveAsFormat('jpg');
+      } else if (['png', 'webp', 'gif', 'avif'].includes(ext)) {
+        setSaveAsFormat(ext as 'png' | 'webp' | 'gif' | 'avif');
+      } else {
+        setSaveAsFormat('png');
+      }
+    }
+  };
+
+  const handleSaveAsConfirm = async () => {
+    if (!imageUrl || !window.api?.saveFileAs) {
+      console.error('[ImageEditor] Cannot save: missing data or API');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      setShowSaveAsDialog(false);
+
+      // Convert format if needed
+      let finalImageUrl = imageUrl;
+      const currentFormat = mimeType?.replace('image/', '') || 'png';
+      const targetFormat = saveAsFormat === 'jpg' ? 'jpeg' : saveAsFormat;
+      
+      if (currentFormat !== targetFormat) {
+        console.log(`[ImageEditor] Converting from ${currentFormat} to ${targetFormat}`);
+        finalImageUrl = await convertFormat(imageUrl, saveAsFormat, saveAsQuality);
+      }
+
+      // Convert data URL to base64
+      const base64Data = finalImageUrl.replace(/^data:image\/\w+;base64,/, '');
+      
+      // Show save dialog (user chooses location)
+      const result = await window.api.saveFileAs(base64Data);
+      
+      if (result) {
+        console.log('[ImageEditor] Image saved as:', result.path);
+        setIsModified(false);
+        
+        // Remember the chosen format and directory in settings
+        try {
+          const directory = result.path.substring(0, result.path.lastIndexOf('\\') || result.path.lastIndexOf('/'));
+          await window.api.setSetting('imageEditor.lastSaveDirectory', directory);
+          await window.api.setSetting('imageEditor.lastSaveFormat', saveAsFormat);
+          console.log('[ImageEditor] Saved preferences:', { directory, format: saveAsFormat });
+        } catch (err) {
+          console.warn('[ImageEditor] Could not save preferences:', err);
+        }
+      } else {
+        console.log('[ImageEditor] Save As canceled');
       }
     } catch (err) {
       console.error('[ImageEditor] Failed to save image:', err);
@@ -692,6 +764,13 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
           Save
         </button>
         <button
+          style={dimensions ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          onClick={handleSaveAs}
+          disabled={!dimensions || processing}
+        >
+          Save As...
+        </button>
+        <button
           style={isModified ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={handleReset}
           disabled={!isModified || processing}
@@ -889,6 +968,84 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
                 onClick={handleCropConfirm}
               >
                 Confirm Crop
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Save As Dialog */}
+      {showSaveAsDialog && (
+        <div style={styles.modal} onClick={() => setShowSaveAsDialog(false)}>
+          <div style={styles.dialog} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.dialogTitle}>Save As...</div>
+            <div style={styles.dialogContent}>
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Format</label>
+                <select
+                  style={styles.input}
+                  value={saveAsFormat}
+                  onChange={(e) => setSaveAsFormat(e.target.value as 'png' | 'jpg' | 'webp' | 'gif' | 'avif')}
+                >
+                  <option value="png">PNG (Lossless, supports transparency)</option>
+                  <option value="jpg">JPG (Lossy, smaller files)</option>
+                  <option value="webp">WebP (Modern, efficient)</option>
+                  <option value="gif">GIF (Animated, legacy)</option>
+                  <option value="avif">AVIF (Next-gen, high compression)</option>
+                </select>
+              </div>
+              
+              {(saveAsFormat === 'jpg' || saveAsFormat === 'webp') && (
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>
+                    Quality: {Math.round(saveAsQuality * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={Math.round(saveAsQuality * 100)}
+                    onChange={(e) => setSaveAsQuality(parseInt(e.target.value) / 100)}
+                    style={{
+                      width: '100%',
+                      cursor: 'pointer',
+                    }}
+                  />
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#999',
+                    marginTop: '4px',
+                  }}>
+                    Higher quality = larger file size
+                  </div>
+                </div>
+              )}
+              
+              {saveAsFormat === 'jpg' && supportsTransparency(mimeType) && opacity < 1.0 && (
+                <div style={{
+                  fontSize: '12px',
+                  color: '#f48771',
+                  marginTop: '8px',
+                  padding: '8px',
+                  background: 'rgba(244, 135, 113, 0.1)',
+                  borderRadius: '2px',
+                }}>
+                  ⚠️ Warning: JPEG does not support transparency. Transparent areas will be filled with white.
+                </div>
+              )}
+            </div>
+            <div style={styles.dialogActions}>
+              <button
+                style={styles.toolbarButton}
+                onClick={() => setShowSaveAsDialog(false)}
+              >
+                Cancel
+              </button>
+              <button
+                style={styles.toolbarButton}
+                onClick={handleSaveAsConfirm}
+              >
+                Save As...
               </button>
             </div>
           </div>

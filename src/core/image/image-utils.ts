@@ -342,3 +342,102 @@ export function supportsTransparency(mimeType: string | null): boolean {
   return transparentFormats.includes(mimeType);
 }
 
+/**
+ * Converts an image to a different format
+ * @param imageDataUrl - Source image as data URL
+ * @param targetFormat - Target format ('png', 'jpg', 'jpeg', 'webp', 'gif', 'avif')
+ * @param quality - Quality for lossy formats (0-1, default 0.92)
+ * @returns Promise resolving to converted image data URL
+ */
+export function convertFormat(
+  imageDataUrl: string,
+  targetFormat: 'png' | 'jpg' | 'jpeg' | 'webp' | 'gif' | 'avif',
+  quality: number = 0.92
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // Normalize format
+    const normalizedFormat = targetFormat === 'jpg' ? 'jpeg' : targetFormat;
+    
+    // Validate quality parameter
+    if (quality < 0 || quality > 1) {
+      reject(new Error('Quality must be between 0.0 and 1.0'));
+      return;
+    }
+
+    const img = new Image();
+    
+    img.onload = () => {
+      try {
+        // Create canvas with same dimensions
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        
+        // For JPEG, fill with white background (no transparency support)
+        if (normalizedFormat === 'jpeg') {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Draw image
+        ctx.drawImage(img, 0, 0);
+        
+        // Convert to target format
+        const mimeType = `image/${normalizedFormat}`;
+        let convertedDataUrl: string;
+        
+        // Quality parameter only applies to lossy formats (JPEG, WEBP)
+        if (normalizedFormat === 'jpeg' || normalizedFormat === 'webp') {
+          convertedDataUrl = canvas.toDataURL(mimeType, quality);
+        } else {
+          convertedDataUrl = canvas.toDataURL(mimeType);
+        }
+        
+        resolve(convertedDataUrl);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for format conversion'));
+    };
+    
+    img.src = imageDataUrl;
+  });
+}
+
+/**
+ * Gets the file extension for a given format
+ * @param format - Image format
+ * @returns File extension with dot (e.g., '.png')
+ */
+export function getExtensionForFormat(format: string): string {
+  const extensionMap: Record<string, string> = {
+    'png': '.png',
+    'jpg': '.jpg',
+    'jpeg': '.jpg',
+    'webp': '.webp',
+    'gif': '.gif',
+    'avif': '.avif',
+  };
+  
+  return extensionMap[format.toLowerCase()] || '.png';
+}
+
+/**
+ * Gets the MIME type for a given format
+ * @param format - Image format
+ * @returns MIME type string
+ */
+export function getMimeTypeForFormat(format: string): string {
+  const normalizedFormat = format.toLowerCase() === 'jpg' ? 'jpeg' : format.toLowerCase();
+  return `image/${normalizedFormat}`;
+}
+
