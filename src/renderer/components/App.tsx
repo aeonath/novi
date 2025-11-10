@@ -950,20 +950,6 @@ const AppInner: React.FC = () => {
         void actionContext.onSaveFile?.();
       }
       
-      // Ctrl+D: Close file
-      if (e.ctrlKey && e.key === 'd') {
-        e.preventDefault();
-        console.log('[App] Ctrl+D pressed, triggering close file');
-        
-        // Close the active tab
-        if ((window as any).__tabBarAPI) {
-          const activeTab = (window as any).__tabBarAPI.getActiveTab();
-          if (activeTab) {
-            void (window as any).__tabBarAPI.removeTab(activeTab.id);
-          }
-        }
-      }
-      
       // Ctrl+R: Reload file from disk
       if (e.ctrlKey && e.key === 'r') {
         e.preventDefault();
