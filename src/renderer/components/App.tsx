@@ -1221,6 +1221,47 @@ const AppInner: React.FC = () => {
     }
   }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt, setShowGitPanel, setGitStatus]);
 
+  // Ctrl+Tab keybinding to cycle through tabs
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Tab to cycle forward, Ctrl+Shift+Tab to cycle backward
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (!tabBarAPI) return;
+        
+        const tabs = tabBarAPI.getTabs();
+        if (tabs.length <= 1) return; // Need at least 2 tabs to cycle
+        
+        const currentIndex = tabs.findIndex((t: any) => t.id === activeTab?.id);
+        let nextIndex: number;
+        
+        if (e.shiftKey) {
+          // Cycle backward
+          nextIndex = currentIndex <= 0 ? tabs.length - 1 : currentIndex - 1;
+        } else {
+          // Cycle forward
+          nextIndex = currentIndex >= tabs.length - 1 ? 0 : currentIndex + 1;
+        }
+        
+        const nextTab = tabs[nextIndex];
+        if (nextTab) {
+          console.log('[App] Ctrl+Tab: Switching to tab:', nextTab.fileName, 'type:', nextTab.type);
+          setActiveTab({ 
+            id: nextTab.id, 
+            type: nextTab.type,
+            filePath: (nextTab.type === 'image' || nextTab.type === 'nova-prompt') ? nextTab.filePath : undefined
+          });
+          tabBarAPI.setActiveTab(nextTab.id);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab]);
+
   // Terminal data listener is set up globally at the top of this component (line 40)
   // Removed duplicate listener that was causing periodic redraws
 
