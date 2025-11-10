@@ -621,7 +621,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, newFileInput, 
           )}
           
           {/* Render children */}
-          {node.children && node.children.length > 0 && node.children.map((child) => (
+          {node.children && node.children.map((child) => (
             <FileTreeNode key={child.path} node={child} level={level + 1} newFileInput={newFileInput} onNewFileSubmit={onNewFileSubmit} onNewFileCancel={onNewFileCancel} />
           ))}
         </div>
