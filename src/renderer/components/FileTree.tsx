@@ -20,6 +20,7 @@ export interface FileTreeProps {
   onNewTerminal?: () => void;
   onNovaPrompt?: () => void;
   onWorkspaceSplitOpen?: (dirPath: string) => void;
+  initialPath?: string; // Auto-load this directory on mount
 }
 
 interface FileNode {
@@ -45,13 +46,27 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNovaPrompt, onWorkspaceSplitOpen }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNovaPrompt, onWorkspaceSplitOpen, initialPath }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [newFileInput, setNewFileInput] = useState<{ parentPath: string; parentNode: FileNode | null } | null>(null);
   const { gitStatus } = useAppContext();
+
+  // Auto-load initial path if provided
+  useEffect(() => {
+    if (initialPath && !rootPath) {
+      console.log('[FileTree] Auto-loading initial path:', initialPath);
+      setRootPath(initialPath);
+      loadDirectory(initialPath);
+      
+      // Notify parent
+      if (onDirectoryOpen) {
+        onDirectoryOpen(initialPath);
+      }
+    }
+  }, [initialPath]); // Only run when initialPath changes
 
   const openDirectory = useCallback(async (e?: React.MouseEvent) => {
     if (!window.api?.selectDirectory) return;

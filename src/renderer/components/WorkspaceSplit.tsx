@@ -122,6 +122,7 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
         </div>
         <div style={styles.fileTreeContainer}>
           <FileTree
+            initialPath={workspaceRoot}
             onFileOpen={handleFileOpen}
             onDirectoryOpen={handleDirectoryOpen}
             showGitToggle={false}
