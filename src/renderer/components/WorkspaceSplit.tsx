@@ -71,6 +71,8 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
   // Handle file opening from FileTree
   const handleFileOpen = useCallback(async (filePath: string) => {
     console.log('[WorkspaceSplit] Opening file in split view:', filePath);
+    console.log('[WorkspaceSplit] Current openFile state:', openFile);
+    console.log('[WorkspaceSplit] WorkspaceId:', workspaceId);
     
     // Check if it's an image file
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif'];
@@ -82,16 +84,23 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
     }
     
     // Set the open file first
+    console.log('[WorkspaceSplit] Setting openFile state to:', filePath);
     setOpenFile(filePath);
     
     // Load the file content
     if (window.api?.readFile) {
       try {
+        console.log('[WorkspaceSplit] Reading file from disk...');
         const content = await window.api.readFile(filePath);
+        console.log('[WorkspaceSplit] File read successfully, length:', content.length);
         
         // Update Monaco editor via global API
         const monacoAPI = (window as any).__monacoAPI;
+        console.log('[WorkspaceSplit] Monaco API available:', !!monacoAPI);
+        console.log('[WorkspaceSplit] Monaco openFile method:', !!monacoAPI?.openFile);
+        
         if (monacoAPI && monacoAPI.openFile) {
+          console.log('[WorkspaceSplit] Calling Monaco openFile...');
           await monacoAPI.openFile(filePath, content);
           console.log('[WorkspaceSplit] File opened in Monaco:', filePath);
           
@@ -100,15 +109,24 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
           const fileName = filePath.replace(/\\/g, '/').split('/').pop() || 'file';
           const dirName = getDirectoryName(workspaceRoot);
           
+          console.log('[WorkspaceSplit] Updating tab title:', `📂 ${dirName} - ${fileName}`);
+          
           if (tabBarAPI && tabBarAPI.updateTabFileName) {
             tabBarAPI.updateTabFileName(workspaceId, `📂 ${dirName} - ${fileName}`);
+            console.log('[WorkspaceSplit] Tab title updated successfully');
+          } else {
+            console.error('[WorkspaceSplit] TabBar API or updateTabFileName not available');
           }
+        } else {
+          console.error('[WorkspaceSplit] Monaco API or openFile method not available');
         }
       } catch (error) {
         console.error('[WorkspaceSplit] Failed to open file:', error);
       }
+    } else {
+      console.error('[WorkspaceSplit] window.api.readFile not available');
     }
-  }, [workspaceId, workspaceRoot]);
+  }, [workspaceId, workspaceRoot, openFile]);
 
   // Handle directory change in the split's FileTree
   const handleDirectoryOpen = useCallback((dirPath: string) => {
@@ -135,6 +153,7 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
             onFileOpen={handleFileOpen}
             onDirectoryOpen={handleDirectoryOpen}
             showGitToggle={false}
+            hideHeader={true}
           />
         </div>
       </div>

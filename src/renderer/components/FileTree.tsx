@@ -21,6 +21,7 @@ export interface FileTreeProps {
   onNovaPrompt?: () => void;
   onWorkspaceSplitOpen?: (dirPath: string) => void;
   initialPath?: string; // Auto-load this directory on mount
+  hideHeader?: boolean; // Hide the header (for use in split view)
 }
 
 interface FileNode {
@@ -46,7 +47,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNovaPrompt, onWorkspaceSplitOpen, initialPath }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNovaPrompt, onWorkspaceSplitOpen, initialPath, hideHeader = false }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -423,21 +424,23 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   return (
     <FileTreeContext.Provider value={contextValue}>
       <div style={styles.container} onContextMenu={(e) => handleContextMenu(e, null)}>
-        <div style={styles.header}>
-          <span style={styles.title}>{getDirectoryName(rootPath)}</span>
-          <div style={styles.headerButtons}>
-            {showGitToggle && rootPath && onToggleGit && (
-              <button style={styles.button} onClick={onToggleGit} title="Toggle Git View">
-                ⎇
-              </button>
-            )}
-            {rootPath && (
-              <button style={styles.button} onClick={(e) => openDirectory(e)} title="Open Folder (Ctrl+Click for split view)">
-                📂
-              </button>
-            )}
+        {!hideHeader && (
+          <div style={styles.header}>
+            <span style={styles.title}>{getDirectoryName(rootPath)}</span>
+            <div style={styles.headerButtons}>
+              {showGitToggle && rootPath && onToggleGit && (
+                <button style={styles.button} onClick={onToggleGit} title="Toggle Git View">
+                  ⎇
+                </button>
+              )}
+              {rootPath && (
+                <button style={styles.button} onClick={(e) => openDirectory(e)} title="Open Folder (Ctrl+Click for split view)">
+                  📂
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {tree.length === 0 ? (
           <div className="file-tree-scroll" style={styles.emptyState}>
