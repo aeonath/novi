@@ -19,6 +19,7 @@ import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
 import { NovaPrompt } from './NovaPrompt.js';
+import { WorkspaceSplit } from './WorkspaceSplit.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
@@ -34,9 +35,10 @@ const AppInner: React.FC = () => {
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'nova-prompt'; filePath?: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'nova-prompt' | 'workspace-split'; filePath?: string; workspacePath?: string } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string; workspaceRoot?: string | null }>>([]);
   const [novaPromptTabs, setNovaPromptTabs] = useState<Array<{ id: string; fileName: string }>>([]);
+  const [workspaceSplitTabs, setWorkspaceSplitTabs] = useState<Array<{ id: string; fileName: string; workspacePath: string }>>([]);
   const { setGitStatus } = useAppContext();
   
   // Context menu state for welcome screen
@@ -1338,6 +1340,45 @@ const AppInner: React.FC = () => {
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
                 onNewTerminal={actionContext.onNewTerminal}
                 onNovaPrompt={actionContext.onNovaPrompt}
+                onWorkspaceSplitOpen={async (dirPath: string) => {
+                  console.log('[App] Opening workspace split:', dirPath);
+                  
+                  // Generate unique ID for this workspace split
+                  const splitId = `workspace-split-${Date.now()}`;
+                  const dirName = dirPath.replace(/\\/g, '/').split('/').pop() || 'Workspace';
+                  
+                  // Add tab to TabBar
+                  const tabBarAPI = (window as any).__tabBarAPI;
+                  if (tabBarAPI) {
+                    tabBarAPI.addTab({
+                      id: splitId,
+                      fileName: `📂 ${dirName}`,
+                      filePath: dirPath,
+                      type: 'workspace-split',
+                      isDirty: false,
+                      canClose: true,
+                    });
+                    
+                    // Add to workspace split tabs state
+                    setWorkspaceSplitTabs(prev => [...prev, {
+                      id: splitId,
+                      fileName: dirName,
+                      workspacePath: dirPath,
+                    }]);
+                    
+                    // Switch to the new split tab
+                    setActiveTab({
+                      id: splitId,
+                      type: 'workspace-split',
+                      workspacePath: dirPath,
+                    });
+                    
+                    // Hide welcome screen
+                    setShowWelcome(false);
+                    
+                    console.log('[App] Workspace split tab created:', splitId);
+                  }
+                }}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
                   setWorkspaceRoot(dirPath);
@@ -1602,6 +1643,28 @@ const AppInner: React.FC = () => {
                   >
                     <NovaPrompt 
                       promptId={tab.id}
+                      isActive={activeTab?.id === tab.id}
+                    />
+                  </div>
+                );
+              })}
+              
+              {/* Render all workspace splits (hidden when not active) to preserve state */}
+              {workspaceSplitTabs.map((tab) => {
+                return (
+                  <div
+                    key={tab.id}
+                    style={{ 
+                      flex: 1, 
+                      display: activeTab?.id === tab.id ? 'flex' : 'none',
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                      backgroundColor: '#1e1e1e',
+                    }}
+                  >
+                    <WorkspaceSplit 
+                      workspaceId={tab.id}
+                      workspacePath={tab.workspacePath}
                       isActive={activeTab?.id === tab.id}
                     />
                   </div>
