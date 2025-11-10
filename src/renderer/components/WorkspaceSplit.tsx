@@ -81,7 +81,7 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
       return;
     }
     
-    // Open in this split's Monaco editor
+    // Set the open file first
     setOpenFile(filePath);
     
     // Load the file content
@@ -94,12 +94,21 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
         if (monacoAPI && monacoAPI.openFile) {
           await monacoAPI.openFile(filePath, content);
           console.log('[WorkspaceSplit] File opened in Monaco:', filePath);
+          
+          // Update the tab title to show the opened file
+          const tabBarAPI = (window as any).__tabBarAPI;
+          const fileName = filePath.replace(/\\/g, '/').split('/').pop() || 'file';
+          const dirName = getDirectoryName(workspaceRoot);
+          
+          if (tabBarAPI && tabBarAPI.updateTabFileName) {
+            tabBarAPI.updateTabFileName(workspaceId, `📂 ${dirName} - ${fileName}`);
+          }
         }
       } catch (error) {
         console.error('[WorkspaceSplit] Failed to open file:', error);
       }
     }
-  }, []);
+  }, [workspaceId, workspaceRoot]);
 
   // Handle directory change in the split's FileTree
   const handleDirectoryOpen = useCallback((dirPath: string) => {

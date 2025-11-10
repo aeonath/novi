@@ -98,6 +98,12 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
       prevTabs.map((t) => (t.id === tabId ? { ...t, isDirty } : t))
     );
   }, []);
+  
+  const updateTabFileName = useCallback((tabId: string, fileName: string) => {
+    setTabs((prevTabs) =>
+      prevTabs.map((t) => (t.id === tabId ? { ...t, fileName } : t))
+    );
+  }, []);
 
   const updateTabContent = useCallback((tabId: string, content: string) => {
     setTabs((prevTabs) =>
@@ -119,8 +125,11 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
       switchTab,
       updateTabDirty,
       updateTabContent,
+      updateTabFileName,
       getActiveTab,
       getTabs,
+      setActiveTab: switchTab, // Alias for compatibility
+      closeTab: removeTab, // Alias for compatibility
     };
     
     // Signal that TabBar is ready for use
@@ -129,7 +138,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
     return () => {
       delete (window as any).__tabBarAPI;
     };
-  }, [addTab, removeTab, switchTab, updateTabDirty, updateTabContent, getActiveTab, getTabs]);
+  }, [addTab, removeTab, switchTab, updateTabDirty, updateTabContent, updateTabFileName, getActiveTab, getTabs]);
 
   if (tabs.length === 0) {
     return (
