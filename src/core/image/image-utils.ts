@@ -276,3 +276,69 @@ export function cropImage(
   });
 }
 
+/**
+ * Adjusts the opacity/transparency of an image
+ * @param imageDataUrl - Source image as data URL
+ * @param opacity - Opacity value between 0.0 (fully transparent) and 1.0 (fully opaque)
+ * @returns Promise resolving to image data URL with adjusted transparency
+ */
+export function setTransparency(
+  imageDataUrl: string,
+  opacity: number
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // Validate opacity range
+    if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
+      reject(new Error('Opacity must be between 0.0 and 1.0'));
+      return;
+    }
+
+    const img = new Image();
+    
+    img.onload = () => {
+      try {
+        // Create canvas with same dimensions
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        
+        // Set global alpha for opacity
+        ctx.globalAlpha = opacity;
+        
+        // Draw image with adjusted opacity
+        ctx.drawImage(img, 0, 0);
+        
+        // Convert to data URL with PNG to preserve alpha channel
+        const transparentDataUrl = canvas.toDataURL('image/png');
+        resolve(transparentDataUrl);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for transparency adjustment'));
+    };
+    
+    img.src = imageDataUrl;
+  });
+}
+
+/**
+ * Checks if an image format supports transparency
+ * @param mimeType - MIME type of the image
+ * @returns true if the format supports alpha channel
+ */
+export function supportsTransparency(mimeType: string | null): boolean {
+  if (!mimeType) return false;
+  
+  const transparentFormats = ['image/png', 'image/webp', 'image/avif', 'image/gif'];
+  return transparentFormats.includes(mimeType);
+}
+

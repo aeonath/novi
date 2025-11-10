@@ -34,7 +34,7 @@ const AppInner: React.FC = () => {
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'nova-prompt' } | null>(null);
+  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'nova-prompt'; filePath?: string } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string; workspaceRoot?: string | null }>>([]);
   const [novaPromptTabs, setNovaPromptTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const { setGitStatus } = useAppContext();
@@ -247,6 +247,44 @@ const AppInner: React.FC = () => {
           });
         }
 
+        // Restore image tabs
+        if (workspace.openImages && workspace.openImages.length > 0) {
+          // Wait for TabBar to be ready
+          ensureReady('tabbar-ready').then(() => {
+            try {
+              const tabBarAPI = (window as any).__tabBarAPI;
+              if (!tabBarAPI) {
+                console.error('[App] TabBar API not ready for image restore');
+                return;
+              }
+              
+              for (let i = 0; i < workspace.openImages.length; i++) {
+                const imageInfo = workspace.openImages[i];
+                const imageId = `tab-${Date.now()}-image-${i}`;
+                
+                // Add image tab
+                tabBarAPI.addTab({
+                  id: imageId,
+                  type: 'image',
+                  filePath: imageInfo.filePath,
+                  fileName: imageInfo.fileName,
+                  isDirty: false,
+                  content: '',
+                  language: '',
+                });
+                
+                console.log('[App] Restored image tab:', imageId, imageInfo.filePath);
+              }
+              
+              console.log('[App] Restored', workspace.openImages.length, 'image tabs');
+            } catch (error) {
+              console.error('[App] Failed to restore images:', error);
+            }
+          }).catch(error => {
+            console.error('[App] Timeout waiting for TabBar (images):', error);
+          });
+        }
+
         // Restore terminals
         if (workspace.openTerminals && workspace.openTerminals.length > 0) {
           // Wait for TabBar to be ready
@@ -342,6 +380,48 @@ const AppInner: React.FC = () => {
         }
 
         console.log('[App] Workspace restored successfully');
+        
+        // Focus the active tab after restoration completes
+        // Wait a bit to ensure all APIs are ready and tabs are rendered
+        setTimeout(() => {
+          const tabBarAPI = (window as any).__tabBarAPI;
+          const monacoAPI = (window as any).__monacoEditorAPI;
+          const terminalAPI = (window as any).__terminalAPI;
+          
+          if (tabBarAPI) {
+            const activeTab = tabBarAPI.getActiveTab();
+            if (activeTab) {
+              console.log('[App] Setting focus to restored active tab:', activeTab.id, 'type:', activeTab.type);
+              
+              // Focus based on tab type
+              if (activeTab.type === 'terminal' && terminalAPI && terminalAPI[activeTab.id]) {
+                requestAnimationFrame(() => {
+                  if (terminalAPI[activeTab.id]) {
+                    terminalAPI[activeTab.id].focus();
+                    console.log('[App] Focused terminal:', activeTab.id);
+                  }
+                });
+              } else if (activeTab.type === 'file' && monacoAPI && monacoAPI.focus) {
+                requestAnimationFrame(() => {
+                  if (monacoAPI && monacoAPI.focus) {
+                    monacoAPI.focus();
+                    console.log('[App] Focused Monaco editor');
+                  }
+                });
+              } else if ((activeTab.type === 'image' || activeTab.type === 'nova-prompt') && monacoAPI && monacoAPI.focus) {
+                // For image/nova-prompt tabs, try Monaco as fallback
+                requestAnimationFrame(() => {
+                  if (monacoAPI && monacoAPI.focus) {
+                    monacoAPI.focus();
+                    console.log('[App] Focused Monaco (fallback for', activeTab.type, ')');
+                  }
+                });
+              }
+            } else {
+              console.log('[App] No active tab to focus after restoration');
+            }
+          }
+        }, 300); // 300ms delay to ensure all tabs are rendered
       } catch (error) {
         console.error('[App] Failed to load workspace:', error);
       }
@@ -390,6 +470,13 @@ const AppInner: React.FC = () => {
             isDirty: t.isDirty,
           }));
 
+        const openImages = tabs
+          .filter((t: any) => t.type === 'image')
+          .map((t: any) => ({
+            filePath: t.filePath,
+            fileName: t.fileName,
+          }));
+
         const openTerminals = terminalTabs.map(t => ({
           id: t.id,
           name: t.fileName,
@@ -403,6 +490,7 @@ const AppInner: React.FC = () => {
         const workspace = {
           workspaceRoot,
           openFiles,
+          openImages,
           openTerminals,
           openNovaPrompts,
           activeTabId: activeTab?.id || null,
@@ -469,10 +557,11 @@ const AppInner: React.FC = () => {
               content: '',
             });
 
-            // Set as active tab
+            // Set as active tab with filePath
             setActiveTab({
               id: tabId,
               type: 'image',
+              filePath: filePath,
             });
           }
 
@@ -1338,7 +1427,11 @@ const AppInner: React.FC = () => {
               }}
               onTabSwitch={(tab) => {
                 console.log('[App] Tab switched to:', tab.fileName, 'type:', tab.type);
-                setActiveTab({ id: tab.id, type: tab.type });
+                setActiveTab({ 
+                  id: tab.id, 
+                  type: tab.type,
+                  filePath: (tab.type === 'image' || tab.type === 'nova-prompt') ? tab.filePath : undefined
+                });
                 
                 // Hide welcome screen when a tab is clicked
                 setShowWelcome(false);
@@ -1352,6 +1445,11 @@ const AppInner: React.FC = () => {
                   // Update status bar
                   if ((window as any).__statusBarAPI) {
                     (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
+                  }
+                } else if (tab.type === 'image') {
+                  // Update status bar for image
+                  if ((window as any).__statusBarAPI) {
+                    (window as any).__statusBarAPI.setStatus(`Viewing: ${tab.fileName}`);
                   }
                 } else if (tab.type === 'terminal') {
                   // Terminal component will handle focus via isActive prop
@@ -1496,9 +1594,39 @@ const AppInner: React.FC = () => {
                 overflow: 'hidden',
               }}>
                 {activeTab?.type === 'image' && (() => {
-                  const tabs = ((window as any).__tabBarAPI?.getTabs() || []);
+                  // If activeTab has filePath (from newly opened image), use it directly
+                  if (activeTab.filePath) {
+                    console.log('[App] Rendering ImageEditor with filePath from activeTab:', activeTab.filePath);
+                    return <ImageEditor filePath={activeTab.filePath} />;
+                  }
+                  
+                  // Otherwise, look up the tab in TabBar (for restored images)
+                  const tabBarAPI = (window as any).__tabBarAPI;
+                  if (!tabBarAPI) {
+                    console.warn('[App] TabBar API not available for ImageEditor');
+                    return null;
+                  }
+                  
+                  const tabs = tabBarAPI.getTabs() || [];
                   const currentTab = tabs.find((t: any) => t.id === activeTab.id);
-                  return currentTab?.filePath ? <ImageEditor filePath={currentTab.filePath} /> : null;
+                  
+                  console.log('[App] Looking up image tab in TabBar:');
+                  console.log('  - activeTab.id:', activeTab.id);
+                  console.log('  - tabs count:', tabs.length);
+                  console.log('  - tabs IDs:', tabs.map((t: any) => ({ id: t.id, type: t.type, path: t.filePath })));
+                  console.log('  - currentTab:', currentTab);
+                  
+                  if (!currentTab) {
+                    console.error('[App] Cannot find image tab with ID:', activeTab.id);
+                    return null;
+                  }
+                  
+                  if (!currentTab.filePath) {
+                    console.error('[App] Image tab has no filePath:', currentTab);
+                    return null;
+                  }
+                  
+                  return <ImageEditor filePath={currentTab.filePath} />;
                 })()}
               </div>
             </div>

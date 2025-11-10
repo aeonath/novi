@@ -117,6 +117,19 @@ async function initializeApp() {
             });
             return;
           }
+          // For image and nova-prompt tabs, try to focus Monaco or body as fallback
+          else if (activeTab.type === 'image' || activeTab.type === 'nova-prompt') {
+            console.log('[Renderer] Active tab is', activeTab.type, '- focusing Monaco or body');
+            // Try Monaco first as it may still be visible
+            if (monacoAPI && monacoAPI.focus) {
+              requestAnimationFrame(() => {
+                if (monacoAPI && monacoAPI.focus) {
+                  monacoAPI.focus();
+                }
+              });
+              return;
+            }
+          }
         }
       }
       

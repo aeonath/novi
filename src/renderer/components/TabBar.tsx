@@ -12,8 +12,8 @@ import { markReady } from '../utils/ready-events.js';
 
 export interface Tab {
   id: string;
-  type: 'file' | 'terminal';
-  filePath: string; // For files: actual path, for terminals: terminal ID
+  type: 'file' | 'terminal' | 'image' | 'nova-prompt';
+  filePath: string; // For files: actual path, for terminals: terminal ID, for images: image path
   fileName: string;
   isDirty: boolean;
   content: string; // For files: file content, for terminals: not used
@@ -32,10 +32,13 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
 
   const addTab = useCallback((tab: Tab) => {
     setTabs((prevTabs) => {
-      // For file tabs, check if tab already exists by filePath
+      // For file, image, and nova-prompt tabs, check if tab already exists by filePath
       // For terminal tabs, always create new (allow multiple terminals)
-      if (tab.type === 'file') {
-        const existingTab = prevTabs.find((t) => t.type === 'file' && t.filePath === tab.filePath);
+      if (tab.type === 'file' || tab.type === 'image' || tab.type === 'nova-prompt') {
+        const existingTab = prevTabs.find((t) => 
+          (t.type === 'file' || t.type === 'image' || t.type === 'nova-prompt') && 
+          t.filePath === tab.filePath
+        );
         if (existingTab) {
           setActiveTabId(existingTab.id);
           onTabSwitch?.(existingTab);

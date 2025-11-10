@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import { ImageEditorService } from '../../core/image/image-editor';
-import { getImageDimensions, resizeImage, calculateProportionalDimensions, scaleDimensions, cropImage } from '../../core/image/image-utils';
+import { getImageDimensions, resizeImage, calculateProportionalDimensions, scaleDimensions, cropImage, setTransparency, supportsTransparency } from '../../core/image/image-utils';
 
 const styles: Record<string, CSSProperties> = {
   container: {
@@ -56,7 +56,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'auto',
-    background: 'repeating-conic-gradient(#808080 0% 25%, #404040 0% 50%) 50% / 20px 20px',
+    background: '#1e1e1e',
     padding: '20px',
     position: 'relative' as const,
   },
@@ -208,6 +208,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
   const [cropDragStart, setCropDragStart] = useState<{ x: number; y: number } | null>(null);
   const [showCropPreview, setShowCropPreview] = useState(false);
   const [cropPreviewUrl, setCropPreviewUrl] = useState<string | null>(null);
+  
+  // Transparency state
+  const [opacity, setOpacity] = useState(1.0); // 1.0 = fully opaque, 0.0 = fully transparent
+  const [showTransparencyControls, setShowTransparencyControls] = useState(false);
+  const [showCheckerboard, setShowCheckerboard] = useState(false);
   
   // Refs
   const imageRef = useRef<HTMLImageElement>(null);
@@ -390,7 +395,40 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
       setIsModified(false);
       setCropMode(false);
       setCropRegion(null);
+      setOpacity(1.0); // Reset opacity
+      setShowTransparencyControls(false);
       console.log('[ImageEditor] Reset to original');
+    }
+  };
+
+  // Transparency handlers
+  const handleToggleTransparency = () => {
+    setShowTransparencyControls(!showTransparencyControls);
+    // Show checkerboard when transparency controls are visible
+    setShowCheckerboard(!showTransparencyControls);
+  };
+
+  const handleOpacityChange = async (newOpacity: number) => {
+    if (!originalDataUrl) return;
+
+    // Validate opacity
+    const validOpacity = Math.max(0, Math.min(1, newOpacity));
+    setOpacity(validOpacity);
+
+    try {
+      setProcessing(true);
+      
+      // Apply transparency
+      const transparentImage = await setTransparency(originalDataUrl, validOpacity);
+      setImageUrl(transparentImage);
+      setIsModified(validOpacity !== 1.0);
+      
+      console.log(`[ImageEditor] Opacity set to ${Math.round(validOpacity * 100)}%`);
+    } catch (err) {
+      console.error('[ImageEditor] Failed to adjust transparency:', err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -560,6 +598,61 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
         
         <div style={styles.toolbarSeparator} />
         
+        {/* Transparency Controls */}
+        <button
+          style={supportsTransparency(mimeType) && dimensions && !cropMode ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          onClick={handleToggleTransparency}
+          disabled={!supportsTransparency(mimeType) || !dimensions || processing || cropMode}
+          title={supportsTransparency(mimeType) ? 'Toggle transparency controls' : 'Transparency not supported for this format'}
+        >
+          {showTransparencyControls ? 'Hide' : 'Show'} Transparency
+        </button>
+        
+        {showTransparencyControls && (
+          <>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '13px',
+              color: '#cccccc',
+              fontFamily: "'Segoe UI', sans-serif",
+            }}>
+              Opacity:
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={Math.round(opacity * 100)}
+                onChange={(e) => handleOpacityChange(parseInt(e.target.value) / 100)}
+                disabled={processing}
+                style={{
+                  width: '120px',
+                  cursor: processing ? 'not-allowed' : 'pointer',
+                }}
+              />
+              <span style={{
+                minWidth: '45px',
+                textAlign: 'right',
+              }}>
+                {Math.round(opacity * 100)}%
+              </span>
+            </label>
+            
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                style={styles.checkbox}
+                checked={showCheckerboard}
+                onChange={(e) => setShowCheckerboard(e.target.checked)}
+              />
+              Show checkerboard
+            </label>
+          </>
+        )}
+        
+        <div style={styles.toolbarSeparator} />
+        
         <button
           style={dimensions && !cropMode ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={() => handleQuickScale(0.5)}
@@ -608,7 +701,12 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
       </div>
 
       {/* Image Viewport */}
-      <div style={styles.viewport}>
+      <div style={{
+        ...styles.viewport,
+        background: showCheckerboard 
+          ? 'repeating-conic-gradient(#808080 0% 25%, #404040 0% 50%) 50% / 20px 20px'
+          : '#1e1e1e',
+      }}>
         <div 
           ref={imageContainerRef}
           style={styles.imageContainer}
