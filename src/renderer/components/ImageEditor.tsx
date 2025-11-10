@@ -219,6 +219,10 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
   const [saveAsFormat, setSaveAsFormat] = useState<'png' | 'jpg' | 'webp' | 'gif' | 'avif'>('png');
   const [saveAsQuality, setSaveAsQuality] = useState(0.92);
   
+  // Undo/Redo state
+  const [history, setHistory] = useState<Array<{ imageUrl: string; dimensions: { width: number; height: number }; opacity: number }>>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  
   // Refs
   const imageRef = useRef<HTMLImageElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -253,6 +257,10 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
               setOriginalDimensions(dims);
               setResizeWidth(String(dims.width));
               setResizeHeight(String(dims.height));
+              
+              // Initialize history with the original image
+              setHistory([{ imageUrl: url, dimensions: dims, opacity: 1.0 }]);
+              setHistoryIndex(0);
             }
           } catch (dimError) {
             console.warn('[ImageEditor] Could not get dimensions:', dimError);
@@ -278,6 +286,82 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
     };
   }, [filePath]);
 
+  // Helper function to save current state to history
+  const saveToHistory = (newImageUrl: string, newDimensions: { width: number; height: number }, newOpacity: number) => {
+    setHistory(prevHistory => {
+      // Remove any history after current index (when making new change after undo)
+      const newHistory = prevHistory.slice(0, historyIndex + 1);
+      
+      // Add new state
+      newHistory.push({
+        imageUrl: newImageUrl,
+        dimensions: newDimensions,
+        opacity: newOpacity,
+      });
+      
+      // Limit history to 50 states to prevent memory issues
+      if (newHistory.length > 50) {
+        newHistory.shift();
+        setHistoryIndex(prevIndex => prevIndex); // Keep index at same relative position
+        return newHistory;
+      }
+      
+      setHistoryIndex(newHistory.length - 1);
+      return newHistory;
+    });
+  };
+
+  // Undo function
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      const state = history[newIndex];
+      
+      setImageUrl(state.imageUrl);
+      setDimensions(state.dimensions);
+      setOpacity(state.opacity);
+      setHistoryIndex(newIndex);
+      setIsModified(newIndex > 0); // Modified if not at original state
+      
+      console.log(`[ImageEditor] Undo to state ${newIndex + 1}/${history.length}`);
+    }
+  };
+
+  // Redo function
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      const state = history[newIndex];
+      
+      setImageUrl(state.imageUrl);
+      setDimensions(state.dimensions);
+      setOpacity(state.opacity);
+      setHistoryIndex(newIndex);
+      setIsModified(newIndex > 0); // Modified if not at original state
+      
+      console.log(`[ImageEditor] Redo to state ${newIndex + 1}/${history.length}`);
+    }
+  };
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z or Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      // Ctrl+Y or Ctrl+Shift+Z or Cmd+Shift+Z for redo
+      else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history]); // Re-attach when history changes
+
   const handleResizeClick = () => {
     if (dimensions) {
       setResizeWidth(String(dimensions.width));
@@ -287,15 +371,19 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
   };
 
   const handleQuickScale = async (scale: number) => {
-    if (!dimensions || !originalDataUrl) return;
+    if (!dimensions || !imageUrl) return;
 
     try {
       setProcessing(true);
       const newDims = scaleDimensions(dimensions.width, dimensions.height, scale);
-      const resized = await resizeImage(originalDataUrl, newDims.width, newDims.height);
+      const resized = await resizeImage(imageUrl, newDims.width, newDims.height);
       setImageUrl(resized);
       setDimensions(newDims);
       setIsModified(true);
+      
+      // Save to history
+      saveToHistory(resized, newDims, opacity);
+      
       console.log(`[ImageEditor] Scaled to ${Math.round(scale * 100)}%: ${newDims.width}×${newDims.height}`);
     } catch (err) {
       console.error('[ImageEditor] Failed to scale image:', err);
@@ -314,16 +402,20 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
       return;
     }
 
-    if (!originalDataUrl) return;
+    if (!imageUrl) return;
 
     try {
       setProcessing(true);
       setShowResizeDialog(false);
 
-      const resized = await resizeImage(originalDataUrl, width, height);
+      const resized = await resizeImage(imageUrl, width, height);
       setImageUrl(resized);
       setDimensions({ width, height });
       setIsModified(true);
+      
+      // Save to history
+      saveToHistory(resized, { width, height }, opacity);
+      
       console.log(`[ImageEditor] Resized to ${width}×${height}`);
     } catch (err) {
       console.error('[ImageEditor] Failed to resize image:', err);
@@ -469,6 +561,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
       setCropRegion(null);
       setOpacity(1.0); // Reset opacity
       setShowTransparencyControls(false);
+      
+      // Reset history to original state
+      setHistory([{ imageUrl: originalDataUrl, dimensions: originalDimensions, opacity: 1.0 }]);
+      setHistoryIndex(0);
+      
       console.log('[ImageEditor] Reset to original');
     }
   };
@@ -481,7 +578,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
   };
 
   const handleOpacityChange = async (newOpacity: number) => {
-    if (!originalDataUrl) return;
+    if (!imageUrl || !dimensions) return;
 
     // Validate opacity
     const validOpacity = Math.max(0, Math.min(1, newOpacity));
@@ -490,10 +587,13 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
     try {
       setProcessing(true);
       
-      // Apply transparency
-      const transparentImage = await setTransparency(originalDataUrl, validOpacity);
+      // Apply transparency to current image (not original)
+      const transparentImage = await setTransparency(imageUrl, validOpacity);
       setImageUrl(transparentImage);
       setIsModified(validOpacity !== 1.0);
+      
+      // Save to history
+      saveToHistory(transparentImage, dimensions, validOpacity);
       
       console.log(`[ImageEditor] Opacity set to ${Math.round(validOpacity * 100)}%`);
     } catch (err) {
@@ -561,6 +661,10 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
       setShowCropPreview(false);
       setCropMode(false);
       setCropRegion(null);
+      
+      // Save to history
+      saveToHistory(cropPreviewUrl, dims, opacity);
+      
       console.log(`[ImageEditor] Cropped to ${dims.width}×${dims.height}`);
     } catch (err) {
       console.error('[ImageEditor] Failed to apply crop:', err);
@@ -634,6 +738,25 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ filePath }) => {
     <div style={styles.container}>
       {/* Toolbar */}
       <div style={styles.toolbar}>
+        <button
+          style={historyIndex > 0 ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          onClick={handleUndo}
+          disabled={historyIndex <= 0 || processing}
+          title="Undo (Ctrl+Z)"
+        >
+          ← Undo
+        </button>
+        <button
+          style={historyIndex < history.length - 1 ? styles.toolbarButton : styles.toolbarButtonDisabled}
+          onClick={handleRedo}
+          disabled={historyIndex >= history.length - 1 || processing}
+          title="Redo (Ctrl+Y)"
+        >
+          Redo →
+        </button>
+        
+        <div style={styles.toolbarSeparator} />
+        
         <button
           style={dimensions ? styles.toolbarButton : styles.toolbarButtonDisabled}
           onClick={handleResizeClick}
