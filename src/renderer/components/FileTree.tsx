@@ -187,12 +187,17 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     console.log('[FileTree] Setting newFileInput state');
     setNewFileInput({ parentPath, parentNode });
     
-    // Expand parent if it's a directory
-    if (parentNode && !expandedDirs.has(parentPath)) {
+    // ALWAYS expand parent if it's a directory node (whether already expanded or not)
+    // This ensures the NewFileInput is visible
+    if (parentNode && parentNode.isDirectory) {
       console.log('[FileTree] Expanding parent directory:', parentPath);
-      setExpandedDirs((prev) => new Set(prev).add(parentPath));
+      setExpandedDirs((prev) => {
+        const next = new Set(prev);
+        next.add(parentPath);
+        return next;
+      });
     }
-  }, [rootPath, expandedDirs, closeContextMenu]);
+  }, [rootPath, closeContextMenu]);
   
   const handleNewFileSubmit = useCallback(async (fileName: string) => {
     if (!newFileInput || !window.api?.createFile) return;
