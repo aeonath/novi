@@ -308,10 +308,6 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           // Check if container has non-zero dimensions (is visible)
           if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
             if (fitAddonRef.current && terminalRef.current) {
-              // Save current scroll position to preserve view
-              const scrollY = terminalRef.current.buffer.active.viewportY;
-              const baseY = terminalRef.current.buffer.active.baseY;
-              
               // Get dimensions before fit
               const oldCols = terminalRef.current.cols;
               const oldRows = terminalRef.current.rows;
@@ -326,15 +322,9 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
                 onResizeRef.current(newCols, newRows);
               }
               
-              // If we were at the bottom before resize, stay at bottom
-              // Otherwise restore scroll position to prevent first line from being cut
-              const wasAtBottom = scrollY === baseY;
-              if (wasAtBottom) {
-                terminalRef.current.scrollToBottom();
-              } else {
-                // Restore scroll position to preserve view
-                terminalRef.current.scrollToLine(scrollY);
-              }
+              // ALWAYS scroll to bottom when tab becomes active
+              // This ensures prompt is visible and prevents character clipping
+              terminalRef.current.scrollToBottom();
               
               // Focus the terminal without flashing
               terminalRef.current.focus();
