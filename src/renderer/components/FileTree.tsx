@@ -42,7 +42,7 @@ interface FileTreeContextValue {
   expandedDirs: Set<string>;
   toggleDirectory: (node: FileNode) => Promise<void>;
   handleFileClick: (node: FileNode) => void;
-  handleContextMenu: (e: React.MouseEvent, node: FileNode) => void;
+  handleContextMenu: (e: React.MouseEvent, node: FileNode | null) => void;
 }
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
@@ -176,16 +176,20 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     closeContextMenu();
 
     const parentPath = parentNode ? parentNode.path : rootPath;
+    console.log('[FileTree] createNewFile called, parentPath:', parentPath, 'parentNode:', parentNode);
+    
     if (!parentPath) {
       alert('Please open a directory first (📂 Open Folder)');
       return;
     }
 
     // Show inline input
+    console.log('[FileTree] Setting newFileInput state');
     setNewFileInput({ parentPath, parentNode });
     
     // Expand parent if it's a directory
     if (parentNode && !expandedDirs.has(parentPath)) {
+      console.log('[FileTree] Expanding parent directory:', parentPath);
       setExpandedDirs((prev) => new Set(prev).add(parentPath));
     }
   }, [rootPath, expandedDirs, closeContextMenu]);
