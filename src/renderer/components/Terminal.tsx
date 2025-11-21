@@ -155,7 +155,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       cursorStyle: 'block',
       lineHeight: 1.2,
       letterSpacing: 0,
-      scrollback: 1000,
+      scrollback: 10000, // Increased from 1000 to prevent losing top lines
       // Critical: windowsMode MUST be false for vim and other TUI apps
       // to work correctly. This ensures proper handling of control sequences.
       windowsMode: false,
@@ -301,6 +301,10 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           // Check if container has non-zero dimensions (is visible)
           if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
             if (fitAddonRef.current && terminalRef.current) {
+              // Save current scroll position to preserve view
+              const scrollY = terminalRef.current.buffer.active.viewportY;
+              const baseY = terminalRef.current.buffer.active.baseY;
+              
               // Get dimensions before fit
               const oldCols = terminalRef.current.cols;
               const oldRows = terminalRef.current.rows;
@@ -315,8 +319,15 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
                 onResizeRef.current(newCols, newRows);
               }
               
-              // Ensure viewport is at bottom (critical for vim and TUI apps)
-              terminalRef.current.scrollToBottom();
+              // If we were at the bottom before resize, stay at bottom
+              // Otherwise restore scroll position to prevent first line from being cut
+              const wasAtBottom = scrollY === baseY;
+              if (wasAtBottom) {
+                terminalRef.current.scrollToBottom();
+              } else {
+                // Restore scroll position to preserve view
+                terminalRef.current.scrollToLine(scrollY);
+              }
               
               // Focus the terminal without flashing
               terminalRef.current.focus();
@@ -430,6 +441,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           overflow: 'hidden',
           opacity: isReady ? 1 : 0,
           transition: 'opacity 0.2s ease-in',
+          padding: '4px', // Add padding to prevent first line from being cut off at edges
         }}
         data-terminal-id={terminalId}
       />
