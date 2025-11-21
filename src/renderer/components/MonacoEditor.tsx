@@ -535,7 +535,11 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
             style={styles.contextMenuItem}
             onClick={() => {
               setContextMenu(null);
-              onNewTerminal?.();
+              // Call the global action handler
+              const actionAPI = (window as any).__actionAPI;
+              if (actionAPI && actionAPI.onNewTerminal) {
+                actionAPI.onNewTerminal();
+              }
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}

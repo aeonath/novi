@@ -444,7 +444,11 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
             style={styles.menuItem} 
             onClick={() => {
               setContextMenu(null);
-              onNewTerminal?.();
+              // Call the global action handler
+              const actionAPI = (window as any).__actionAPI;
+              if (actionAPI && actionAPI.onNewTerminal) {
+                actionAPI.onNewTerminal();
+              }
             }}
           >
             New Terminal

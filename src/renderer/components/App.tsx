@@ -1290,6 +1290,17 @@ const AppInner: React.FC = () => {
     }
   }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt, setShowGitPanel, setGitStatus]);
 
+  // Expose action API globally for components that can't access context
+  useEffect(() => {
+    (window as any).__actionAPI = {
+      onNewTerminal: actionContext.onNewTerminal,
+    };
+    
+    return () => {
+      delete (window as any).__actionAPI;
+    };
+  }, [actionContext]);
+
   // Ctrl+Tab keybinding to cycle through tabs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
