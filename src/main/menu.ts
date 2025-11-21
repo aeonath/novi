@@ -84,6 +84,8 @@ async function executeCommand(command: MenuCommand, window: BrowserWindow): Prom
 function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   const isMac = process.platform === 'darwin';
   const isTerminal = currentActiveTabType === 'terminal';
+  
+  console.log('[Menu] Creating menu template, isTerminal:', isTerminal, 'activeTabType:', currentActiveTabType);
 
   const template: MenuItemConstructorOptions[] = [
     // File Menu
@@ -323,16 +325,23 @@ export function initializeMenu(mainWindow: BrowserWindow): void {
  * Update menu based on active tab type
  */
 export function updateMenuForTabType(tabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null): void {
+  console.log('[Menu] updateMenuForTabType called with:', tabType, 'current:', currentActiveTabType);
+  
   if (currentActiveTabType === tabType) {
+    console.log('[Menu] No change needed, skipping menu rebuild');
     return; // No change needed
   }
   
   currentActiveTabType = tabType;
+  console.log('[Menu] Tab type changed, rebuilding menu...');
   
   if (currentMainWindow) {
     const menu = buildMenu(currentMainWindow);
     Menu.setApplicationMenu(menu);
     logInfo(`[Menu] Menu updated for tab type: ${tabType}`);
+    console.log('[Menu] Menu successfully rebuilt and set');
+  } else {
+    console.warn('[Menu] No main window available, cannot update menu');
   }
 }
 

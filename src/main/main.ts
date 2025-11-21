@@ -17,7 +17,7 @@ import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
-import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
+import { initializeMenu, setMenuCommandHandler, updateMenuForTabType, MenuCommand } from './menu';
 import { commandStatsService } from './services/command-stats-service';
 import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
 
@@ -167,7 +167,7 @@ void app.whenReady().then(() => {
   
   // Menu update IPC - update menu based on active tab type
   ipcMain.on('update-menu-for-tab', (_e, tabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null) => {
-    const { updateMenuForTabType } = require('./menu');
+    logInfo(`[IPC] Received menu update request for tab type: ${tabType}`);
     updateMenuForTabType(tabType);
   });
   
