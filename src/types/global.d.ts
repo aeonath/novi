@@ -97,6 +97,7 @@ declare global {
       reportError: (message: string, stack?: string) => void;
       copyDiagnostics: () => Promise<string>;
       getCrashesDirectory: () => Promise<string>;
+      updateMenuForTab: (tabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null) => void;
       readDirectory: (path: string) => Promise<DirectoryEntry[]>;
       selectDirectory: () => Promise<string | null>;
       openFile: () => Promise<string | null>;

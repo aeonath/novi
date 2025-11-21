@@ -1080,6 +1080,15 @@ const AppInner: React.FC = () => {
       case 'close-file':
         await actionContext.onCloseFile?.();
         break;
+      case 'close-terminal':
+        // Close the active terminal tab
+        if (activeTab && activeTab.type === 'terminal') {
+          const tabBarAPI = (window as any).__tabBarAPI;
+          if (tabBarAPI) {
+            tabBarAPI.closeTab(activeTab.id);
+          }
+        }
+        break;
       case 'exit':
         window.api?.quit();
         break;
@@ -1222,6 +1231,15 @@ const AppInner: React.FC = () => {
         console.warn('[App] Unknown menu command:', command);
     }
   }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt, setShowGitPanel, setGitStatus]);
+
+  // Update menu based on active tab type
+  useEffect(() => {
+    if (window.api?.updateMenuForTab) {
+      const tabType = activeTab?.type || null;
+      window.api.updateMenuForTab(tabType);
+      console.log('[App] Menu updated for tab type:', tabType);
+    }
+  }, [activeTab?.type]);
 
   // Ctrl+Tab keybinding to cycle through tabs
   useEffect(() => {

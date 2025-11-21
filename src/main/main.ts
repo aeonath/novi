@@ -165,6 +165,12 @@ void app.whenReady().then(() => {
     saveCrashReport('rendererError', new Error(payload.message), payload.stack);
   });
   
+  // Menu update IPC - update menu based on active tab type
+  ipcMain.on('update-menu-for-tab', (_e, tabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null) => {
+    const { updateMenuForTabType } = require('./menu');
+    updateMenuForTabType(tabType);
+  });
+  
   // Crash reporting and diagnostics IPC
   ipcMain.handle('copy-diagnostics', () => {
     const diagnostics = getDiagnosticsInfo();

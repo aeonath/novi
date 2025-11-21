@@ -17,6 +17,7 @@ export type MenuCommand =
   | 'save'
   | 'save-as'
   | 'close-file'
+  | 'close-terminal'
   | 'exit'
   | 'undo'
   | 'redo'
@@ -48,6 +49,8 @@ export interface MenuCommandHandler {
 }
 
 let commandHandler: MenuCommandHandler | null = null;
+let currentMainWindow: BrowserWindow | null = null;
+let currentActiveTabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null = null;
 
 /**
  * Set the menu command handler
@@ -80,6 +83,7 @@ async function executeCommand(command: MenuCommand, window: BrowserWindow): Prom
  */
 function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   const isMac = process.platform === 'darwin';
+  const isTerminal = currentActiveTabType === 'terminal';
 
   const template: MenuItemConstructorOptions[] = [
     // File Menu
@@ -101,17 +105,19 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           label: 'Save',
           accelerator: 'CmdOrCtrl+S',
           click: () => executeCommand('save', mainWindow),
+          enabled: !isTerminal, // Disable for terminals
         },
         {
           label: 'Save As…',
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => executeCommand('save-as', mainWindow),
+          enabled: !isTerminal, // Disable for terminals
         },
         { type: 'separator' },
         {
-          label: 'Close File',
+          label: isTerminal ? 'Close Terminal' : 'Close File',
           accelerator: 'CmdOrCtrl+W',
-          click: () => executeCommand('close-file', mainWindow),
+          click: () => executeCommand(isTerminal ? 'close-terminal' : 'close-file', mainWindow),
         },
         { type: 'separator' },
         {
@@ -306,9 +312,27 @@ export function buildMenu(mainWindow: BrowserWindow): Menu {
  * Initialize the application menu for a window
  */
 export function initializeMenu(mainWindow: BrowserWindow): void {
+  currentMainWindow = mainWindow;
   const menu = buildMenu(mainWindow);
   Menu.setApplicationMenu(menu);
   
   logInfo('[Menu] Application menu initialized');
+}
+
+/**
+ * Update menu based on active tab type
+ */
+export function updateMenuForTabType(tabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null): void {
+  if (currentActiveTabType === tabType) {
+    return; // No change needed
+  }
+  
+  currentActiveTabType = tabType;
+  
+  if (currentMainWindow) {
+    const menu = buildMenu(currentMainWindow);
+    Menu.setApplicationMenu(menu);
+    logInfo(`[Menu] Menu updated for tab type: ${tabType}`);
+  }
 }
 
