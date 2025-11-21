@@ -199,7 +199,9 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     }
 
     try {
-      const filePath = `${newFileInput.parentPath}${newFileInput.parentPath.endsWith('/') || newFileInput.parentPath.endsWith('\\') ? '' : '/'}${fileName}`;
+      // Use path separator that matches the parent path
+      const separator = newFileInput.parentPath.includes('\\') ? '\\' : '/';
+      const filePath = `${newFileInput.parentPath}${newFileInput.parentPath.endsWith('/') || newFileInput.parentPath.endsWith('\\') ? '' : separator}${fileName}`;
       await window.api.createFile(filePath);
       
       // Reload parent directory
@@ -218,7 +220,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       alert(`Failed to create file: ${(error as Error).message}`);
       setNewFileInput(null);
     }
-  }, [newFileInput, onFileOpen]);
+  }, [newFileInput, onFileOpen, loadDirectory]);
 
   const createNewFolder = useCallback(async (parentNode: FileNode | null) => {
     if (!window.api?.createDirectory) return;
@@ -234,7 +236,9 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     if (!folderName) return;
 
     try {
-      const folderPath = `${parentPath}${parentPath.endsWith('/') ? '' : '/'}${folderName}`;
+      // Use path separator that matches the parent path
+      const separator = parentPath.includes('\\') ? '\\' : '/';
+      const folderPath = `${parentPath}${parentPath.endsWith('/') || parentPath.endsWith('\\') ? '' : separator}${folderName}`;
       await window.api.createDirectory(folderPath);
       
       // Reload parent directory
@@ -248,7 +252,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       console.error('[FileTree] Failed to create folder:', error);
       alert(`Failed to create folder: ${(error as Error).message}`);
     }
-  }, [rootPath, expandedDirs, closeContextMenu]);
+  }, [rootPath, expandedDirs, closeContextMenu, loadDirectory]);
 
   const renameNode = useCallback(async (node: FileNode) => {
     if (!window.api?.renameFile) return;
@@ -258,18 +262,25 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     if (!newName || newName === node.name) return;
 
     try {
-      const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
-      const newPath = `${parentPath}/${newName}`;
+      // Handle both Windows and Unix paths
+      const lastSlash = Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\'));
+      const parentPath = node.path.substring(0, lastSlash);
+      const separator = node.path.includes('\\') ? '\\' : '/';
+      const newPath = `${parentPath}${separator}${newName}`;
       
       await window.api.renameFile(node.path, newPath);
       
       // Reload parent directory
-      await loadDirectory(parentPath, rootPath === parentPath ? undefined : parentPath);
+      if (parentPath === rootPath || !parentPath) {
+        await loadDirectory(rootPath, undefined);
+      } else {
+        await loadDirectory(parentPath, parentPath);
+      }
     } catch (error) {
       console.error('[FileTree] Failed to rename:', error);
       alert(`Failed to rename: ${(error as Error).message}`);
     }
-  }, [rootPath, closeContextMenu]);
+  }, [rootPath, closeContextMenu, loadDirectory]);
 
   const deleteNode = useCallback(async (node: FileNode) => {
     if (!window.api?.deleteFile) return;
@@ -284,14 +295,21 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     try {
       await window.api.deleteFile(node.path, node.isDirectory);
       
-      // Reload parent directory
-      const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
-      await loadDirectory(parentPath, rootPath === parentPath ? undefined : parentPath);
+      // Reload parent directory - handle both Windows and Unix paths
+      const lastSlash = Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\'));
+      const parentPath = node.path.substring(0, lastSlash);
+      
+      // If the deleted node was at root level, reload the entire tree
+      if (parentPath === rootPath || !parentPath) {
+        await loadDirectory(rootPath, undefined);
+      } else {
+        await loadDirectory(parentPath, parentPath);
+      }
     } catch (error) {
       console.error('[FileTree] Failed to delete:', error);
       alert(`Failed to delete: ${(error as Error).message}`);
     }
-  }, [rootPath, closeContextMenu]);
+  }, [rootPath, closeContextMenu, loadDirectory]);
 
   // Close context menu on click outside
   useEffect(() => {
