@@ -10,7 +10,6 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
-import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
 import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
@@ -1369,7 +1368,6 @@ const AppInner: React.FC = () => {
   return (
       <div className="nova-layout" style={styles.layout}>
         <CustomMenuBar activeTabType={activeTab?.type || null} onCommand={handleMenuCommand} />
-        <TitleBar onCommand={handleMenuCommand} />
         
         <div style={styles.mainContent}>
           <aside style={styles.sidebar}>
