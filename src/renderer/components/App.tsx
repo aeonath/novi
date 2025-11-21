@@ -731,11 +731,15 @@ const AppInner: React.FC = () => {
                         result.path.endsWith('.js') || result.path.endsWith('.jsx') ? 'javascript' : 'plaintext',
             });
             
+            // Explicitly update dirty state to false
+            tabBarAPI.updateTabDirty(currentTab.id, false);
+            
             console.log('[App] Updated untitled tab to:', fileName);
           } else {
             // Create new tab for Save As on existing file
+            const newTabId = `tab-${Date.now()}`;
             tabBarAPI.addTab({
-              id: `tab-${Date.now()}`,
+              id: newTabId,
               type: 'file',
               filePath: result.path,
               fileName: fileName,
@@ -745,8 +749,18 @@ const AppInner: React.FC = () => {
                         result.path.endsWith('.js') || result.path.endsWith('.jsx') ? 'javascript' : 'plaintext',
             });
             
+            // Explicitly update dirty state to false
+            tabBarAPI.updateTabDirty(newTabId, false);
+            
             console.log('[App] Created new tab for Save As:', fileName);
           }
+        }
+
+        // Refresh FileTree to show the newly saved file
+        const fileTreeAPI = (window as any).__fileTreeAPI;
+        if (fileTreeAPI && fileTreeAPI.refresh) {
+          console.log('[App] Refreshing FileTree after save');
+          fileTreeAPI.refresh();
         }
 
         // Update status bar
