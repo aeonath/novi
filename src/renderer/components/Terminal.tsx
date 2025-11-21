@@ -159,10 +159,11 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       fontSize: 14,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
       cursorBlink: true,
-      cursorStyle: 'block',
+      cursorStyle: 'underline', // Changed from 'block' to 'underline'
+      cursorWidth: 2, // Make it bold/thick
       lineHeight: 1.2,
       letterSpacing: 0,
-      scrollback: 10000, // Increased from 1000 to prevent losing top lines
+      scrollback: 50000, // Increased to 50k lines for huge buffer
       // Critical: windowsMode MUST be false for vim and other TUI apps
       // to work correctly. This ensures proper handling of control sequences.
       windowsMode: false,
@@ -212,7 +213,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         onDataRef.current?.(data);
       });
 
-      // Ensure terminal starts with viewport at the bottom
+      // Initial scroll to bottom only for new terminals
       // This prevents vim and other TUI apps from displaying offset
       setTimeout(() => {
         terminal.scrollToBottom();
@@ -322,9 +323,8 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
                 onResizeRef.current(newCols, newRows);
               }
               
-              // ALWAYS scroll to bottom when tab becomes active
-              // This ensures prompt is visible and prevents character clipping
-              terminalRef.current.scrollToBottom();
+              // Preserve scroll position when switching tabs
+              // Do NOT scroll to bottom - user may have scrolled up to view history
               
               // Focus the terminal without flashing
               terminalRef.current.focus();
