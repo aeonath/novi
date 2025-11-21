@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
+import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
 import { TabBar } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
@@ -24,7 +25,6 @@ import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
 import { SavePrompt } from './SavePrompt.js';
-import { CustomMenuBar } from './CustomMenuBar.js';
 import { createDefaultActions, ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
@@ -1367,7 +1367,7 @@ const AppInner: React.FC = () => {
 
   return (
       <div className="nova-layout" style={styles.layout}>
-        <CustomMenuBar activeTabType={activeTab?.type || null} onCommand={handleMenuCommand} />
+        <TitleBar onCommand={handleMenuCommand} />
         
         <div style={styles.mainContent}>
           <aside style={styles.sidebar}>

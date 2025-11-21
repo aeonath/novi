@@ -17,6 +17,7 @@ import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
+import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
 import { commandStatsService } from './services/command-stats-service';
 import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
 
@@ -28,7 +29,23 @@ process.env.NODE_ENV ??= 'development';
 /**
  * Handle menu commands
  */
-// Menu command handler removed - using custom CSS menu bar in renderer
+// Menu command handler
+async function handleMenuCommand(command: MenuCommand, window: BrowserWindow): Promise<void> {
+  logInfo(`[Menu] Handling command: ${command}`);
+  
+  // Record command execution
+  commandStatsService.recordCommand(command);
+  
+  // Handle DevTools toggle in main process
+  if (command === 'toggle-devtools') {
+    window.webContents.toggleDevTools();
+    logInfo('[Menu] DevTools toggled');
+    return;
+  }
+  
+  // Send other commands to renderer
+  window.webContents.send('menu-command', command);
+}
 
 function createWindow(): void {
   const savedBounds = getSetting<{ width: number; height: number; x?: number; y?: number }>(
@@ -74,7 +91,9 @@ function createWindow(): void {
   void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   mainWindow.setMinimumSize(800, 600);
 
-  // Native menu removed - using custom CSS menu bar in renderer
+  // Initialize application menu
+  setMenuCommandHandler(handleMenuCommand);
+  initializeMenu(mainWindow);
   mainWindow.setMenuBarVisibility(true);
 
   // Show window when ready to prevent white screen
