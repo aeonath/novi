@@ -1234,10 +1234,14 @@ const AppInner: React.FC = () => {
 
   // Update menu based on active tab type
   useEffect(() => {
+    console.log('[App] Active tab changed:', activeTab);
     if (window.api?.updateMenuForTab) {
       const tabType = activeTab?.type || null;
+      console.log('[App] Calling updateMenuForTab with type:', tabType);
       window.api.updateMenuForTab(tabType);
-      console.log('[App] Menu updated for tab type:', tabType);
+      console.log('[App] Menu update call completed');
+    } else {
+      console.warn('[App] updateMenuForTab API not available');
     }
   }, [activeTab?.type]);
 
