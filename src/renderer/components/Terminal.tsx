@@ -283,19 +283,54 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
     };
   }, [terminalId, isReady]);
 
-  // Focus terminal when it becomes active (tab switching)
+  // Refit and scroll to bottom when terminal becomes active AFTER initial mount (tab switching)
   useEffect(() => {
     // Skip if this is the initial mount (hasInitialFitRef is still false)
+    // This prevents double-fitting and flashing on terminal creation
     if (!hasInitialFitRef.current) {
       return;
     }
     
-    if (isActive && isReady && terminalRef.current) {
-      // Simple: just focus and scroll to bottom when tab becomes active
-      // Don't refit - dimensions should stay stable
-      terminalRef.current.focus();
-      terminalRef.current.scrollToBottom();
-      console.log('[Terminal] Tab switched - focused and scrolled to bottom');
+    if (isActive && isReady && fitAddonRef.current && terminalRef.current && containerRef.current) {
+      // Use ResizeObserver to detect when container becomes visible and sized
+      // This replaces setTimeout - we wait for actual layout change, not arbitrary delay
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          // Check if container has non-zero dimensions (is visible)
+          if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            if (fitAddonRef.current && terminalRef.current) {
+              // Get dimensions before fit
+              const oldCols = terminalRef.current.cols;
+              const oldRows = terminalRef.current.rows;
+              
+              // Refit to container
+              fitAddonRef.current.fit();
+              const newCols = terminalRef.current.cols;
+              const newRows = terminalRef.current.rows;
+              
+              // Only notify if dimensions actually changed (avoids unnecessary PTY updates)
+              if (onResizeRef.current && (newCols !== oldCols || newRows !== oldRows) && newCols > 0 && newRows > 0) {
+                onResizeRef.current(newCols, newRows);
+              }
+              
+              // CRITICAL: Always scroll to bottom when switching to this terminal
+              // This ensures the prompt is always visible and not cut off
+              terminalRef.current.scrollToBottom();
+              console.log('[Terminal] Tab switched - scrolled to bottom');
+              
+              // Focus the terminal without flashing
+              terminalRef.current.focus();
+              
+              // Disconnect observer after first successful fit
+              resizeObserver.disconnect();
+            }
+          }
+        }
+      });
+
+      resizeObserver.observe(containerRef.current);
+
+      return () => resizeObserver.disconnect();
     }
   }, [isActive, isReady, terminalId]);
 
