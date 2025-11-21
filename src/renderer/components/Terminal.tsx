@@ -60,10 +60,19 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
     const measureAndCreatePTY = async () => {
       if (!containerRef.current) return;
 
-      // Wait for the container to be fully rendered, visible, and measured by the browser
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Use ResizeObserver to wait for container to be sized
+      const container = containerRef.current;
+      await new Promise<void>((resolve) => {
+        const observer = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+              observer.disconnect();
+              resolve();
+            }
+          }
+        });
+        observer.observe(container);
+      });
 
       // Create a temporary xterm just to measure dimensions
       // IMPORTANT: Create without padding to get raw dimensions
@@ -80,15 +89,11 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         // Open temporarily to measure
         tempTerminal.open(containerRef.current);
         
-        // Wait for xterm to render and layout
+        // Wait for xterm to render using requestAnimationFrame
         await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 150));
+        await new Promise(resolve => requestAnimationFrame(resolve));
         
-        // Fit multiple times to ensure accurate measurement
-        tempFitAddon.fit();
-        await new Promise(resolve => setTimeout(resolve, 50));
-        tempFitAddon.fit();
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Fit to get accurate dimensions
         tempFitAddon.fit();
         
         const cols = tempTerminal.cols;
@@ -182,8 +187,8 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
       
-      // Fit terminal to container - PTY already created with correct dimensions
-      setTimeout(() => {
+      // Use terminal's onRender event to fit after first render
+      terminal.onRender(() => {
         // Fit to actual container dimensions
         fitAddon.fit();
         const cols = terminal.cols;
@@ -204,56 +209,44 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           terminal.focus();
         }
         
+        // Scroll to bottom to show prompt
+        terminal.scrollToBottom();
+        
         // Mark as ready and initial fit as complete
-        hasInitialFitRef.current = true;
-        setIsReady(true);
-      }, 100); // Short delay since PTY is ready
+        if (!hasInitialFitRef.current) {
+          hasInitialFitRef.current = true;
+          setIsReady(true);
+        }
+      });
 
       // Handle input
       terminal.onData((data) => {
         onDataRef.current?.(data);
       });
-
-      // Initial scroll to bottom only for new terminals
-      // This prevents vim and other TUI apps from displaying offset
-      setTimeout(() => {
-        terminal.scrollToBottom();
-      }, 200);
     } catch (error) {
       console.error('[Terminal] Failed to open terminal:', error);
     }
 
-    // Handle resize with debouncing to prevent flickering
-    let resizeTimeout: NodeJS.Timeout | null = null;
-    const handleResize = () => {
-      // Clear any pending resize
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      
-      // Debounce resize to prevent flickering
-      resizeTimeout = setTimeout(() => {
-        if (fitAddonRef.current && terminalRef.current) {
-          fitAddonRef.current.fit();
-          const dimensions = terminalRef.current?.cols && terminalRef.current?.rows
-            ? { cols: terminalRef.current.cols, rows: terminalRef.current.rows }
-            : null;
-          if (dimensions) {
-            onResizeRef.current?.(dimensions.cols, dimensions.rows);
-          }
+    // Handle resize using ResizeObserver instead of timeout debounce
+    const resizeObserver = new ResizeObserver(() => {
+      if (fitAddonRef.current && terminalRef.current) {
+        fitAddonRef.current.fit();
+        const dimensions = terminalRef.current?.cols && terminalRef.current?.rows
+          ? { cols: terminalRef.current.cols, rows: terminalRef.current.rows }
+          : null;
+        if (dimensions) {
+          onResizeRef.current?.(dimensions.cols, dimensions.rows);
         }
-        resizeTimeout = null;
-      }, 100); // 100ms debounce
-    };
+      }
+    });
 
-    window.addEventListener('resize', handleResize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
 
     // Cleanup - only dispose on unmount, not on tab switch
     return () => {
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
@@ -269,13 +262,12 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         write: (data: string) => {
           console.log('[Terminal] write() called for:', terminalId, 'data length:', data.length);
           if (terminalRef.current) {
-            terminalRef.current.write(data);
-            // Scroll to bottom after writing data to ensure prompt is visible
-            setTimeout(() => {
+            terminalRef.current.write(data, () => {
+              // Scroll to bottom after data is written and rendered
               if (terminalRef.current) {
                 terminalRef.current.scrollToBottom();
               }
-            }, 50);
+            });
           }
         },
         clear: () => {
