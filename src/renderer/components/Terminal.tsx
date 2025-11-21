@@ -18,7 +18,7 @@ export interface TerminalProps {
   workspaceRoot?: string;
   onData?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
-  onPwd?: (pwd: string) => void; // Callback when PWD is detected
+  onPwd?: (dirName: string) => void; // Callback when PWD is detected (passes directory name)
   isActive?: boolean;
 }
 
@@ -273,15 +273,31 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
             }
             
             // Try to extract PWD from the accumulated buffer
-            // Look for common Git Bash prompt patterns like: "user@host MINGW64 /c/Work/project"
-            // The PWD is typically the last path before $ or :
-            const pwdMatch = terminalBufferRef.current.match(/MINGW64\s+([^\r\n$:]+)/);
+            // Strip ANSI codes first for cleaner matching
+            const cleanBuffer = terminalBufferRef.current.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+            
+            // Look for Git Bash prompt pattern: "user@host MINGW64 {path}"
+            // The path can be absolute (/c/Work/nova) or relative (Work/, nova/)
+            // Match everything after MINGW64 until we hit a newline or prompt character
+            const pwdMatch = cleanBuffer.match(/MINGW64\s+([^\r\n]+?)(?:\s+\(|$)/);
+            
             if (pwdMatch && onPwdRef.current) {
-              const rawPwd = pwdMatch[1].trim();
-              // Clean up the path (remove ANSI codes if any remain)
-              const cleanPwd = rawPwd.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').trim();
-              if (cleanPwd && cleanPwd.startsWith('/') && cleanPwd !== '/') {
-                onPwdRef.current(cleanPwd);
+              let pwd = pwdMatch[1].trim();
+              
+              // Remove trailing slash if present
+              if (pwd.endsWith('/')) {
+                pwd = pwd.slice(0, -1);
+              }
+              
+              // Extract just the directory name (last segment)
+              const segments = pwd.split('/').filter(Boolean);
+              const dirName = segments[segments.length - 1] || pwd;
+              
+              console.log('[Terminal] PWD detected:', pwd, '-> dirName:', dirName);
+              
+              // Update tab title with directory name
+              if (dirName && dirName !== '~') {
+                onPwdRef.current(dirName);
               }
             }
           }

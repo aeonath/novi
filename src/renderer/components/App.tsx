@@ -1347,16 +1347,14 @@ const AppInner: React.FC = () => {
     }
   }, []);
 
-  const handleTerminalPwd = useCallback((terminalId: string, pwd: string) => {
-    console.log(`[App] Terminal ${terminalId} PWD detected: ${pwd}`);
+  const handleTerminalPwd = useCallback((terminalId: string, dirName: string) => {
+    console.log(`[App] Terminal ${terminalId} PWD directory name: ${dirName}`);
     
-    // Extract directory name from path (last segment)
-    const dirName = pwd.split('/').filter(Boolean).pop() || pwd;
-    
-    // Update tab title to show PWD
+    // Update tab title to show directory name
     const tabBarAPI = (window as any).__tabBarAPI;
     if (tabBarAPI) {
       tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
+      console.log(`[App] Updated terminal tab title to: 💻 ${dirName}`);
     }
   }, []);
 
