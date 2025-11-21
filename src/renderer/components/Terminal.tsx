@@ -66,7 +66,16 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       await new Promise(resolve => setTimeout(resolve, 200));
 
       // Create a temporary xterm just to measure dimensions
-      const tempTerminal = new XTerm({ convertEol: true });
+      const tempTerminal = new XTerm({ 
+        convertEol: true,
+        // Use same padding as real terminal for accurate measurement
+        padding: {
+          top: 2,
+          right: 4,
+          bottom: 2,
+          left: 4,
+        },
+      });
       const tempFitAddon = new FitAddon();
       tempTerminal.loadAddon(tempFitAddon);
 
@@ -159,6 +168,13 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       // Critical: windowsMode MUST be false for vim and other TUI apps
       // to work correctly. This ensures proper handling of control sequences.
       windowsMode: false,
+      // Add padding inside xterm viewport to prevent character clipping
+      padding: {
+        top: 2,
+        right: 4,
+        bottom: 2,
+        left: 4,
+      },
     });
 
     // Create fit addon
@@ -441,7 +457,6 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           overflow: 'hidden',
           opacity: isReady ? 1 : 0,
           transition: 'opacity 0.2s ease-in',
-          padding: '4px', // Add padding to prevent first line from being cut off at edges
         }}
         data-terminal-id={terminalId}
       />
