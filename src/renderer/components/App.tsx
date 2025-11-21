@@ -25,6 +25,7 @@ import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
 import { SavePrompt } from './SavePrompt.js';
+import { CustomMenuBar } from './CustomMenuBar.js';
 import { createDefaultActions, ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
@@ -1215,6 +1216,34 @@ const AppInner: React.FC = () => {
           console.log('[App] Workspace reset complete');
         }
         break;
+      case 'find':
+      case 'replace':
+        // Monaco handles find/replace internally via Ctrl+F and Ctrl+H
+        console.log('[App] Find/Replace handled by Monaco');
+        break;
+      case 'toggle-fullscreen':
+        window.api?.toggleFullScreen?.();
+        break;
+      case 'zoom-in':
+        window.api?.zoomIn?.();
+        break;
+      case 'zoom-out':
+        window.api?.zoomOut?.();
+        break;
+      case 'zoom-reset':
+        window.api?.zoomReset?.();
+        break;
+      case 'toggle-devtools':
+        window.api?.toggleDevTools?.();
+        break;
+      case 'debug':
+        // TODO: Implement debug panel
+        console.log('[App] Debug panel not yet implemented');
+        break;
+      case 'report-issue':
+        // Open GitHub issues URL
+        window.open('https://github.com/miranova-studios/nova/issues', '_blank');
+        break;
       case 'about':
         // TODO: Implement About dialog
         console.log('[App] About dialog not yet implemented');
@@ -1231,19 +1260,6 @@ const AppInner: React.FC = () => {
         console.warn('[App] Unknown menu command:', command);
     }
   }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt, setShowGitPanel, setGitStatus]);
-
-  // Update menu based on active tab type
-  useEffect(() => {
-    console.log('[App] Active tab changed:', activeTab);
-    if (window.api?.updateMenuForTab) {
-      const tabType = activeTab?.type || null;
-      console.log('[App] Calling updateMenuForTab with type:', tabType);
-      window.api.updateMenuForTab(tabType);
-      console.log('[App] Menu update call completed');
-    } else {
-      console.warn('[App] updateMenuForTab API not available');
-    }
-  }, [activeTab?.type]);
 
   // Ctrl+Tab keybinding to cycle through tabs
   useEffect(() => {
@@ -1352,6 +1368,7 @@ const AppInner: React.FC = () => {
 
   return (
       <div className="nova-layout" style={styles.layout}>
+        <CustomMenuBar activeTabType={activeTab?.type || null} onCommand={handleMenuCommand} />
         <TitleBar onCommand={handleMenuCommand} />
         
         <div style={styles.mainContent}>

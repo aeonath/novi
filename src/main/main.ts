@@ -17,7 +17,6 @@ import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
-import { initializeMenu, setMenuCommandHandler, updateMenuForTabType, MenuCommand } from './menu';
 import { commandStatsService } from './services/command-stats-service';
 import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
 
@@ -29,22 +28,7 @@ process.env.NODE_ENV ??= 'development';
 /**
  * Handle menu commands
  */
-async function handleMenuCommand(command: MenuCommand, window: BrowserWindow): Promise<void> {
-  logInfo(`[Menu] Handling command: ${command}`);
-  
-  // Record command execution for stats
-  commandStatsService.recordCommand(command);
-  
-  // Handle DevTools toggle directly in main process
-  if (command === 'toggle-devtools') {
-    window.webContents.toggleDevTools();
-    logInfo('[Menu] DevTools toggled');
-    return;
-  }
-  
-  // Send other commands to renderer
-  window.webContents.send('menu-command', command);
-}
+// Menu command handler removed - using custom CSS menu bar in renderer
 
 function createWindow(): void {
   const savedBounds = getSetting<{ width: number; height: number; x?: number; y?: number }>(
@@ -90,12 +74,7 @@ function createWindow(): void {
   void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   mainWindow.setMinimumSize(800, 600);
 
-  // Initialize application menu
-  setMenuCommandHandler(handleMenuCommand);
-  initializeMenu(mainWindow);
-  
-  // For frameless windows on Windows, make menu accessible via Alt key
-  mainWindow.setAutoHideMenuBar(false);
+  // Native menu removed - using custom CSS menu bar in renderer
   mainWindow.setMenuBarVisibility(true);
 
   // Show window when ready to prevent white screen
@@ -165,11 +144,7 @@ void app.whenReady().then(() => {
     saveCrashReport('rendererError', new Error(payload.message), payload.stack);
   });
   
-  // Menu update IPC - update menu based on active tab type
-  ipcMain.on('update-menu-for-tab', (_e, tabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null) => {
-    logInfo(`[IPC] Received menu update request for tab type: ${tabType}`);
-    updateMenuForTabType(tabType);
-  });
+  // Native menu IPC handlers removed - using custom CSS menu bar in renderer
   
   // Crash reporting and diagnostics IPC
   ipcMain.handle('copy-diagnostics', () => {

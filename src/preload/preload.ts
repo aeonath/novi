@@ -18,8 +18,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.send('renderer-error', { message, stack }),
   copyDiagnostics: () => ipcRenderer.invoke('copy-diagnostics'),
   getCrashesDirectory: () => ipcRenderer.invoke('get-crashes-directory'),
-  updateMenuForTab: (tabType: 'file' | 'terminal' | 'nova-prompt' | 'image' | 'workspace-split' | null) =>
-    ipcRenderer.send('update-menu-for-tab', tabType),
+  // updateMenuForTab removed - using custom CSS menu bar in renderer
   readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   // File operations

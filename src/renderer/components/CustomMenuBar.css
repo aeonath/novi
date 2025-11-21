@@ -1,0 +1,86 @@
+.custom-menu-bar {
+  display: flex;
+  height: 30px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #1e1e1e;
+  color: #cccccc;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  user-select: none;
+  -webkit-app-region: drag;
+  z-index: 1000;
+  position: relative;
+}
+
+.menu-container {
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.menu-button {
+  padding: 0 12px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.menu-button:hover {
+  background: #3e3e3e;
+}
+
+.menu-button.active {
+  background: #3e3e3e;
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  min-width: 220px;
+  background: #252526;
+  border: 1px solid #454545;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  padding: 4px 0;
+  z-index: 10000;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 20px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menu-item:hover:not(.disabled) {
+  background: #094771;
+}
+
+.menu-item.disabled {
+  color: #656565;
+  cursor: default;
+}
+
+.menu-item-label {
+  flex: 1;
+}
+
+.menu-item-accelerator {
+  margin-left: 32px;
+  font-size: 11px;
+  color: #858585;
+}
+
+.menu-item.disabled .menu-item-accelerator {
+  color: #4d4d4d;
+}
+
+.menu-separator {
+  height: 1px;
+  background: #454545;
+  margin: 4px 0;
+}
+
