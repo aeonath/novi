@@ -18,10 +18,11 @@ export interface TerminalProps {
   workspaceRoot?: string;
   onData?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
+  onPwd?: (pwd: string) => void; // Callback when PWD is detected
   isActive?: boolean;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, isActive }) => {
+export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, onPwd, isActive }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -29,17 +30,20 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   const [ptyCreated, setPtyCreated] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const hasInitialFitRef = useRef(false); // Track if initial fit has completed
+  const terminalBufferRef = useRef<string>(''); // Accumulate terminal output for PWD detection
   
   // Store callbacks in refs to prevent useEffect re-runs when they change
   // CRITICAL: This prevents periodic redraws caused by parent component re-renders
   const onDataRef = useRef(onData);
   const onResizeRef = useRef(onResize);
+  const onPwdRef = useRef(onPwd);
   
   // Update refs when callbacks change
   useEffect(() => {
     onDataRef.current = onData;
     onResizeRef.current = onResize;
-  }, [onData, onResize]);
+    onPwdRef.current = onPwd;
+  }, [onData, onResize, onPwd]);
 
   // PHASE 1: Create PTY with measured dimensions BEFORE opening xterm
   useEffect(() => {
@@ -187,7 +191,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
       
-      // Simple approach: fit immediately using RAF
+      // Simple approach: fit immediately using RAF, then scroll to bottom
       requestAnimationFrame(() => {
         fitAddon.fit();
         const cols = terminal.cols;
@@ -198,6 +202,12 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         if (onResizeRef.current) {
           onResizeRef.current(cols, rows);
         }
+        
+        // CRITICAL: Scroll to bottom after initial fit to show full prompt
+        requestAnimationFrame(() => {
+          terminal.scrollToBottom();
+          console.log('[Terminal] Initial scroll to bottom completed');
+        });
         
         // Mark as ready
         hasInitialFitRef.current = true;
@@ -234,14 +244,14 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       resizeObserver.observe(containerRef.current);
     }
 
-    // Cleanup - only dispose on unmount, not on tab switch
+    // Cleanup - CRITICAL: Only disconnect observer, DON'T dispose terminal
+    // Terminal must persist across tab switches to preserve history
     return () => {
+      console.log('[Terminal] Cleanup: Disconnecting resize observer (terminal persists)');
       resizeObserver.disconnect();
-      terminal.dispose();
-      terminalRef.current = null;
-      fitAddonRef.current = null;
+      // DO NOT dispose terminal here - it should persist
     };
-  }, [terminalId, ptyCreated]); // Removed isActive from dependencies
+  }, [terminalId, ptyCreated, isActive]); // Keep isActive to handle focus
 
   // Expose write and focus methods for incoming data and tab switching
   useEffect(() => {
@@ -253,6 +263,27 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           console.log('[Terminal] write() called for:', terminalId, 'data length:', data.length);
           if (terminalRef.current) {
             terminalRef.current.write(data);
+            
+            // Accumulate data in buffer for PWD detection
+            terminalBufferRef.current += data;
+            
+            // Keep buffer manageable (last 5000 chars should be enough to catch prompts)
+            if (terminalBufferRef.current.length > 5000) {
+              terminalBufferRef.current = terminalBufferRef.current.slice(-5000);
+            }
+            
+            // Try to extract PWD from the accumulated buffer
+            // Look for common Git Bash prompt patterns like: "user@host MINGW64 /c/Work/project"
+            // The PWD is typically the last path before $ or :
+            const pwdMatch = terminalBufferRef.current.match(/MINGW64\s+([^\r\n$:]+)/);
+            if (pwdMatch && onPwdRef.current) {
+              const rawPwd = pwdMatch[1].trim();
+              // Clean up the path (remove ANSI codes if any remain)
+              const cleanPwd = rawPwd.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').trim();
+              if (cleanPwd && cleanPwd.startsWith('/') && cleanPwd !== '/') {
+                onPwdRef.current(cleanPwd);
+              }
+            }
           }
         },
         clear: () => {
@@ -277,7 +308,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
     };
   }, [terminalId, isReady]);
 
-  // Refit and focus when terminal becomes active AFTER initial mount (tab switching)
+  // Refit and scroll to bottom when terminal becomes active AFTER initial mount (tab switching)
   useEffect(() => {
     // Skip if this is the initial mount (hasInitialFitRef is still false)
     // This prevents double-fitting and flashing on terminal creation
@@ -307,8 +338,10 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
                 onResizeRef.current(newCols, newRows);
               }
               
-              // Preserve scroll position when switching tabs
-              // Do NOT scroll to bottom - user may have scrolled up to view history
+              // CRITICAL: Always scroll to bottom when switching to this terminal
+              // This ensures the prompt is always visible and not cut off
+              terminalRef.current.scrollToBottom();
+              console.log('[Terminal] Tab switched - scrolled to bottom');
               
               // Focus the terminal without flashing
               terminalRef.current.focus();

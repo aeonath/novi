@@ -845,14 +845,14 @@ const AppInner: React.FC = () => {
             id: terminalId,
             type: 'terminal',
             filePath: terminalId,
-            fileName: '💻 Terminal',
+            fileName: '💻 bash',
             isDirty: false,
             content: '',
             language: 'terminal',
           });
           
           // Add to terminal tabs state to trigger re-render
-          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 Terminal', workspaceRoot }]);
+          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 bash', workspaceRoot }]);
           console.log('[App] Added terminal to state:', terminalId);
           
           // Switch to terminal tab
@@ -1347,6 +1347,19 @@ const AppInner: React.FC = () => {
     }
   }, []);
 
+  const handleTerminalPwd = useCallback((terminalId: string, pwd: string) => {
+    console.log(`[App] Terminal ${terminalId} PWD detected: ${pwd}`);
+    
+    // Extract directory name from path (last segment)
+    const dirName = pwd.split('/').filter(Boolean).pop() || pwd;
+    
+    // Update tab title to show PWD
+    const tabBarAPI = (window as any).__tabBarAPI;
+    if (tabBarAPI) {
+      tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
+    }
+  }, []);
+
   // Close context menu on click outside
   useEffect(() => {
     if (welcomeContextMenu) {
@@ -1642,6 +1655,7 @@ const AppInner: React.FC = () => {
                 // Prevents Terminal useEffect from re-running on every parent render
                 const terminalOnData = (data: string) => handleTerminalData(tab.id, data);
                 const terminalOnResize = (cols: number, rows: number) => handleTerminalResize(tab.id, cols, rows);
+                const terminalOnPwd = (pwd: string) => handleTerminalPwd(tab.id, pwd);
                 
                 return (
                   <div
@@ -1660,6 +1674,7 @@ const AppInner: React.FC = () => {
                       isActive={activeTab?.id === tab.id}
                       onData={terminalOnData}
                       onResize={terminalOnResize}
+                      onPwd={terminalOnPwd}
                     />
                   </div>
                 );
