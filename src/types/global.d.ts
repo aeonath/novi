@@ -147,6 +147,8 @@ declare global {
       terminalKill: (terminalId: string) => Promise<{ success: boolean }>;
       terminalOnData: (callback: (terminalId: string, data: string) => void) => void;
       terminalRemoveDataListener: () => void;
+      terminalOnPwd: (callback: (terminalId: string, pwd: string) => void) => void;
+      terminalRemovePwdListener: () => void;
       terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => void;
       terminalRemoveExitListener: () => void;
       // Clipboard operations (async via IPC)

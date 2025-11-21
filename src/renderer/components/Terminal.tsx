@@ -262,17 +262,6 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         write: (data: string) => {
           console.log('[Terminal] write() called for:', terminalId, 'data length:', data.length);
           if (terminalRef.current) {
-            // Parse PWD from terminal output to update tab title
-            const pwdMatch = data.match(/pwd:([^\r\n]+)/);
-            if (pwdMatch) {
-              const pwd = pwdMatch[1].trim();
-              const dirName = pwd.split('/').filter(Boolean).pop() || '~';
-              const tabBarAPI = (window as any).__tabBarAPI;
-              if (tabBarAPI) {
-                tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
-              }
-            }
-            
             terminalRef.current.write(data, () => {
               // Scroll to bottom after data is written and rendered
               if (terminalRef.current) {

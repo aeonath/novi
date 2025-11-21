@@ -111,6 +111,16 @@ contextBridge.exposeInMainWorld('api', {
   terminalRemoveDataListener: () => {
     ipcRenderer.removeAllListeners('terminal-data');
   },
+  // Terminal PWD listener (for working directory updates)
+  terminalOnPwd: (callback: (terminalId: string, pwd: string) => void) => {
+    ipcRenderer.removeAllListeners('terminal-pwd');
+    ipcRenderer.on('terminal-pwd', (_event, terminalId: string, pwd: string) => {
+      callback(terminalId, pwd);
+    });
+  },
+  terminalRemovePwdListener: () => {
+    ipcRenderer.removeAllListeners('terminal-pwd');
+  },
   // Terminal exit listener (for terminal process termination)
   terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => {
     // Remove ALL existing listeners first to prevent duplicates

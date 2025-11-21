@@ -74,7 +74,6 @@ class TerminalService {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
-        PROMPT_COMMAND: 'echo "pwd:$(pwd)"',
       },
     });
 

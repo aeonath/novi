@@ -83,10 +83,24 @@ const AppInner: React.FC = () => {
       }
     });
 
+    // Listen for PWD updates to update tab title
+    if (window.api?.terminalOnPwd) {
+      window.api.terminalOnPwd((terminalId: string, pwd: string) => {
+        const dirName = pwd.split('/').filter(Boolean).pop() || '~';
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (tabBarAPI) {
+          tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
+        }
+      });
+    }
+
     return () => {
       if (window.api?.terminalRemoveDataListener) {
         console.log('[App] Cleaning up terminal data listener');
         window.api.terminalRemoveDataListener();
+      }
+      if (window.api?.terminalRemovePwdListener) {
+        window.api.terminalRemovePwdListener();
       }
     };
   }, []);
