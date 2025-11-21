@@ -175,8 +175,24 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   const createNewFile = useCallback((parentNode: FileNode | null) => {
     closeContextMenu();
 
-    const parentPath = parentNode ? parentNode.path : rootPath;
-    console.log('[FileTree] createNewFile called, parentPath:', parentPath, 'parentNode:', parentNode);
+    let parentPath: string | null;
+    let effectiveParentNode: FileNode | null = null;
+    
+    if (!parentNode) {
+      // Right-clicked on empty space - use root
+      parentPath = rootPath;
+    } else if (parentNode.isDirectory) {
+      // Right-clicked on a folder - use it as parent
+      parentPath = parentNode.path;
+      effectiveParentNode = parentNode;
+    } else {
+      // Right-clicked on a file - use its parent directory
+      const lastSlash = Math.max(parentNode.path.lastIndexOf('/'), parentNode.path.lastIndexOf('\\'));
+      parentPath = parentNode.path.substring(0, lastSlash);
+      // effectiveParentNode stays null since we don't have a node for the parent
+    }
+    
+    console.log('[FileTree] createNewFile called, parentPath:', parentPath, 'effectiveParentNode:', effectiveParentNode);
     
     if (!parentPath) {
       alert('Please open a directory first (📂 Open Folder)');
@@ -185,11 +201,11 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
 
     // Show inline input
     console.log('[FileTree] Setting newFileInput state');
-    setNewFileInput({ parentPath, parentNode });
+    setNewFileInput({ parentPath, parentNode: effectiveParentNode });
     
     // ALWAYS expand parent if it's a directory node (whether already expanded or not)
     // This ensures the NewFileInput is visible
-    if (parentNode && parentNode.isDirectory) {
+    if (effectiveParentNode && effectiveParentNode.isDirectory) {
       console.log('[FileTree] Expanding parent directory:', parentPath);
       setExpandedDirs((prev) => {
         const next = new Set(prev);
