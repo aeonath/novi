@@ -158,7 +158,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       },
       fontSize: 14,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
-      cursorBlink: true,
+      cursorBlink: false, // No blinking
       cursorStyle: 'underline', // Changed from 'block' to 'underline'
       cursorWidth: 2, // Make it bold/thick
       lineHeight: 1.2,
