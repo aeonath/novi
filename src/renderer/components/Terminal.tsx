@@ -122,9 +122,10 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   }, [terminalId, workspaceRoot, ptyCreated, isActive]);
 
   // PHASE 2: Open xterm AFTER PTY is created with correct dimensions
+  // This should only run ONCE when the PTY is ready
   useEffect(() => {
-    if (!containerRef.current || !ptyCreated) {
-      return;
+    if (!containerRef.current || !ptyCreated || terminalRef.current) {
+      return; // Don't recreate if terminal already exists
     }
 
     console.log('[Terminal] PHASE 2: Opening xterm for display...');
@@ -247,7 +248,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
 
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
+    // Cleanup - only dispose on unmount, not on tab switch
     return () => {
       if (resizeTimeout) {
         clearTimeout(resizeTimeout);
@@ -257,7 +258,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [terminalId, ptyCreated, isActive]);
+  }, [terminalId, ptyCreated]); // Removed isActive from dependencies
 
   // Expose write and focus methods for incoming data and tab switching
   useEffect(() => {
