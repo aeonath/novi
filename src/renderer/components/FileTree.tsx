@@ -297,7 +297,9 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       
       // Reload parent directory
       if (parentPath === rootPath || !parentPath) {
-        await loadDirectory(rootPath, undefined);
+        if (rootPath) {
+          await loadDirectory(rootPath, undefined);
+        }
       } else {
         await loadDirectory(parentPath, parentPath);
       }
@@ -326,7 +328,9 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       
       // If the deleted node was at root level, reload the entire tree
       if (parentPath === rootPath || !parentPath) {
-        await loadDirectory(rootPath, undefined);
+        if (rootPath) {
+          await loadDirectory(rootPath, undefined);
+        }
       } else {
         await loadDirectory(parentPath, parentPath);
       }
