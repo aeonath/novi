@@ -19,7 +19,9 @@ export const CustomMenuBar: React.FC<CustomMenuBarProps> = ({ activeTabType, onC
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
+  const menuButtonRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const isTerminal = activeTabType === 'terminal';
   const isFile = activeTabType === 'file';
@@ -86,7 +88,21 @@ export const CustomMenuBar: React.FC<CustomMenuBarProps> = ({ activeTabType, onC
   };
 
   const handleMenuClick = (menuName: string) => {
-    setOpenMenu(openMenu === menuName ? null : menuName);
+    if (openMenu === menuName) {
+      setOpenMenu(null);
+      setDropdownPosition(null);
+    } else {
+      setOpenMenu(menuName);
+      // Calculate dropdown position
+      const button = menuButtonRefs.current[menuName];
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom,
+          left: rect.left,
+        });
+      }
+    }
   };
 
   const handleItemClick = (item: MenuItem) => {
@@ -198,13 +214,20 @@ export const CustomMenuBar: React.FC<CustomMenuBarProps> = ({ activeTabType, onC
         {Object.keys(menuStructure).map((menuName) => (
           <div key={menuName} className="menu-container">
             <div
+              ref={(el) => (menuButtonRefs.current[menuName] = el)}
               className={`menu-button ${openMenu === menuName ? 'active' : ''}`}
               onClick={() => handleMenuClick(menuName)}
             >
               {menuName}
             </div>
-            {openMenu === menuName && (
-              <div className="menu-dropdown">
+            {openMenu === menuName && dropdownPosition && (
+              <div 
+                className="menu-dropdown"
+                style={{
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                }}
+              >
                 {menuStructure[menuName].map((item, index) => renderMenuItem(item, index))}
               </div>
             )}
