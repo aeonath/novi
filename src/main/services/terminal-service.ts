@@ -74,6 +74,9 @@ class TerminalService {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
+        // Add PROMPT_COMMAND to print PWD after every command
+        // Format: __NOVA_PWD__:/path/to/dir
+        PROMPT_COMMAND: 'echo "__NOVA_PWD__:$(pwd)"',
       },
     });
 

@@ -18,11 +18,10 @@ export interface TerminalProps {
   workspaceRoot?: string;
   onData?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
-  onPwd?: (dirName: string) => void; // Callback when PWD is detected (passes directory name)
   isActive?: boolean;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, onPwd, isActive }) => {
+export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, isActive }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -30,21 +29,17 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   const [ptyCreated, setPtyCreated] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const hasInitialFitRef = useRef(false); // Track if initial fit has completed
-  const terminalBufferRef = useRef<string>(''); // Accumulate terminal output for PWD detection
-  const lastPwdRef = useRef<string>(''); // Track last detected PWD to avoid duplicate updates
   
   // Store callbacks in refs to prevent useEffect re-runs when they change
   // CRITICAL: This prevents periodic redraws caused by parent component re-renders
   const onDataRef = useRef(onData);
   const onResizeRef = useRef(onResize);
-  const onPwdRef = useRef(onPwd);
   
   // Update refs when callbacks change
   useEffect(() => {
     onDataRef.current = onData;
     onResizeRef.current = onResize;
-    onPwdRef.current = onPwd;
-  }, [onData, onResize, onPwd]);
+  }, [onData, onResize]);
 
   // PHASE 1: Create PTY with measured dimensions BEFORE opening xterm
   useEffect(() => {
@@ -264,55 +259,6 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           console.log('[Terminal] write() called for:', terminalId, 'data length:', data.length);
           if (terminalRef.current) {
             terminalRef.current.write(data);
-            
-            // Accumulate data in buffer for PWD detection
-            terminalBufferRef.current += data;
-            
-            // Keep buffer manageable (last 5000 chars should be enough to catch prompts)
-            if (terminalBufferRef.current.length > 5000) {
-              terminalBufferRef.current = terminalBufferRef.current.slice(-5000);
-            }
-            
-            // Try to extract PWD from the accumulated buffer
-            // Strip ANSI codes first for cleaner matching
-            const cleanBuffer = terminalBufferRef.current.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
-            
-            // Debug: Show the last 200 chars of clean buffer
-            const debugBuffer = cleanBuffer.slice(-200);
-            console.log('[Terminal] Clean buffer (last 200 chars):', JSON.stringify(debugBuffer));
-            
-            // Look for Git Bash prompt pattern: "user@host MINGW64 {path}"
-            // The path can be absolute (/c/Work/nova) or relative (Work/, nova/)
-            // Match everything after MINGW64 until we hit a newline or prompt character
-            const pwdMatch = cleanBuffer.match(/MINGW64\s+([^\r\n]+?)(?:\s+\(|$)/);
-            
-            console.log('[Terminal] PWD regex match:', pwdMatch ? pwdMatch[0] : 'NO MATCH');
-            
-            if (pwdMatch && onPwdRef.current) {
-              let pwd = pwdMatch[1].trim();
-              
-              console.log('[Terminal] Raw PWD from match:', JSON.stringify(pwd));
-              
-              // Remove trailing slash if present
-              if (pwd.endsWith('/')) {
-                pwd = pwd.slice(0, -1);
-              }
-              
-              // Extract just the directory name (last segment)
-              const segments = pwd.split('/').filter(Boolean);
-              const dirName = segments[segments.length - 1] || pwd;
-              
-              console.log('[Terminal] Extracted dirName:', JSON.stringify(dirName), 'lastPwd:', JSON.stringify(lastPwdRef.current));
-              
-              // Only update if the directory name has changed
-              if (dirName && dirName !== '~' && dirName !== lastPwdRef.current) {
-                console.log('[Terminal] PWD CHANGED from', JSON.stringify(lastPwdRef.current), 'to', JSON.stringify(dirName));
-                lastPwdRef.current = dirName;
-                onPwdRef.current(dirName);
-              } else {
-                console.log('[Terminal] PWD unchanged, skipping update');
-              }
-            }
           }
         },
         clear: () => {

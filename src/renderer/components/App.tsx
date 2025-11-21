@@ -136,6 +136,36 @@ const AppInner: React.FC = () => {
     };
   }, [activeTab]);
 
+  // Set up global terminal PWD listener to update tab titles
+  useEffect(() => {
+    if (!window.api?.terminalOnPwd || !window.api?.terminalRemovePwdListener) {
+      console.warn('[App] Terminal PWD API not available');
+      return;
+    }
+
+    console.log('[App] Setting up terminal PWD listener');
+    
+    // Remove any existing listeners first to prevent duplicates
+    window.api.terminalRemovePwdListener();
+    
+    window.api.terminalOnPwd((terminalId: string, dirName: string) => {
+      console.log('[App] Terminal', terminalId, 'PWD changed to:', dirName);
+      
+      // Update tab title
+      const tabBarAPI = (window as any).__tabBarAPI;
+      if (tabBarAPI) {
+        tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
+      }
+    });
+
+    return () => {
+      if (window.api?.terminalRemovePwdListener) {
+        console.log('[App] Cleaning up terminal PWD listener');
+        window.api.terminalRemovePwdListener();
+      }
+    };
+  }, []);
+
   // Load workspace on startup
   useEffect(() => {
     const loadWorkspace = async () => {
@@ -1347,17 +1377,6 @@ const AppInner: React.FC = () => {
     }
   }, []);
 
-  const handleTerminalPwd = useCallback((terminalId: string, dirName: string) => {
-    console.log(`[App] Terminal ${terminalId} PWD directory name: ${dirName}`);
-    
-    // Update tab title to show directory name
-    const tabBarAPI = (window as any).__tabBarAPI;
-    if (tabBarAPI) {
-      tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
-      console.log(`[App] Updated terminal tab title to: 💻 ${dirName}`);
-    }
-  }, []);
-
   // Close context menu on click outside
   useEffect(() => {
     if (welcomeContextMenu) {
@@ -1653,7 +1672,6 @@ const AppInner: React.FC = () => {
                 // Prevents Terminal useEffect from re-running on every parent render
                 const terminalOnData = (data: string) => handleTerminalData(tab.id, data);
                 const terminalOnResize = (cols: number, rows: number) => handleTerminalResize(tab.id, cols, rows);
-                const terminalOnPwd = (pwd: string) => handleTerminalPwd(tab.id, pwd);
                 
                 return (
                   <div
@@ -1672,7 +1690,6 @@ const AppInner: React.FC = () => {
                       isActive={activeTab?.id === tab.id}
                       onData={terminalOnData}
                       onResize={terminalOnResize}
-                      onPwd={terminalOnPwd}
                     />
                   </div>
                 );

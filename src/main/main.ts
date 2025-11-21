@@ -860,7 +860,25 @@ void app.whenReady().then(() => {
       // Forward PTY output to renderer
       session.pty.onData((data: string) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          mainWindowRef.webContents.send('terminal-data', terminalId, data);
+          // Check for PWD marker before sending to renderer
+          const pwdMatch = data.match(/__NOVA_PWD__:([^\r\n]+)/);
+          if (pwdMatch) {
+            const pwd = pwdMatch[1].trim();
+            // Extract directory name from full path
+            const segments = pwd.split('/').filter(Boolean);
+            const dirName = segments[segments.length - 1] || pwd;
+            
+            // Send PWD update to renderer
+            mainWindowRef.webContents.send('terminal-pwd', terminalId, dirName);
+            
+            // Remove the PWD marker from output so it doesn't display in terminal
+            data = data.replace(/__NOVA_PWD__:[^\r\n]+\r?\n?/g, '');
+          }
+          
+          // Only send data if there's something left after removing PWD marker
+          if (data) {
+            mainWindowRef.webContents.send('terminal-data', terminalId, data);
+          }
         }
       });
 
