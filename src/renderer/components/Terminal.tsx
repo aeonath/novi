@@ -187,39 +187,25 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
       
-      // Use terminal's onRender event to fit after first render
-      let hasRendered = false;
-      terminal.onRender(() => {
-        if (hasRendered) return; // Only run once
-        hasRendered = true;
-        
-        // Fit to actual container dimensions
+      // Simple approach: fit immediately using RAF
+      requestAnimationFrame(() => {
         fitAddon.fit();
         const cols = terminal.cols;
         const rows = terminal.rows;
-        console.log('[Terminal] Initial xterm fit:', cols, 'x', rows);
+        console.log('[Terminal] Terminal fit:', cols, 'x', rows);
         
-        // CRITICAL: Even though PTY was created with measured dimensions,
-        // we MUST notify the PTY of the final xterm dimensions to ensure
-        // vim and other TUI apps display correctly. Without this, there can
-        // be a mismatch between PTY size and xterm viewport causing offset.
+        // Sync PTY dimensions
         if (onResizeRef.current) {
-          console.log('[Terminal] Syncing PTY dimensions to match xterm:', cols, 'x', rows);
           onResizeRef.current(cols, rows);
         }
         
-        // Focus the terminal if it's active
+        // Mark as ready
+        hasInitialFitRef.current = true;
+        setIsReady(true);
+        
+        // Focus if active
         if (isActive) {
           terminal.focus();
-        }
-        
-        // Scroll to bottom to show prompt
-        terminal.scrollToBottom();
-        
-        // Mark as ready and initial fit as complete
-        if (!hasInitialFitRef.current) {
-          hasInitialFitRef.current = true;
-          setIsReady(true);
         }
       });
 

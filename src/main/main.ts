@@ -860,19 +860,7 @@ void app.whenReady().then(() => {
       // Forward PTY output to renderer
       session.pty.onData((data: string) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          // Send the original data
           mainWindowRef.webContents.send('terminal-data', terminalId, data);
-          
-          // Try to extract working directory from bash prompt
-          // Git Bash format: "username@hostname MINGW64 /c/path/to/dir"
-          // First strip ANSI escape codes
-          const cleanData = data.replace(/\x1b\[[0-9;]*m/g, '');
-          const pwdMatch = cleanData.match(/MINGW64\s+([^\r\n$:]+)/);
-          if (pwdMatch) {
-            const pwd = pwdMatch[1].trim();
-            // Send PWD update separately
-            mainWindowRef.webContents.send('terminal-pwd', terminalId, pwd);
-          }
         }
       });
 

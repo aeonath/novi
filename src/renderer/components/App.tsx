@@ -83,24 +83,10 @@ const AppInner: React.FC = () => {
       }
     });
 
-    // Listen for PWD updates to update tab title
-    if (window.api?.terminalOnPwd) {
-      window.api.terminalOnPwd((terminalId: string, pwd: string) => {
-        const dirName = pwd.split('/').filter(Boolean).pop() || '~';
-        const tabBarAPI = (window as any).__tabBarAPI;
-        if (tabBarAPI) {
-          tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
-        }
-      });
-    }
-
     return () => {
       if (window.api?.terminalRemoveDataListener) {
         console.log('[App] Cleaning up terminal data listener');
         window.api.terminalRemoveDataListener();
-      }
-      if (window.api?.terminalRemovePwdListener) {
-        window.api.terminalRemovePwdListener();
       }
     };
   }, []);
@@ -859,14 +845,14 @@ const AppInner: React.FC = () => {
             id: terminalId,
             type: 'terminal',
             filePath: terminalId,
-            fileName: '💻 ~',
+            fileName: '💻 Terminal',
             isDirty: false,
             content: '',
             language: 'terminal',
           });
           
           // Add to terminal tabs state to trigger re-render
-          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 ~', workspaceRoot }]);
+          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 Terminal', workspaceRoot }]);
           console.log('[App] Added terminal to state:', terminalId);
           
           // Switch to terminal tab
