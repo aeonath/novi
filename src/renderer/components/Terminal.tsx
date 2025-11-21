@@ -270,6 +270,12 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           console.log('[Terminal] write() called for:', terminalId, 'data length:', data.length);
           if (terminalRef.current) {
             terminalRef.current.write(data);
+            // Scroll to bottom after writing data to ensure prompt is visible
+            setTimeout(() => {
+              if (terminalRef.current) {
+                terminalRef.current.scrollToBottom();
+              }
+            }, 50);
           }
         },
         clear: () => {
@@ -475,7 +481,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            Copy
+            📋 Copy
           </div>
           <div
             onClick={handlePaste}
@@ -493,7 +499,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            Paste
+            📄 Paste
           </div>
           <div
             style={{
@@ -521,7 +527,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            New Terminal
+            💻 New Terminal
           </div>
         </div>
       )}
