@@ -31,6 +31,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const hasInitialFitRef = useRef(false); // Track if initial fit has completed
   const terminalBufferRef = useRef<string>(''); // Accumulate terminal output for PWD detection
+  const lastPwdRef = useRef<string>(''); // Track last detected PWD to avoid duplicate updates
   
   // Store callbacks in refs to prevent useEffect re-runs when they change
   // CRITICAL: This prevents periodic redraws caused by parent component re-renders
@@ -276,13 +277,21 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
             // Strip ANSI codes first for cleaner matching
             const cleanBuffer = terminalBufferRef.current.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
             
+            // Debug: Show the last 200 chars of clean buffer
+            const debugBuffer = cleanBuffer.slice(-200);
+            console.log('[Terminal] Clean buffer (last 200 chars):', JSON.stringify(debugBuffer));
+            
             // Look for Git Bash prompt pattern: "user@host MINGW64 {path}"
             // The path can be absolute (/c/Work/nova) or relative (Work/, nova/)
             // Match everything after MINGW64 until we hit a newline or prompt character
             const pwdMatch = cleanBuffer.match(/MINGW64\s+([^\r\n]+?)(?:\s+\(|$)/);
             
+            console.log('[Terminal] PWD regex match:', pwdMatch ? pwdMatch[0] : 'NO MATCH');
+            
             if (pwdMatch && onPwdRef.current) {
               let pwd = pwdMatch[1].trim();
+              
+              console.log('[Terminal] Raw PWD from match:', JSON.stringify(pwd));
               
               // Remove trailing slash if present
               if (pwd.endsWith('/')) {
@@ -293,11 +302,15 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
               const segments = pwd.split('/').filter(Boolean);
               const dirName = segments[segments.length - 1] || pwd;
               
-              console.log('[Terminal] PWD detected:', pwd, '-> dirName:', dirName);
+              console.log('[Terminal] Extracted dirName:', JSON.stringify(dirName), 'lastPwd:', JSON.stringify(lastPwdRef.current));
               
-              // Update tab title with directory name
-              if (dirName && dirName !== '~') {
+              // Only update if the directory name has changed
+              if (dirName && dirName !== '~' && dirName !== lastPwdRef.current) {
+                console.log('[Terminal] PWD CHANGED from', JSON.stringify(lastPwdRef.current), 'to', JSON.stringify(dirName));
+                lastPwdRef.current = dirName;
                 onPwdRef.current(dirName);
+              } else {
+                console.log('[Terminal] PWD unchanged, skipping update');
               }
             }
           }
