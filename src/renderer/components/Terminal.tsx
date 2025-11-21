@@ -188,7 +188,11 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       fitAddonRef.current = fitAddon;
       
       // Use terminal's onRender event to fit after first render
+      let hasRendered = false;
       terminal.onRender(() => {
+        if (hasRendered) return; // Only run once
+        hasRendered = true;
+        
         // Fit to actual container dimensions
         fitAddon.fit();
         const cols = terminal.cols;
@@ -262,12 +266,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         write: (data: string) => {
           console.log('[Terminal] write() called for:', terminalId, 'data length:', data.length);
           if (terminalRef.current) {
-            terminalRef.current.write(data, () => {
-              // Scroll to bottom after data is written and rendered
-              if (terminalRef.current) {
-                terminalRef.current.scrollToBottom();
-              }
-            });
+            terminalRef.current.write(data);
           }
         },
         clear: () => {
