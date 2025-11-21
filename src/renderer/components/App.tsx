@@ -845,14 +845,14 @@ const AppInner: React.FC = () => {
             id: terminalId,
             type: 'terminal',
             filePath: terminalId,
-            fileName: 'bash',
+            fileName: '💻 ~',
             isDirty: false,
             content: '',
             language: 'terminal',
           });
           
           // Add to terminal tabs state to trigger re-render
-          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: 'bash', workspaceRoot }]);
+          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 ~', workspaceRoot }]);
           console.log('[App] Added terminal to state:', terminalId);
           
           // Switch to terminal tab
