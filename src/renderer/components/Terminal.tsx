@@ -495,6 +495,34 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
           >
             Paste
           </div>
+          <div
+            style={{
+              height: '1px',
+              backgroundColor: '#3e3e42',
+              margin: '4px 0',
+            }}
+          />
+          <div
+            onClick={() => {
+              setContextMenu(null);
+              onNewTerminal?.();
+            }}
+            style={{
+              padding: '8px 16px',
+              cursor: 'pointer',
+              color: '#cccccc',
+              fontSize: '13px',
+              fontFamily: "'Segoe UI', sans-serif",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#2a2d2e';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            New Terminal
+          </div>
         </div>
       )}
     </>

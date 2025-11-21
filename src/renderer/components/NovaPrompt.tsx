@@ -440,6 +440,16 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
             Paste
           </div>
           <div style={styles.menuSeparator} />
+          <div 
+            style={styles.menuItem} 
+            onClick={() => {
+              setContextMenu(null);
+              onNewTerminal?.();
+            }}
+          >
+            New Terminal
+          </div>
+          <div style={styles.menuSeparator} />
           <div style={styles.menuItem} onClick={handleClear}>
             Clear Screen
           </div>

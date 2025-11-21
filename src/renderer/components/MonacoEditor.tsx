@@ -533,6 +533,18 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
           <div style={styles.contextMenuSeparator} />
           <div
             style={styles.contextMenuItem}
+            onClick={() => {
+              setContextMenu(null);
+              onNewTerminal?.();
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            💻 New Terminal
+          </div>
+          <div style={styles.contextMenuSeparator} />
+          <div
+            style={styles.contextMenuItem}
             onClick={handleQuit}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
