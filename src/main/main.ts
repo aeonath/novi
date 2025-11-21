@@ -865,7 +865,9 @@ void app.whenReady().then(() => {
           
           // Try to extract working directory from bash prompt
           // Git Bash format: "username@hostname MINGW64 /c/path/to/dir"
-          const pwdMatch = data.match(/MINGW64\s+([^\r\n$]+)/);
+          // First strip ANSI escape codes
+          const cleanData = data.replace(/\x1b\[[0-9;]*m/g, '');
+          const pwdMatch = cleanData.match(/MINGW64\s+([^\r\n$:]+)/);
           if (pwdMatch) {
             const pwd = pwdMatch[1].trim();
             // Send PWD update separately
