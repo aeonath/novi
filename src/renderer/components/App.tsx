@@ -151,10 +151,10 @@ const AppInner: React.FC = () => {
     window.api.terminalOnPwd((terminalId: string, dirName: string) => {
       console.log('[App] Terminal', terminalId, 'PWD changed to:', dirName);
       
-      // Update tab title
+      // Update tab title with trailing slash to indicate it's a directory
       const tabBarAPI = (window as any).__tabBarAPI;
       if (tabBarAPI) {
-        tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}`);
+        tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}/`);
       }
     });
 
