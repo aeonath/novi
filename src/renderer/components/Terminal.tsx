@@ -173,6 +173,8 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       // Critical: windowsMode MUST be false for vim and other TUI apps
       // to work correctly. This ensures proper handling of control sequences.
       windowsMode: false,
+      // Enable proper handling of line endings (converts \r\n to \n)
+      convertEol: true,
     });
 
     // Create fit addon

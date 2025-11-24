@@ -65,7 +65,7 @@ class TerminalService {
     // Spawn PTY process with explicit dimensions
     // The cols/rows parameters are what matter - they set the PTY size
     // which the shell reads via ioctl() to determine terminal width
-    const ptyProcess = pty.spawn(shellPath, [], {
+    const ptyProcess = pty.spawn(shellPath, ['--login', '-i'], {
       name: 'xterm-256color',
       cols,
       rows,
@@ -74,6 +74,11 @@ class TerminalService {
         ...process.env,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
+        // Force UTF-8 for Git Bash (C.UTF-8 is more portable than en_US.UTF-8)
+        LANG: 'C.UTF-8',
+        LC_ALL: 'C.UTF-8',
+        LC_CTYPE: 'C.UTF-8',
+        LESSCHARSET: 'utf-8',
         // Add PROMPT_COMMAND to print PWD after every command
         // Format: __NOVA_PWD__:/path/to/dir
         PROMPT_COMMAND: 'echo "__NOVA_PWD__:$(pwd)"',
