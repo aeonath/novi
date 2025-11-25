@@ -54,6 +54,12 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [newFileInput, setNewFileInput] = useState<{ parentPath: string; parentNode: FileNode | null } | null>(null);
   const { gitStatus } = useAppContext();
+  
+  // Use a ref to track expandedDirs so the file watcher event handler always has the current value
+  const expandedDirsRef = React.useRef<Set<string>>(expandedDirs);
+  React.useEffect(() => {
+    expandedDirsRef.current = expandedDirs;
+  }, [expandedDirs]);
 
   // Auto-load initial path if provided
   useEffect(() => {
@@ -408,14 +414,19 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
         if (event.type === 'add' || event.type === 'unlink' || event.type === 'addDir' || event.type === 'unlinkDir') {
           // Check if this directory is expanded (if it's not root)
           const isRootChange = dirPath === rootPath;
-          const isExpanded = isRootChange || expandedDirs.has(dirPath);
+          // Use ref to get current expanded state
+          const isExpanded = isRootChange || expandedDirsRef.current.has(dirPath);
           
           if (isRootChange) {
             // Refresh root
+            console.log('[FileTree] Refreshing root directory:', rootPath);
             await loadDirectory(rootPath);
           } else if (isExpanded) {
             // Refresh the parent directory
+            console.log('[FileTree] Refreshing expanded directory:', dirPath);
             await loadDirectory(dirPath, dirPath);
+          } else {
+            console.log('[FileTree] Directory not expanded, skipping refresh:', dirPath);
           }
         }
       }
@@ -435,7 +446,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
         window.api.fileTreeRemoveChangeListener();
       }
     };
-  }, [rootPath, expandedDirs]);
+  }, [rootPath]); // Only depend on rootPath, not expandedDirs
 
   // Expose methods for compatibility
   useEffect(() => {
