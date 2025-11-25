@@ -403,19 +403,29 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     const handleFileTreeChange = async (event: { type: string; path: string }) => {
       console.log('[FileTree] File system change detected:', event.type, event.path);
       
+      // Normalize paths for comparison (convert backslashes to forward slashes)
+      const normalizedEventPath = event.path.replace(/\\/g, '/');
+      const normalizedRootPath = rootPath.replace(/\\/g, '/');
+      
       // Get the directory that needs to be refreshed
-      const pathParts = event.path.split(/[/\\]/);
+      const pathParts = normalizedEventPath.split('/');
       pathParts.pop(); // Remove file name to get directory
       const dirPath = pathParts.join('/');
       
+      console.log('[FileTree] Normalized paths - event:', normalizedEventPath, 'root:', normalizedRootPath, 'dir:', dirPath);
+      
       // If the change is in the root directory, refresh root
-      if (dirPath === rootPath || event.path.startsWith(rootPath)) {
+      if (dirPath === normalizedRootPath || normalizedEventPath.startsWith(normalizedRootPath)) {
         // Refresh the affected directory
         if (event.type === 'add' || event.type === 'unlink' || event.type === 'addDir' || event.type === 'unlinkDir') {
           // Check if this directory is expanded (if it's not root)
-          const isRootChange = dirPath === rootPath;
-          // Use ref to get current expanded state
-          const isExpanded = isRootChange || expandedDirsRef.current.has(dirPath);
+          const isRootChange = dirPath === normalizedRootPath;
+          
+          // For expanded directory checks, we need to normalize the paths in the Set too
+          const normalizedExpandedDirs = new Set(
+            Array.from(expandedDirsRef.current).map(p => p.replace(/\\/g, '/'))
+          );
+          const isExpanded = isRootChange || normalizedExpandedDirs.has(dirPath);
           
           if (isRootChange) {
             // Refresh root
@@ -429,6 +439,8 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
             console.log('[FileTree] Directory not expanded, skipping refresh:', dirPath);
           }
         }
+      } else {
+        console.log('[FileTree] Change outside root directory, ignoring');
       }
     };
 
