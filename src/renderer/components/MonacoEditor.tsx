@@ -418,30 +418,12 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     focus,
   }));
 
-  // Expose to window for backward compatibility during migration
+  // Load syntax extensions once on mount
   useEffect(() => {
-    (window as any).__monacoEditorAPI = {
-      loadFile,
-      getValue,
-      setValue,
-      isDirty: isDirtyMethod,
-      markAsSaved,
-      getFilePath,
-      updateOptions,
-      formatDocument,
-      goToDefinition,
-      peekDefinition,
-      findReferences,
-      renameSymbol,
-      runLinting,
-      clearDiagnostics,
-      focus,
-    };
-    
     // Signal that Monaco is ready for use
     markReady('monaco-ready');
     
-    // Load all syntax extensions (from main process via IPC)
+    // Load all syntax extensions (from main process via IPC) - only once on mount
     if (window.api?.loadAllExtensions) {
       window.api.loadAllExtensions().then((result: any) => {
         if (result.success && result.languages && result.languages.length > 0) {
@@ -477,6 +459,27 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         console.error('[MonacoEditor] Error loading syntax extensions:', error);
       });
     }
+  }, []); // Empty dependency array - only run once on mount
+
+  // Expose to window for backward compatibility during migration
+  useEffect(() => {
+    (window as any).__monacoEditorAPI = {
+      loadFile,
+      getValue,
+      setValue,
+      isDirty: isDirtyMethod,
+      markAsSaved,
+      getFilePath,
+      updateOptions,
+      formatDocument,
+      goToDefinition,
+      peekDefinition,
+      findReferences,
+      renameSymbol,
+      runLinting,
+      clearDiagnostics,
+      focus,
+    };
     
     return () => {
       delete (window as any).__monacoEditorAPI;

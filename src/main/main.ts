@@ -738,7 +738,10 @@ void app.whenReady().then(() => {
   });
 
   gitWatcher.on('batch-change', (files) => {
-    console.log('[Git] Batch change event, files:', files.length);
+    // Only log if there are many files (more than 10)
+    if (files.length > 10) {
+      console.log('[Git] Batch change event, files:', files.length);
+    }
     mainWindowRef?.webContents.send('git-batch-change', files);
   });
 
