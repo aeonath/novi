@@ -35,14 +35,48 @@ export class FileTreeWatcher extends EventEmitter {
         ignoreInitial: true,
         persistent: true,
         ignorePermissionErrors: true,
-        ignored: [
-          '**/node_modules/**',
-          '**/.git/**',
-          '**/dist/**',
-          '**/build/**',
-          '**/.nova/**',
-          '**/.*', // Ignore hidden files/directories
-        ],
+        ignored: (path: string) => {
+          // Normalize path to use forward slashes
+          const normalizedPath = path.replace(/\\/g, '/');
+          
+          // Check if path contains any ignored patterns
+          const ignoredPatterns = [
+            '/node_modules/',
+            '/.git/',
+            '/dist/',
+            '/build/',
+            '/.nova/',
+          ];
+          
+          // Also ignore specific files
+          const ignoredFiles = [
+            '.DS_Store',
+            '.swp',
+            '.swo',
+          ];
+          
+          // Check if path contains any ignored directory
+          for (const pattern of ignoredPatterns) {
+            if (normalizedPath.includes(pattern)) {
+              return true;
+            }
+          }
+          
+          // Check if filename matches ignored files
+          const fileName = normalizedPath.split('/').pop() || '';
+          for (const ignoredFile of ignoredFiles) {
+            if (fileName.endsWith(ignoredFile)) {
+              return true;
+            }
+          }
+          
+          // Check for vim swap files
+          if (fileName.startsWith('~') || fileName.match(/\.sw[op]$/)) {
+            return true;
+          }
+          
+          return false;
+        },
         depth: 10, // Reasonable depth limit
       });
 
