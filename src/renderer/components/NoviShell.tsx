@@ -77,7 +77,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
       fitAddonRef.current = fitAddon;
 
       // Display welcome message and prompt
-      terminal.writeln('Novi Shell v0.6.0-dev');
+      terminal.writeln('Novi Shell v0.6.6-dev');
       terminal.writeln('Type "help" for available commands');
       terminal.writeln('');
       writePrompt(terminal);
@@ -320,9 +320,9 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
   };
 
   const commandVersion = (terminal: XTerm) => {
-    terminal.writeln('Novi Editor v0.6.0-dev');
+    terminal.writeln('Novi Editor v0.6.6-dev');
     terminal.writeln('');
-    terminal.writeln('© 2025 MiraNova Studios');
+    terminal.writeln('© 2026 MiraNova Studios');
   };
 
   const commandList = (terminal: XTerm) => {
