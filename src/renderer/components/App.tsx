@@ -78,12 +78,16 @@ const AppInner: React.FC = () => {
   const terminalFileTreeRootsRef = useRef(terminalFileTreeRoots);
   const noviPromptTabsRef = useRef(noviPromptTabs);
   const onNoviPromptRef = useRef<(() => Promise<void>) | null>(null);
+  // When we send a non-novi line we echo it locally; filter the PTY echo so it isn't drawn twice (chunked match).
+  const ptyEchoFilterRef = useRef<{ terminalId: string; remaining: string } | null>(null);
+  // After sending Tab we add the next PTY output (completion) to the line buffer so Enter sends the completed line.
+  const afterTabRef = useRef<string | null>(null);
   useEffect(() => {
     terminalFileTreeRootsRef.current = terminalFileTreeRoots;
     noviPromptTabsRef.current = noviPromptTabs;
   }, [terminalFileTreeRoots, noviPromptTabs]);
 
-  // Set up global terminal data listener
+  // Set up global terminal data listener (PTY output -> display; filter our echoed line so it isn't drawn twice)
   useEffect(() => {
     if (!window.api?.terminalOnData || !window.api?.terminalRemoveDataListener) {
       console.warn('[App] Terminal API not available');
@@ -92,17 +96,33 @@ const AppInner: React.FC = () => {
 
     console.log('[App] Setting up terminal data listener');
     
-    // Remove any existing listeners first to prevent duplicates
     window.api.terminalRemoveDataListener();
     
     window.api.terminalOnData((terminalId: string, data: string) => {
-      console.log('[App] Received terminal data for:', terminalId, 'length:', data.length);
+      const filter = ptyEchoFilterRef.current;
+      if (filter && filter.terminalId === terminalId && filter.remaining.length > 0) {
+        if (data === filter.remaining.slice(0, data.length)) {
+          filter.remaining = filter.remaining.slice(data.length);
+          if (filter.remaining.length === 0) ptyEchoFilterRef.current = null;
+          return;
+        }
+        if (data.length >= filter.remaining.length && data.startsWith(filter.remaining)) {
+          data = data.slice(filter.remaining.length);
+          ptyEchoFilterRef.current = null;
+        } else {
+          ptyEchoFilterRef.current = null;
+        }
+      }
+      if (data.length === 0) return;
+      if (afterTabRef.current === terminalId) {
+        const buf = terminalLineBufferRef.current;
+        if (!buf[terminalId]) buf[terminalId] = '';
+        buf[terminalId] += data;
+        afterTabRef.current = null;
+      }
       const terminalAPI = (window as any).__terminalAPI?.[terminalId];
-      if (terminalAPI && terminalAPI.write) {
-        console.log('[App] Writing data to terminal:', terminalId);
+      if (terminalAPI?.write) {
         terminalAPI.write(data);
-      } else {
-        console.warn('[App] No terminal API found for:', terminalId, 'Available:', Object.keys((window as any).__terminalAPI || {}));
       }
     });
 
@@ -1527,7 +1547,18 @@ const AppInner: React.FC = () => {
   // causing Terminal component's useEffect dependencies to change,
   // triggering refits and redraws every 5-10 seconds
   // Task 8: Intercept "novi" commands on terminal (novi <file>, novi -s, novi -c); buffer input by line.
+  // Echo input so the user sees what they type. Filter PTY echo for the line we send to avoid double display.
+  // Tab: forward to PTY immediately so completion works; don't add to buffer so we don't send "\t" on Enter.
   const handleTerminalData = useCallback(async (terminalId: string, data: string) => {
+    if (data === '\t') {
+      afterTabRef.current = terminalId;
+      if (window.api?.terminalWrite) await window.api.terminalWrite(terminalId, '\t');
+      return;
+    }
+
+    const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+    if (terminalAPI?.write) terminalAPI.write(data);
+
     const buffer = terminalLineBufferRef.current;
     if (!buffer[terminalId]) buffer[terminalId] = '';
     buffer[terminalId] += data;
@@ -1627,6 +1658,7 @@ const AppInner: React.FC = () => {
       }
 
       if (window.api?.terminalWrite) {
+        ptyEchoFilterRef.current = { terminalId, remaining: toSend };
         await window.api.terminalWrite(terminalId, toSend);
       }
     }
