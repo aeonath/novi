@@ -149,6 +149,8 @@ declare global {
       terminalRemoveDataListener: () => void;
       terminalOnPwd: (callback: (terminalId: string, pwd: string) => void) => void;
       terminalRemovePwdListener: () => void;
+      terminalOnInitialCwd: (callback: (terminalId: string, cwd: string) => void) => void;
+      terminalRemoveInitialCwdListener: () => void;
       terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => void;
       terminalRemoveExitListener: () => void;
       // Clipboard operations (async via IPC)

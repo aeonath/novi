@@ -70,6 +70,7 @@ const AppInner: React.FC = () => {
   const [singleFileTree, setSingleFileTree] = useState<boolean>(true); // default true = current behavior until loaded
   const [terminalFileTreeRoots, setTerminalFileTreeRoots] = useState<Record<string, { cwd: string; overriddenRoot?: string }>>({});
   const [fileTabToTreeRoot, setFileTabToTreeRoot] = useState<Record<string, string>>({});
+  const [fileTreeReportedRoot, setFileTreeReportedRoot] = useState<string | null>(null);
 
   // Set up global terminal data listener
   useEffect(() => {
@@ -178,6 +179,24 @@ const AppInner: React.FC = () => {
         console.log('[App] Cleaning up terminal PWD listener');
         window.api.terminalRemovePwdListener();
       }
+    };
+  }, []);
+
+  // Set up terminal initial CWD listener (so file tree shows CWD when switching to tab before first PWD)
+  useEffect(() => {
+    if (!window.api?.terminalOnInitialCwd || !window.api?.terminalRemoveInitialCwdListener) {
+      return;
+    }
+    window.api.terminalRemoveInitialCwdListener();
+    window.api.terminalOnInitialCwd((terminalId: string, cwd: string) => {
+      console.log('[App] Terminal', terminalId, 'initial CWD:', cwd);
+      setTerminalFileTreeRoots(prev => ({
+        ...prev,
+        [terminalId]: { ...prev[terminalId], cwd },
+      }));
+    });
+    return () => {
+      window.api?.terminalRemoveInitialCwdListener();
     };
   }, []);
 
@@ -1316,8 +1335,9 @@ const AppInner: React.FC = () => {
           // Clear Git status
           setGitStatus(null);
           
-          // Show welcome screen
+          // Show welcome screen and clear status bar path
           setShowWelcome(true);
+          setFileTreeReportedRoot(null);
           
           if ((window as any).__statusBarAPI) {
             (window as any).__statusBarAPI.setStatus('Ready');
@@ -1561,6 +1581,7 @@ const AppInner: React.FC = () => {
                 onNoviPrompt={actionContext.onNoviPrompt}
                 displayRoot={currentFileTreeDisplayRoot}
                 isTerminalTree={!singleFileTree && activeTab?.type === 'terminal'}
+                onRootChange={setFileTreeReportedRoot}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
                   if (singleFileTree) {
@@ -1931,7 +1952,7 @@ const AppInner: React.FC = () => {
           </main>
         </div>
         
-        <StatusBar fileTreePath={currentFileTreeDisplayRoot} />
+        <StatusBar fileTreePath={fileTreeReportedRoot} />
         
         {/* Modal components */}
         <ActionHUD actions={actions} />

@@ -24,6 +24,8 @@ export interface FileTreeProps {
   displayRoot?: string | null;
   /** When true, style the root directory name in the header as terminal-tied (green). */
   isTerminalTree?: boolean;
+  /** Called whenever the file tree root path changes (so status bar can show it). */
+  onRootChange?: (path: string | null) => void;
   hideHeader?: boolean; // Hide the header (for use in split view)
   /** If true (default), this tree drives the global file watcher. Set false for split-view trees to avoid flicker. */
   driveFileWatcher?: boolean;
@@ -52,8 +54,10 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, initialPath, displayRoot, isTerminalTree = false, hideHeader = false, driveFileWatcher = true }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, initialPath, displayRoot, isTerminalTree = false, onRootChange, hideHeader = false, driveFileWatcher = true }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
+  const onRootChangeRef = React.useRef(onRootChange);
+  onRootChangeRef.current = onRootChange;
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
@@ -65,6 +69,11 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   React.useEffect(() => {
     expandedDirsRef.current = expandedDirs;
   }, [expandedDirs]);
+
+  // Notify parent whenever root path changes (for status bar)
+  useEffect(() => {
+    onRootChangeRef.current?.(rootPath);
+  }, [rootPath]);
 
   // When parent controls root via displayRoot (e.g. per-terminal CWD), sync and load
   useEffect(() => {
@@ -394,6 +403,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     setExpandedDirs(new Set());
     setContextMenu(null);
     setNewFileInput(null);
+    onRootChangeRef.current?.(null);
   }, []);
 
   // Watch for file system changes (only the primary/main tree drives the single global watcher)

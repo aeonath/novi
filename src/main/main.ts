@@ -880,11 +880,17 @@ void app.whenReady().then(() => {
   // Terminal IPC handlers
   ipcMain.handle('terminal-create', async (_e, cwd?: string, cols = 80, rows = 24, customId?: string) => {
     try {
+      const cwdPath = cwd || process.cwd();
       const terminalId = terminalService.createSession(cwd, cols, rows, customId);
       const session = terminalService.getSession(terminalId);
       
       if (!session || !mainWindowRef) {
         throw new Error('Failed to create terminal session');
+      }
+
+      // Send initial CWD so file tree can show it before first PWD from shell
+      if (!mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('terminal-initial-cwd', terminalId, cwdPath);
       }
 
       // Forward PTY output to renderer
@@ -917,7 +923,7 @@ void app.whenReady().then(() => {
       });
 
       logInfo(`[Main] Terminal ${terminalId} created with PTY successfully`);
-      return { id: terminalId };
+      return { id: terminalId, initialCwd: cwdPath };
     } catch (error) {
       logError('Failed to create terminal', error as Error);
       throw error;

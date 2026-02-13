@@ -121,6 +121,16 @@ contextBridge.exposeInMainWorld('api', {
   terminalRemovePwdListener: () => {
     ipcRenderer.removeAllListeners('terminal-pwd');
   },
+  // Terminal initial CWD (sent when PTY is created, so file tree can show path before first PWD)
+  terminalOnInitialCwd: (callback: (terminalId: string, cwd: string) => void) => {
+    ipcRenderer.removeAllListeners('terminal-initial-cwd');
+    ipcRenderer.on('terminal-initial-cwd', (_event, terminalId: string, cwd: string) => {
+      callback(terminalId, cwd);
+    });
+  },
+  terminalRemoveInitialCwdListener: () => {
+    ipcRenderer.removeAllListeners('terminal-initial-cwd');
+  },
   // Terminal exit listener (for terminal process termination)
   terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => {
     // Remove ALL existing listeners first to prevent duplicates
