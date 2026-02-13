@@ -63,7 +63,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(pty.spawn).toHaveBeenCalledWith(
         'C:\\Program Files\\Git\\bin\\bash.exe',
-        [],
+        ['--login', '-i'],
         expect.objectContaining({
           name: 'xterm-256color',
         })
@@ -78,7 +78,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(pty.spawn).toHaveBeenCalledWith(
         'C:\\Windows\\System32\\bash.exe',
-        [],
+        ['--login', '-i'],
         expect.objectContaining({
           name: 'xterm-256color',
         })
@@ -91,7 +91,7 @@ describe('TerminalService', () => {
       terminalService.createSession();
       expect(pty.spawn).toHaveBeenCalledWith(
         'C:\\Windows\\System32\\cmd.exe',
-        [],
+        ['--login', '-i'],
         expect.objectContaining({
           name: 'xterm-256color',
         })
@@ -118,7 +118,7 @@ describe('TerminalService', () => {
 
       expect(pty.spawn).toHaveBeenCalledWith(
         expect.any(String),
-        [],
+        ['--login', '-i'],
         expect.objectContaining({
           cwd: cwd,
         })
