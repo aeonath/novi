@@ -60,6 +60,7 @@ function getFileIcon(fileName: string): string {
 export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTabsClosed }) => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tab: Tab } | null>(null);
 
   const addTab = useCallback((tab: Tab) => {
     setTabs((prevTabs) => {
@@ -179,6 +180,18 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
     );
   }
 
+  // Close tab context menu on click outside or when another menu opens
+  useEffect(() => {
+    if (!tabContextMenu) return;
+    const close = () => setTabContextMenu(null);
+    document.addEventListener('click', close);
+    window.addEventListener('novi-close-context-menus', close);
+    return () => {
+      document.removeEventListener('click', close);
+      window.removeEventListener('novi-close-context-menus', close);
+    };
+  }, [tabContextMenu]);
+
   return (
     <div className="tab-bar-container" style={styles.container}>
       {tabs.map((tab) => (
@@ -188,8 +201,60 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
           isActive={tab.id === activeTabId}
           onSelect={() => switchTab(tab.id)}
           onClose={() => void removeTab(tab.id)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('novi-close-context-menus'));
+            setTabContextMenu({ x: e.clientX, y: e.clientY, tab });
+          }}
         />
       ))}
+      {tabContextMenu && tabContextMenu.tab.type === 'novi-prompt' && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tabContextMenu.x,
+            top: tabContextMenu.y,
+            backgroundColor: '#252526',
+            border: '1px solid #3e3e42',
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            zIndex: 10000,
+            minWidth: '150px',
+            padding: '4px 0',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            style={styles.tabContextMenuItem}
+            onClick={() => {
+              (window as any).__noviShellCopy?.();
+              setTabContextMenu(null);
+            }}
+          >
+            Copy
+          </div>
+          <div
+            style={styles.tabContextMenuItem}
+            onClick={() => {
+              (window as any).__noviShellPaste?.();
+              setTabContextMenu(null);
+            }}
+          >
+            Paste
+          </div>
+          <div style={styles.tabContextMenuSeparator} />
+          <div
+            style={styles.tabContextMenuItem}
+            onClick={() => {
+              void removeTab(tabContextMenu.tab.id);
+              setTabContextMenu(null);
+            }}
+          >
+            Close
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -199,9 +264,10 @@ interface TabItemProps {
   isActive: boolean;
   onSelect: () => void;
   onClose: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
-const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose }) => {
+const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose, onContextMenu }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -214,6 +280,7 @@ const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose }) =
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onSelect}
+      onContextMenu={onContextMenu}
     >
       <span style={{
         ...styles.tabLabel,
@@ -304,6 +371,18 @@ const styles = {
   },
   closeButtonVisible: {
     opacity: 1,
+  },
+  tabContextMenuItem: {
+    padding: '6px 12px',
+    cursor: 'pointer',
+    color: '#cccccc',
+    fontSize: '13px',
+    fontFamily: "'Segoe UI', sans-serif",
+  },
+  tabContextMenuSeparator: {
+    height: '1px',
+    backgroundColor: '#3e3e42',
+    margin: '4px 0',
   },
 };
 

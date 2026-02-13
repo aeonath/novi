@@ -8,7 +8,7 @@
  * Provides a simple REPL for Novi-specific commands (e.g. set vimode)
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
@@ -24,6 +24,8 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
   const fitAddonRef = useRef<FitAddon | null>(null);
   const currentLineRef = useRef<string>('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const handleCopyRef = useRef<() => Promise<void>>(async () => {});
+  const handlePasteRef = useRef<() => Promise<void>>(async () => {});
 
   // Initialize xterm when component mounts
   useEffect(() => {
@@ -357,7 +359,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
     window.dispatchEvent(new CustomEvent('novi-close-context-menus'));
   };
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     if (terminalRef.current) {
       const selection = terminalRef.current.getSelection();
       if (selection) {
@@ -370,9 +372,10 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
       }
     }
     setContextMenu(null);
-  };
+  }, []);
+  handleCopyRef.current = handleCopy;
 
-  const handlePaste = async () => {
+  const handlePaste = useCallback(async () => {
     if (terminalRef.current) {
       try {
         const text = await window.api.clipboardReadText();
@@ -387,7 +390,8 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
       }
     }
     setContextMenu(null);
-  };
+  }, []);
+  handlePasteRef.current = handlePaste;
 
   const handleClear = () => {
     if (terminalRef.current) {
@@ -396,6 +400,17 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
     }
     setContextMenu(null);
   };
+
+  // Register Copy/Paste so TabBar context menu (on the tab) can invoke them when Novi Shell is active
+  useEffect(() => {
+    if (!isActive) return;
+    (window as any).__noviShellCopy = () => handleCopyRef.current?.();
+    (window as any).__noviShellPaste = () => handlePasteRef.current?.();
+    return () => {
+      delete (window as any).__noviShellCopy;
+      delete (window as any).__noviShellPaste;
+    };
+  }, [isActive]);
 
   // Close context menu on click outside
   useEffect(() => {
