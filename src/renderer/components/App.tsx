@@ -671,10 +671,13 @@ const AppInner: React.FC = () => {
         // Mark as saved
         monacoAPI.markAsSaved();
         
-        // Update tab dirty state
-        if ((window as any).__tabBarAPI) {
-          const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
-          (window as any).__tabBarAPI.updateTabDirty(filePath, false);
+        // Update tab dirty state (use tab id, not file path)
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (tabBarAPI) {
+          const tab = tabBarAPI.getActiveTab();
+          if (tab && tab.type === 'file' && tab.filePath === filePath) {
+            tabBarAPI.updateTabDirty(tab.id, false);
+          }
         }
 
         // Update status bar
@@ -805,6 +808,13 @@ const AppInner: React.FC = () => {
           (window as any).__statusBarAPI.setStatus('Save failed');
         }
       }
+    },
+    onCloseFile: async () => {
+      const tabBarAPI = (window as any).__tabBarAPI;
+      if (!tabBarAPI) return;
+      const tab = tabBarAPI.getActiveTab();
+      if (!tab || tab.type !== 'file') return;
+      await tabBarAPI.removeTab(tab.id);
     },
     onNoviPrompt: async () => {
       console.log('[App] Novi Prompt action triggered');
@@ -1016,7 +1026,7 @@ const AppInner: React.FC = () => {
                   const matchingTab = tabs.find((t: any) => t.filePath === filePath);
                   if (matchingTab) {
                     (window as any).__tabBarAPI.updateTabContent(matchingTab.id, fileData.content);
-                    (window as any).__tabBarAPI.updateTabDirty(filePath, false);
+                    (window as any).__tabBarAPI.updateTabDirty(matchingTab.id, false);
                   }
                 }
                 

@@ -74,7 +74,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
       fitAddonRef.current = fitAddon;
 
       // Display welcome message and prompt
-      terminal.writeln('Novi Shell v0.4.0');
+      terminal.writeln('Novi Shell v0.6.0-dev');
       terminal.writeln('Type "help" for available commands');
       terminal.writeln('');
       writePrompt(terminal);
@@ -225,32 +225,47 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
 
   const commandSet = async (terminal: XTerm, args: string[]) => {
     if (args.length === 0) {
-      terminal.writeln('Usage: set <option> [on|off]');
-      terminal.writeln('  set vimode       - Show vi mode status');
-      terminal.writeln('  set vimode on    - Enable vi mode in editor');
-      terminal.writeln('  set vimode off   - Disable vi mode in editor');
+      try {
+        const vimode = await window.api.getSetting<boolean>('vimode', true);
+        const compat = await window.api.getSetting<boolean>('compat', false);
+        terminal.writeln('\x1b[36mCurrent settings:\x1b[0m');
+        terminal.writeln(`  vimode  ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
+        terminal.writeln(`  compat  ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
+      } catch (e) {
+        terminal.writeln('\x1b[31mFailed to read settings\x1b[0m');
+      }
       return;
     }
     const option = args[0].toLowerCase();
     const value = args[1]?.toLowerCase();
 
-    if (option !== 'vimode') {
+    if (option !== 'vimode' && option !== 'compat') {
       terminal.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
-      terminal.writeln('Supported: vimode');
+      terminal.writeln('Supported: vimode, compat');
       return;
     }
 
     if (value === undefined || value === '') {
       try {
-        const on = await window.api.getSetting<boolean>('vimode', true);
-        terminal.writeln(on ? '\x1b[32mvimode is on\x1b[0m' : '\x1b[33mvimode is off\x1b[0m');
+        if (option === 'vimode') {
+          const on = await window.api.getSetting<boolean>('vimode', true);
+          terminal.writeln(on ? '\x1b[32mvimode is on\x1b[0m' : '\x1b[33mvimode is off\x1b[0m');
+        } else {
+          const on = await window.api.getSetting<boolean>('compat', false);
+          terminal.writeln(on ? '\x1b[32mcompat is on\x1b[0m' : '\x1b[33mcompat is off\x1b[0m');
+        }
       } catch (e) {
-        terminal.writeln('\x1b[31mFailed to read vimode setting\x1b[0m');
+        terminal.writeln('\x1b[31mFailed to read setting\x1b[0m');
       }
       return;
     }
 
-    if (value === 'on' || value === 'off') {
+    if (value !== 'on' && value !== 'off') {
+      terminal.writeln(`\x1b[31mExpected "on" or "off", got: ${value}\x1b[0m`);
+      return;
+    }
+
+    if (option === 'vimode') {
       try {
         await window.api.setSetting('vimode', value === 'on');
         window.dispatchEvent(new CustomEvent('novi-vimode-changed', { detail: { enabled: value === 'on' } }));
@@ -261,7 +276,14 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
       return;
     }
 
-    terminal.writeln(`\x1b[31mExpected "on" or "off", got: ${value}\x1b[0m`);
+    if (option === 'compat') {
+      try {
+        await window.api.setSetting('compat', value === 'on');
+        terminal.writeln(value === 'on' ? '\x1b[32mcompat on\x1b[0m' : '\x1b[33mcompat off\x1b[0m');
+      } catch (e) {
+        terminal.writeln('\x1b[31mFailed to set compat\x1b[0m');
+      }
+    }
   };
 
   const commandHelp = (terminal: XTerm) => {
@@ -270,7 +292,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
     terminal.writeln('  \x1b[33mversion\x1b[0m      - Display Novi version information');
     terminal.writeln('  \x1b[33mlist\x1b[0m         - List all open tabs');
     terminal.writeln('  \x1b[33mclear\x1b[0m        - Clear the screen');
-    terminal.writeln('  \x1b[33mset\x1b[0m          - Set options (e.g. set vimode on|off)');
+    terminal.writeln('  \x1b[33mset\x1b[0m          - Set options (e.g. set vimode on|off); set with no args shows all');
     terminal.writeln('  \x1b[33mhelp\x1b[0m         - Show this help message');
     terminal.writeln('');
     terminal.writeln('Keyboard Shortcuts:');
@@ -279,11 +301,9 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
   };
 
   const commandVersion = (terminal: XTerm) => {
-    terminal.writeln('Novi Editor v0.4.0');
-    terminal.writeln('Integration Layer - Sprint 4');
+    terminal.writeln('Novi Editor v0.6.0-dev');
     terminal.writeln('');
     terminal.writeln('© 2025 MiraNova Studios');
-    terminal.writeln('Build: Sprint4-Task6');
   };
 
   const commandList = (terminal: XTerm) => {

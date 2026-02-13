@@ -26,6 +26,37 @@ export interface TabBarProps {
   onAllTabsClosed?: () => void;
 }
 
+/** File icon by extension, consistent with FileTree */
+function getFileIcon(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'js':
+    case 'jsx':
+    case 'ts':
+    case 'tsx':
+      return '📜';
+    case 'json':
+      return '📋';
+    case 'md':
+      return '📝';
+    case 'html':
+    case 'htm':
+      return '🌐';
+    case 'css':
+    case 'scss':
+    case 'less':
+      return '🎨';
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'svg':
+      return '🖼️';
+    default:
+      return '📄';
+  }
+}
+
 export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTabsClosed }) => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -185,7 +216,7 @@ const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose }) =
       onClick={onSelect}
     >
       <span style={styles.tabLabel}>
-        {tab.fileName}
+        {tab.type === 'file' ? `${getFileIcon(tab.fileName)} ${tab.fileName}` : tab.fileName}
         {tab.type === 'file' && tab.isDirty && <span style={styles.dirtyIndicator}> ●</span>}
       </span>
       <button

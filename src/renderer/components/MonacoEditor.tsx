@@ -539,7 +539,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     <>
       <div style={styles.editorWrapper}>
         <div ref={containerRef} style={styles.container} />
-        <div ref={vimStatusBarRef} style={styles.vimStatusBar} aria-hidden="true" />
+        <div ref={vimStatusBarRef} className="novi-vim-statusbar" style={styles.vimStatusBar} aria-hidden="true" />
       </div>
       
       {/* Novi's custom context menu */}
