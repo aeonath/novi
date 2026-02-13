@@ -19,9 +19,10 @@ export interface TerminalProps {
   onData?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
   isActive?: boolean;
+  onNewTerminal?: () => void;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, isActive }) => {
+export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, isActive, onNewTerminal }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);

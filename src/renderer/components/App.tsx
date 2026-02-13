@@ -1861,6 +1861,7 @@ const AppInner: React.FC = () => {
                       isActive={activeTab?.id === tab.id}
                       onData={terminalOnData}
                       onResize={terminalOnResize}
+                      onNewTerminal={actionContext.onNewTerminal}
                     />
                   </div>
                 );
