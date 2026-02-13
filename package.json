@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.json && node scripts/build-renderer.js && npm run copy:renderer && npm run copy:monaco",
     "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/assets/nova_logo.png','dist/renderer/assets/nova_logo.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
     "copy:monaco": "node scripts/copy-monaco.js",
+    "copy:icon": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('build',{recursive:true});fs.copyFileSync(p.join('src','renderer','assets','nova_logo.png'),'build/icon.png');\"",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -15,8 +16,8 @@
     "lint:fix": "eslint src --ext .ts --fix --config .eslintrc.js",
     "fmt": "prettier --write \"src/**/*.{ts,html,css}\"",
     "fmt:check": "prettier --check \"src/**/*.{ts,html,css}\"",
-    "pack:win": "npm run clean && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
-    "pack:win:exe": "npm run clean && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
+    "pack:win": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
+    "pack:win:exe": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
   },
   "repository": {
     "type": "git",
@@ -60,6 +61,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "build/icon.png",
       "signAndEditExecutable": false,
       "compression": "store",
       "target": [

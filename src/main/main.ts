@@ -140,6 +140,8 @@ function createWindow(): void {
   gitCredentialHelper.setMainWindow(mainWindow);
 }
 
+app.setAppUserModelId('com.miranova.nova');
+
 void app.whenReady().then(() => {
   logInfo('App ready');
   
