@@ -94,7 +94,7 @@ allModels.forEach((model) => {
 
 ### Secondary Fix: Model Refresh on Vim Toggle
 
-Added model refresh when vim is disabled (MonacoEditor.tsx lines 338-348):
+Added model refresh when vim is disabled (MonacoEditor.tsx):
 
 ```typescript
 // Force a model refresh to see if that fixes highlighting
@@ -104,6 +104,10 @@ console.log('[MonacoEditor] Refreshed model after vim dispose');
 ```
 
 This may trigger retokenization if the primary fix doesn't fully resolve the issue.
+
+### Tertiary Fix: Model Refresh When Enabling Vim
+
+To keep syntax highlighting identical whether vimode is on or off, we also force a model refresh when vim is **enabled** (both on initial load and when the user runs `set vimode on`). Same operation: `editor.setModel(null); editor.setModel(currentModel)`. That way the same retokenization path runs in both directions and highlighting matches the "proper" (vim-off) behavior.
 
 ## Testing Instructions
 

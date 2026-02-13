@@ -422,24 +422,41 @@ void app.whenReady().then(() => {
   });
   
   // File system IPC handlers
+  // Windows system/protected names to skip when reading drive root (avoids EPERM)
+  const WINDOWS_SYSTEM_NAMES = new Set([
+    'hiberfil.sys', 'pagefile.sys', 'swapfile.sys', 'DumpStack.log', 'appverifUI.dll',
+    '$Recycle.Bin', 'System Volume Information', 'Documents and Settings', 'PerfLogs',
+    'Recovery', 'Config.Msi',
+  ]);
+
   ipcMain.handle('read-directory', async (_e, path: string) => {
     try {
-      const entries = await readdir(path, { withFileTypes: true });
+      // On Windows, "C:" is current dir on drive; normalize to "C:\" for drive root
+      const dirPath = /^[A-Za-z]:$/.test(path) ? path + '\\' : path;
+      const entries = await readdir(dirPath, { withFileTypes: true });
+      const isDriveRoot = /^[A-Za-z]:[\/\\]?$/.test(dirPath.replace(/\\/g, '/'));
+
       const result = await Promise.all(
         entries.map(async (entry) => {
-          const fullPath = join(path, entry.name);
-          const stats = await stat(fullPath);
-          return {
-            name: entry.name,
-            path: fullPath,
-            type: entry.isDirectory() ? 'directory' : 'file',
-            isDirectory: entry.isDirectory(),
-            size: stats.size,
-          };
+          if (isDriveRoot && WINDOWS_SYSTEM_NAMES.has(entry.name)) return null;
+          const fullPath = join(dirPath, entry.name);
+          try {
+            const stats = await stat(fullPath);
+            return {
+              name: entry.name,
+              path: fullPath,
+              type: entry.isDirectory() ? 'directory' : 'file',
+              isDirectory: entry.isDirectory(),
+              size: stats.size,
+            };
+          } catch {
+            return null;
+          }
         })
       );
-      // Sort: directories first, then files, both alphabetically
-      return result.sort((a, b) => {
+
+      const filtered = result.filter((r): r is NonNullable<typeof r> => r != null);
+      return filtered.sort((a, b) => {
         if (a.isDirectory && !b.isDirectory) {
           return -1;
         }
@@ -694,6 +711,8 @@ void app.whenReady().then(() => {
   // Git watcher IPC handlers (event-driven monitoring)
   ipcMain.handle('git-start-watching', async (_e, repoPath: string) => {
     try {
+      const normalized = repoPath.replace(/\\/g, '/');
+      if (/^[A-Za-z]:\/?$/.test(normalized)) return; // don't watch drive root
       await gitWatcher.watch(repoPath);
       logInfo(`Started watching git repository: ${repoPath}`);
     } catch (error) {

@@ -273,11 +273,27 @@ const AppInner: React.FC = () => {
                 }
               }
               
-              // Keep welcome screen visible even if tabs were restored
-              // User will click a tab to hide it and show the editor
-              console.log('[App] Restored', successfullyLoadedCount, 'file tabs (home screen still visible)');
-              setShowWelcome(true);
-              setActiveTab(null);
+              // If we have a saved active file tab, show it and load its content into Monaco
+              const activeFileIndex = typeof workspace.activeFileIndex === 'number' ? workspace.activeFileIndex : -1;
+              if (activeFileIndex >= 0 && activeFileIndex < successfullyLoadedCount) {
+                const allTabs = tabBarAPI.getTabs();
+                const restoredFileTabs = allTabs.filter((t: any) => t.type === 'file');
+                const activeTabInfo = restoredFileTabs[activeFileIndex];
+                if (activeTabInfo) {
+                  setShowWelcome(false);
+                  setActiveTab({ id: activeTabInfo.id, type: 'file' });
+                  tabBarAPI.setActiveTab(activeTabInfo.id);
+                  monacoAPI.loadFile(activeTabInfo.filePath, activeTabInfo.content);
+                  if ((window as any).__statusBarAPI) {
+                    (window as any).__statusBarAPI.setStatus(`Editing: ${activeTabInfo.fileName}`);
+                  }
+                  console.log('[App] Restored active file tab:', activeTabInfo.fileName);
+                }
+              } else {
+                setShowWelcome(true);
+                setActiveTab(null);
+              }
+              console.log('[App] Restored', successfullyLoadedCount, 'file tabs');
             } catch (error) {
               console.error('[App] Critical error during workspace file restoration:', error);
               // Don't crash the app, just log the error
@@ -403,13 +419,12 @@ const AppInner: React.FC = () => {
           });
         }
 
-        // Restore active tab (for any tab type)
-        if (workspace.activeTabId) {
+        // Restore active tab for non-file types (file tab is restored in the file-restore callback)
+        if (workspace.activeTabId && workspace.activeTabType !== 'file') {
           const hasAnyTabs = 
-            (workspace.openFiles && workspace.openFiles.length > 0) ||
             (workspace.openTerminals && workspace.openTerminals.length > 0) ||
-            (workspace.openNoviPrompts && workspace.openNoviPrompts.length > 0);
-          
+            (workspace.openNoviPrompts && workspace.openNoviPrompts.length > 0) ||
+            (workspace.openImages && workspace.openImages.length > 0);
           if (hasAnyTabs) {
             setActiveTab({
               id: workspace.activeTabId,
@@ -502,13 +517,13 @@ const AppInner: React.FC = () => {
         const tabBarAPI = (window as any).__tabBarAPI;
         const tabs = tabBarAPI?.getTabs() || [];
         
-        const openFiles = tabs
-          .filter((t: any) => t.type === 'file')
-          .map((t: any) => ({
-            filePath: t.filePath,
-            content: t.content,
-            isDirty: t.isDirty,
-          }));
+        const fileTabs = tabs.filter((t: any) => t.type === 'file');
+        const openFiles = fileTabs.map((t: any) => ({
+          filePath: t.filePath,
+          content: t.content,
+          isDirty: t.isDirty,
+        }));
+        const activeFileIndex = activeTab?.type === 'file' ? fileTabs.findIndex((t: any) => t.id === activeTab.id) : -1;
 
         const openImages = tabs
           .filter((t: any) => t.type === 'image')
@@ -535,6 +550,7 @@ const AppInner: React.FC = () => {
           openNoviPrompts,
           activeTabId: activeTab?.id || null,
           activeTabType: activeTab?.type || null,
+          activeFileIndex,
           layout: {
             showGitPanel,
           },
@@ -1537,17 +1553,8 @@ const AppInner: React.FC = () => {
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
                   setWorkspaceRoot(dirPath);
-                  
-                  // Reload FileTree with new directory
-                  const fileTreeAPI = (window as any).__fileTreeAPI;
-                  if (fileTreeAPI && fileTreeAPI.loadDirectory) {
-                    try {
-                      await fileTreeAPI.loadDirectory(dirPath);
-                      console.log('[App] FileTree reloaded with:', dirPath);
-                    } catch (error) {
-                      console.error('[App] Failed to reload FileTree:', error);
-                    }
-                  }
+                  // FileTree already set its root and loaded in openDirectory; avoid calling
+                  // fileTreeAPI.loadDirectory here to prevent recursive loop and wrong-tree updates.
                   
                   // Fetch git status for workspace
                   if (window.api?.gitGetStatus) {

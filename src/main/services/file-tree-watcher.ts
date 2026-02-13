@@ -24,6 +24,13 @@ export class FileTreeWatcher extends EventEmitter {
       return;
     }
 
+    // Don't watch drive root (C:\, D:\) - causes EPERM on system dirs
+    const normalized = dirPath.replace(/\\/g, '/');
+    if (/^[A-Za-z]:\/?$/.test(normalized)) {
+      this.stop();
+      return;
+    }
+
     // Stop existing watcher
     this.stop();
 

@@ -52,7 +52,10 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
   // Event-driven git monitoring - NO POLLING
   useEffect(() => {
     if (!workspaceRoot || !window.api?.gitStartWatching || !window.api?.gitOnChange) return;
-    
+    // Don't start git watch at drive root (C:\, D:\) - not a repo and causes EPERM
+    const normalized = workspaceRoot.replace(/\\/g, '/');
+    if (/^[A-Za-z]:\/?$/.test(normalized)) return;
+
     if (DEBUG_GIT_OPERATIONS) {
       console.log('[GitPanel] Starting event-driven Git monitoring for:', workspaceRoot);
     }

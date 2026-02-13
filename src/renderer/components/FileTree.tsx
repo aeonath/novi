@@ -22,6 +22,8 @@ export interface FileTreeProps {
   onWorkspaceSplitOpen?: (dirPath: string) => void;
   initialPath?: string; // Auto-load this directory on mount
   hideHeader?: boolean; // Hide the header (for use in split view)
+  /** If true (default), this tree drives the global file watcher. Set false for split-view trees to avoid flicker. */
+  driveFileWatcher?: boolean;
 }
 
 interface FileNode {
@@ -47,7 +49,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, onWorkspaceSplitOpen, initialPath, hideHeader = false }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, onWorkspaceSplitOpen, initialPath, hideHeader = false, driveFileWatcher = true }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -391,9 +393,12 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     setNewFileInput(null);
   }, []);
 
-  // Watch for file system changes
+  // Watch for file system changes (only the primary/main tree drives the single global watcher)
   useEffect(() => {
-    if (!rootPath || !window.api?.fileTreeStartWatching) return;
+    if (!driveFileWatcher || !rootPath || !window.api?.fileTreeStartWatching) return;
+    // Don't watch drive root (C:\, D:\) - causes EPERM on system dirs and is not useful
+    const normalized = rootPath.replace(/\\/g, '/');
+    if (/^[A-Za-z]:\/?$/.test(normalized)) return;
 
     // Start watching the directory
     window.api.fileTreeStartWatching(rootPath);
@@ -450,7 +455,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
 
     // Cleanup
     return () => {
-      if (window.api?.fileTreeStopWatching) {
+      if (driveFileWatcher && window.api?.fileTreeStopWatching) {
         window.api.fileTreeStopWatching();
         console.log('[FileTree] Stopped watching');
       }
@@ -458,10 +463,11 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
         window.api.fileTreeRemoveChangeListener();
       }
     };
-  }, [rootPath]); // Only depend on rootPath, not expandedDirs
+  }, [rootPath, driveFileWatcher]); // Only depend on rootPath, not expandedDirs
 
-  // Expose methods for compatibility
+  // Expose methods for compatibility (only primary tree registers so restore/loadDirectory always target main tree)
   useEffect(() => {
+    if (!driveFileWatcher) return;
     (window as any).__fileTreeAPI = {
       openDirectory,
       loadDirectory: loadDirectoryProgrammatically,
@@ -469,13 +475,13 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       reset: resetFileTree,
     };
     
-    // Signal that FileTree is ready for use
+    // Signal that FileTree is ready for use (only once, from primary tree)
     markReady('filetree-ready');
     
     return () => {
       delete (window as any).__fileTreeAPI;
     };
-  }, [openDirectory, loadDirectoryProgrammatically, rootPath, resetFileTree]);
+  }, [driveFileWatcher, openDirectory, loadDirectoryProgrammatically, rootPath, resetFileTree]);
 
   const contextValue: FileTreeContextValue = {
     expandedDirs,
@@ -538,10 +544,19 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
                     backgroundColor: 'transparent',
                   }}
                   onClick={async () => {
-                    const parentPath = rootPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/') || (rootPath[1] === ':' ? rootPath[0] + ':/' : '/');
+                    let parentPath = rootPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/') || (rootPath[1] === ':' ? rootPath[0] + ':/' : '/');
+                    // On Windows, "C:" means current dir on drive; use "C:\" or "C:/" for drive root
+                    if (/^[A-Za-z]:$/.test(parentPath)) {
+                      parentPath = parentPath + (rootPath.includes('\\') ? '\\' : '/');
+                    }
                     console.log('[FileTree] Navigating to parent:', parentPath);
+                    // Full reinit like "Open Folder": clear state then load so we never show stale content
+                    setExpandedDirs(new Set());
+                    setTree([]);
+                    setRootPath(parentPath);
+                    await loadDirectory(parentPath);
                     if (onDirectoryOpen) {
-                      await onDirectoryOpen(parentPath);
+                      onDirectoryOpen(parentPath);
                     }
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2a2d2e'}

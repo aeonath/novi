@@ -12,12 +12,20 @@ This applies to ALL filesystem modifications - code, config, docs, renames, dele
 ## 🎯 TASK COMPLETION REQUIREMENTS 🎯
 **ALWAYS COMPLETE ONE TASK AT A TIME AND STOP!**
 - **MANDATORY**: After completing any task, ALWAYS create:
-  1. Changelog entry (nova/changelog/YYYYMMDD/HHMM-CHANGELOG.md)
-  2. Sprint task summary (nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md)
+  1. Changelog entry (nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md)
+  2. Sprint task summary (nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md) — **only when working on a SPRINT_PLAN Task**
   3. Commit changes
 - **STOP EXECUTION** after task completion - do NOT proceed to next task
 - **WAIT** for user instruction before starting next task
 - **NEVER** implement multiple tasks in one session unless explicitly instructed
+
+## 📌 STANDARD FOR AD HOC MODIFICATIONS (NON-SPRINT WORK)
+**When NOT working on a SPRINT_PLAN Task**, the standard is:
+- **ALWAYS** create a changelog entry after each modification (same path: nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md).
+- **ALWAYS** run git add and commit after writing the changelog (one commit per logical change).
+- **NO** Sprint Task Summary is required for ad hoc work — only the detailed changelog and commit.
+- Use a short commit message (e.g. "Ad hoc: drive root EPERM fixes" or "Ad hoc: vim insert cursor match terminal").
+- Get current date/time first; use it for the changelog path and content.
 
 ## 🖥️ SHELL ENVIRONMENT REMINDER 🖥️
 **Your shell is git-bash**
@@ -120,11 +128,11 @@ If a changelog file already exists with the same timestamp, append a decimal suf
 
 **CHANGELOG should be COMPREHENSIVE** - think of it as the technical documentation that another developer would need to understand what was done and why.
 
-### 4. Write Sprint Task Summary (Conditional)
-If **Git Commit Toggle = YES**, Claude writes a **HIGH-LEVEL SPRINT TASK SUMMARY** **AFTER** completing the task implementation:
+### 4. Write Sprint Task Summary (Conditional — Sprint tasks only)
+If **Git Commit Toggle = YES** **and** the work is a **SPRINT_PLAN Task**, Claude writes a **HIGH-LEVEL SPRINT TASK SUMMARY** **AFTER** completing the task implementation. For **ad hoc (non-sprint) modifications**, only the changelog and commit are required; no Sprint Task Summary.
 
-**🚨 CRITICAL REQUIREMENT 🚨**: 
-**ALWAYS CREATE SPRINT TASK SUMMARY - THIS IS MANDATORY AND SEPARATE FROM CHANGELOG!**
+**🚨 CRITICAL REQUIREMENT 🚨** (sprint tasks only): 
+**ALWAYS CREATE SPRINT TASK SUMMARY FOR SPRINT TASKS - THIS IS MANDATORY AND SEPARATE FROM CHANGELOG!**
 
 **Task Summary Path Format:**
 ```

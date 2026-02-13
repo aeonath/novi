@@ -360,6 +360,19 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
                 });
               });
             }
+            // Re-apply theme and model on next tick so syntax highlighting matches vim-off.
+            // Vim's updateOptions(cursor*) can cause Monaco to lose theme/token rendering.
+            const monacoTheme = theme?.name === 'light' ? 'novi-light' : 'novi-dark';
+            const editor = editorRef.current;
+            setTimeout(() => {
+              if (!editor) return;
+              monaco.editor.setTheme(monacoTheme);
+              const modelForRefresh = editor.getModel();
+              if (modelForRefresh) {
+                editor.setModel(null);
+                editor.setModel(modelForRefresh);
+              }
+            }, 0);
             console.log('[MonacoEditor] Vim mode enabled');
           }
         } catch (e) {
@@ -464,6 +477,18 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         try {
           const mod = await import('../vim/index.js');
           vimAdapterRef.current = mod.initVimMode(editorRef.current, vimStatusBarRef.current);
+          // Re-apply theme and model on next tick so syntax highlighting matches vim-off
+          const monacoTheme = theme?.name === 'light' ? 'novi-light' : 'novi-dark';
+          const editor = editorRef.current;
+          setTimeout(() => {
+            if (!editor) return;
+            monaco.editor.setTheme(monacoTheme);
+            const currentModel = editor.getModel();
+            if (currentModel) {
+              editor.setModel(null);
+              editor.setModel(currentModel);
+            }
+          }, 0);
           console.log('[MonacoEditor] Vim mode enabled (from Shell)');
         } catch (err) {
           console.warn('[MonacoEditor] Vim mode init failed:', err);
@@ -472,7 +497,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     };
     window.addEventListener('novi-vimode-changed', handleVimodeChanged as EventListener);
     return () => window.removeEventListener('novi-vimode-changed', handleVimodeChanged as EventListener);
-  }, []);
+  }, [theme]);
 
   // Context menu action handlers
   const handleCut = useCallback(async () => {

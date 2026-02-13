@@ -154,6 +154,7 @@ export const WorkspaceSplit: React.FC<WorkspaceSplitProps> = ({ workspaceId, wor
             onDirectoryOpen={handleDirectoryOpen}
             showGitToggle={false}
             hideHeader={true}
+            driveFileWatcher={false}
           />
         </div>
       </div>

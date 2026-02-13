@@ -160,24 +160,28 @@ export class GitWatcher extends EventEmitter {
    * Stop watching the current repository
    */
   async unwatch(): Promise<void> {
-    if (this.watcher) {
-      if (DEBUG_GIT_OPERATIONS) {
-        console.log('[GitWatcher] Stopping watch on:', this.watchedPath);
-      }
-      await this.log('WATCH_STOP', this.watchedPath || 'unknown');
-      
-      await this.watcher.close();
-      this.watcher = null;
-      this.watchedPath = null;
-      this.changedFiles.clear();
-      
-      if (this.changeDebounceTimer) {
-        clearTimeout(this.changeDebounceTimer);
-        this.changeDebounceTimer = null;
-      }
+    const watcher = this.watcher;
+    if (!watcher) return;
 
-      this.emit('watch-stopped');
+    if (DEBUG_GIT_OPERATIONS) {
+      console.log('[GitWatcher] Stopping watch on:', this.watchedPath);
     }
+    const pathToLog = this.watchedPath || 'unknown';
+    this.watcher = null;
+    this.watchedPath = null;
+    this.changedFiles.clear();
+    if (this.changeDebounceTimer) {
+      clearTimeout(this.changeDebounceTimer);
+      this.changeDebounceTimer = null;
+    }
+
+    await this.log('WATCH_STOP', pathToLog);
+    try {
+      await watcher.close();
+    } catch (err) {
+      console.error('[GitWatcher] Error closing watcher:', err);
+    }
+    this.emit('watch-stopped');
   }
 
   /**

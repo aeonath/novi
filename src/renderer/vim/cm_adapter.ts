@@ -892,11 +892,11 @@ class CMAdapter {
 
   leaveVimMode() {
     this.ctxInsert.set(true);
-
+    // Match Terminal window: underline cursor, no blink, thick (cursorWidth 2)
     this.editor.updateOptions({
-      cursorWidth: this.initialCursorWidth || 0,
-      cursorBlinking: "blink",
-      cursorStyle: "line",
+      cursorWidth: 2,
+      cursorBlinking: "solid",
+      cursorStyle: "underline",
     });
   }
 
