@@ -57,26 +57,25 @@ export class EditorService {
     console.log(`[EditorService] Created model for ${filePath} (${language})`);
 
     // Force retokenization for worker-based languages (TypeScript, JavaScript)
-    // Monaco's TS/JS language services sometimes don't tokenize models immediately
+    // Monaco's TS/JS language services sometimes don't tokenize models immediately.
+    // Note: monaco.languages.typescript may be undefined when using the minified AMD bundle.
     if (language === 'typescript' || language === 'javascript') {
-      // Small delay to ensure worker is spawned and ready
       setTimeout(() => {
-        console.log(`[EditorService] Triggering ${language} worker for: ${filePath}`);
         try {
-          // Explicitly trigger worker by requesting it
-          // This forces Monaco to spawn the TS/JS worker if it hasn't already
-          monaco.languages.typescript.getTypeScriptWorker()
-            .then((_worker: any) => {
-              console.log(`[EditorService] ${language} worker obtained, forcing tokenization`);
-              // Now force retokenization
-              monaco.editor.setModelLanguage(model, 'plaintext');
-              monaco.editor.setModelLanguage(model, language);
-            })
-            .catch((err: any) => {
-              console.warn(`[EditorService] Failed to get ${language} worker:`, err);
-            });
+          const tsApi = (monaco as any).languages?.typescript;
+          if (tsApi && typeof tsApi.getTypeScriptWorker === 'function') {
+            tsApi.getTypeScriptWorker()
+              .then((_worker: any) => {
+                monaco.editor.setModelLanguage(model, 'plaintext');
+                monaco.editor.setModelLanguage(model, language);
+              })
+              .catch(() => { /* fallback below */ });
+          }
+          // Always force retokenization (works even when TS API is not available)
+          monaco.editor.setModelLanguage(model, 'plaintext');
+          monaco.editor.setModelLanguage(model, language);
         } catch (e) {
-          console.warn(`[EditorService] Failed to trigger ${language} worker:`, e);
+          console.warn(`[EditorService] Failed to retokenize ${language} model:`, e);
         }
       }, 200);
     }

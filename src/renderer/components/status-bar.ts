@@ -44,7 +44,7 @@ export class StatusBar {
     statusBar.style.cssText = `
       display: flex;
       height: ${options.height || 24}px;
-      background-color: ${options.backgroundColor || '#007acc'};
+      background-color: ${options.backgroundColor || '#1e3a5f'};
       color: ${options.foregroundColor || '#ffffff'};
       align-items: center;
       justify-content: space-between;

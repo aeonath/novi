@@ -62,7 +62,7 @@ export class TitleBar {
 
     const title = document.createElement('div');
     title.className = 'title-bar-title';
-    title.textContent = options.title || 'Nova IDE';
+    title.textContent = options.title || 'Novi';
     title.style.cssText = `
       font-size: 12px;
       font-weight: 400;

@@ -123,7 +123,7 @@ const styles = {
   container: {
     display: 'flex',
     height: '24px',
-    backgroundColor: '#007acc',
+    backgroundColor: '#1e3a5f',
     color: '#ffffff',
     alignItems: 'center',
     justifyContent: 'space-between',

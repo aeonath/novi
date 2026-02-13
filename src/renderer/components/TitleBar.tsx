@@ -220,7 +220,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCom
     <div style={styles.container}>
       <div style={styles.leftSection}>
         <div style={styles.logoContainer}>
-          <img src="assets/nova_logo.png" alt="Novi Editor" style={styles.logo} />
+          <img src="assets/novi_logo.png" alt="Novi Editor" style={styles.logo} />
         </div>
         <div style={styles.menuBar}>
           {Object.keys(menus).map((menuName) => (
@@ -381,7 +381,7 @@ const styles = {
     // Logo area is draggable (inherits from container)
   },
   logo: {
-    height: '20px',
+    height: '25px',
     width: 'auto',
     objectFit: 'contain',
     userSelect: 'none',

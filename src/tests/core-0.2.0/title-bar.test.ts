@@ -60,7 +60,7 @@ describe('TitleBar Component', () => {
     const titleElement = element.querySelector('.title-bar-title');
 
     expect(titleElement).toBeTruthy();
-    expect(titleElement?.textContent).toBe('Nova IDE');
+    expect(titleElement?.textContent).toBe('Novi');
   });
 
   test('should display custom title', () => {

@@ -169,12 +169,15 @@ async function initializeApp() {
     });
 
     window.addEventListener('unhandledrejection', (ev) => {
-      // Ignore Monaco-related rejections
+      // Ignore Monaco-related rejections (including \"Model not found\" from internal worker logic)
+      const msg = ev.reason?.message || String(ev.reason || '');
       if (
-        ev.reason?.message?.includes('monaco') ||
-        ev.reason?.message?.includes('vs/')
+        msg.includes('monaco') ||
+        msg.includes('vs/') ||
+        msg.includes('Model not found')
       ) {
-        console.warn('[Novi] Monaco rejection (handled):', ev.reason);
+        console.warn('[Novi] Monaco rejection (handled):', msg);
+        ev.preventDefault?.();
         return;
       }
 

@@ -224,7 +224,7 @@ export class MonacoEditorView {
   }
 
   private getWelcomeContent(): string {
-    return `// Welcome to Nova IDE
+    return `// Welcome to Novi Editor
 // Press Ctrl+K to open the Action HUD
 
 // This is the Monaco Editor - a powerful code editor

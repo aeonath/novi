@@ -521,6 +521,38 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
           </div>
         ) : (
           <div className="file-tree-scroll" style={styles.tree}>
+            {/* Show ".." parent directory entry if not at root */}
+            {(() => {
+              if (!rootPath) return null;
+              // Check if we're not at a root (C:\, D:\, /, etc.)
+              const normalizedPath = rootPath.replace(/\\/g, '/');
+              const isAtRoot = /^([A-Z]:\/?)$|^\/$/.test(normalizedPath);
+              if (isAtRoot) return null;
+              
+              return (
+                <div
+                  style={{
+                    ...styles.node,
+                    paddingLeft: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: 'transparent',
+                  }}
+                  onClick={async () => {
+                    const parentPath = rootPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/') || (rootPath[1] === ':' ? rootPath[0] + ':/' : '/');
+                    console.log('[FileTree] Navigating to parent:', parentPath);
+                    if (onDirectoryOpen) {
+                      await onDirectoryOpen(parentPath);
+                    }
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2a2d2e'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <span style={{ marginRight: '4px' }}>📁</span>
+                  <span>..</span>
+                </div>
+              );
+            })()}
+            
             {/* Show inline input at root level if creating new file at root */}
             {newFileInput && newFileInput.parentPath === rootPath && !newFileInput.parentNode && (
               <NewFileInput 

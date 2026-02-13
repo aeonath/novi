@@ -5,9 +5,9 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.json && node scripts/build-renderer.js && npm run copy:renderer && npm run copy:monaco",
-    "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/assets/nova_logo.png','dist/renderer/assets/nova_logo.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
+    "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/assets/novi_logo.png','dist/renderer/assets/novi_logo.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
     "copy:monaco": "node scripts/copy-monaco.js",
-    "copy:icon": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('build',{recursive:true});fs.copyFileSync(p.join('src','renderer','assets','nova_logo.png'),'build/icon.png');\"",
+    "copy:icon": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('build',{recursive:true});fs.copyFileSync(p.join('src','renderer','assets','novi_logo.png'),'build/icon.png');\"",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -74,7 +74,7 @@
       ]
     }
   },
-  "version": "0.6.0-dev",
+  "version": "0.6.6-dev",
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
     "@types/react": "^18.3.26",
@@ -83,7 +83,6 @@
     "@xterm/xterm": "^5.5.0",
     "chokidar": "^4.0.3",
     "monaco-editor": "^0.54.0",
-    "monaco-vim": "^0.4.4",
     "monaco-textmate": "^3.0.1",
     "node-gyp": "^11.5.0",
     "react": "^18.3.1",

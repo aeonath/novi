@@ -47,6 +47,14 @@ const AppInner: React.FC = () => {
   // Untitled file counter for new buffers
   const [untitledCounter, setUntitledCounter] = useState(1);
   
+  // Sidebar resize state
+  const [sidebarWidth, setSidebarWidth] = useState(250);
+  const [isResizing, setIsResizing] = useState(false);
+  
+  // Help menu popups
+  const [showAbout, setShowAbout] = useState(false);
+  const [showCheckUpdates, setShowCheckUpdates] = useState(false);
+  
   // Save prompt state
   const [savePrompt, setSavePrompt] = useState<{
     show: boolean;
@@ -817,32 +825,48 @@ const AppInner: React.FC = () => {
       await tabBarAPI.removeTab(tab.id);
     },
     onNoviPrompt: async () => {
-      console.log('[App] Novi Prompt action triggered');
+      console.log('[App] Novi Shell action triggered');
       
       try {
-        // Generate prompt ID
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (!tabBarAPI) {
+          console.error('[App] TabBar API not available');
+          return;
+        }
+
+        // Check if a Novi Shell tab already exists
+        const existingTab = tabBarAPI.getTabs?.().find((t: any) => t.type === 'novi-prompt');
+        
+        if (existingTab) {
+          // Focus the existing Novi Shell tab instead of creating a new one
+          console.log('[App] Novi Shell tab already exists, focusing:', existingTab.id);
+          tabBarAPI.switchTab(existingTab.id);
+          setActiveTab({ id: existingTab.id, type: 'novi-prompt' });
+          setShowWelcome(false);
+          return;
+        }
+
+        // Generate prompt ID for new tab
         const promptId = `novi-prompt-${Date.now()}`;
-        console.log('[App] Creating Novi Prompt tab:', promptId);
+        console.log('[App] Creating Novi Shell tab:', promptId);
 
         // Hide welcome screen
         setShowWelcome(false);
 
         // Add novi prompt tab
-        if ((window as any).__tabBarAPI) {
-          (window as any).__tabBarAPI.addTab({
-            id: promptId,
-            type: 'novi-prompt',
-            filePath: promptId,
-            fileName: '⚙ novi>',
-            isDirty: false,
-            content: '',
-            language: 'plaintext',
-          });
-        }
+        tabBarAPI.addTab({
+          id: promptId,
+          type: 'novi-prompt',
+          filePath: promptId,
+          fileName: '⚙ novi>',
+          isDirty: false,
+          content: '',
+          language: 'plaintext',
+        });
 
         // Add to noviPromptTabs state
         setNoviPromptTabs((prev) => [...prev, { id: promptId, fileName: '⚙ novi>' }]);
-        console.log('[App] Added Novi Prompt to state:', promptId);
+        console.log('[App] Added Novi Shell to state:', promptId);
 
         // Switch to the new prompt tab
         setActiveTab({ id: promptId, type: 'novi-prompt' });
@@ -852,9 +876,9 @@ const AppInner: React.FC = () => {
           (window as any).__statusBarAPI.setStatus('Novi Shell ready');
         }
 
-        console.log('[App] Novi Prompt tab created successfully:', promptId);
+        console.log('[App] Novi Shell tab created successfully:', promptId);
       } catch (error) {
-        console.error('[App] Failed to create Novi Prompt:', error);
+        console.error('[App] Failed to create Novi Shell:', error);
         if ((window as any).__statusBarAPI) {
           (window as any).__statusBarAPI.setStatus('Failed to create Novi Shell');
         }
@@ -1280,16 +1304,14 @@ const AppInner: React.FC = () => {
         window.open('https://github.com/miranova-studios/nova/issues', '_blank');
         break;
       case 'about':
-        // TODO: Implement About dialog
-        console.log('[App] About dialog not yet implemented');
+        setShowAbout(true);
         break;
       case 'documentation':
         // Open documentation URL
-        window.open('https://github.com/miranova-studios/nova', '_blank');
+        window.open('https://lyric-lang.org/novi.html', '_blank');
         break;
       case 'check-updates':
-        // TODO: Implement update checker
-        console.log('[App] Update checker not yet implemented');
+        setShowCheckUpdates(true);
         break;
       default:
         console.warn('[App] Unknown menu command:', command);
@@ -1377,6 +1399,33 @@ const AppInner: React.FC = () => {
     setWelcomeContextMenu(null);
   }, []);
 
+  // Handle sidebar resize
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(150, Math.min(600, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   // Memoize terminal callbacks to prevent unnecessary re-renders and periodic redraws
   // CRITICAL: These callbacks were being recreated inline on every render,
   // causing Terminal component's useEffect dependencies to change,
@@ -1412,12 +1461,34 @@ const AppInner: React.FC = () => {
     }
   }, []);
 
+  // Handle sidebar resize mouse events
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(150, Math.min(600, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   return (
       <div className="novi-layout" style={styles.layout}>
         <TitleBar onCommand={handleMenuCommand} />
         
         <div style={styles.mainContent}>
-          <aside style={styles.sidebar}>
+          <aside style={{ ...styles.sidebar, width: `${sidebarWidth}px`, flexShrink: 0 }}>
             {/* Always render both components, but hide with CSS to preserve state */}
             <div style={{ display: showGitPanel ? 'none' : 'flex', flexDirection: 'column', height: '100%' }}>
               <FileTree
@@ -1584,6 +1655,26 @@ const AppInner: React.FC = () => {
               />
             </div>
           </aside>
+          
+          {/* Resizable divider */}
+          <div
+            style={{
+              width: '4px',
+              cursor: 'col-resize',
+              backgroundColor: isResizing ? '#007acc' : 'transparent',
+              transition: isResizing ? 'none' : 'background-color 0.2s',
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
+            onMouseEnter={(e) => {
+              if (!isResizing) e.currentTarget.style.backgroundColor = '#3e3e42';
+            }}
+            onMouseLeave={(e) => {
+              if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          />
           
           <main style={styles.editorArea}>
             <TabBar 
@@ -1879,6 +1970,111 @@ const AppInner: React.FC = () => {
           />
         )}
         
+        {/* About Novi popup */}
+        {showAbout && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10001,
+            }}
+            onClick={() => setShowAbout(false)}
+          >
+            <div
+              style={{
+                backgroundColor: '#252526',
+                border: '1px solid #3e3e42',
+                borderRadius: '8px',
+                padding: '32px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
+                minWidth: '400px',
+                textAlign: 'center' as const,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ margin: '0 0 16px 0', color: '#cccccc', fontSize: '24px' }}>Novi Editor</h2>
+              <p style={{ margin: '8px 0', color: '#cccccc', fontSize: '14px' }}>Version 0.6.6-dev</p>
+              <p style={{ margin: '16px 0 24px 0', color: '#999', fontSize: '12px' }}>© 2026 MiraNova Studios</p>
+              <button
+                style={{
+                  backgroundColor: '#007acc',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px 24px',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontFamily: "'Segoe UI', sans-serif",
+                }}
+                onClick={() => setShowAbout(false)}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#005a9e'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#007acc'}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Check for Updates popup */}
+        {showCheckUpdates && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10001,
+            }}
+            onClick={() => setShowCheckUpdates(false)}
+          >
+            <div
+              style={{
+                backgroundColor: '#252526',
+                border: '1px solid #3e3e42',
+                borderRadius: '8px',
+                padding: '32px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
+                minWidth: '400px',
+                textAlign: 'center' as const,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ margin: '0 0 16px 0', color: '#cccccc', fontSize: '20px' }}>Check for Updates</h2>
+              <p style={{ margin: '16px 0 24px 0', color: '#cccccc', fontSize: '14px' }}>This feature is not yet implemented.</p>
+              <button
+                style={{
+                  backgroundColor: '#007acc',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px 24px',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontFamily: "'Segoe UI', sans-serif",
+                }}
+                onClick={() => setShowCheckUpdates(false)}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#005a9e'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#007acc'}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Welcome screen context menu */}
         {welcomeContextMenu && (
           <div
@@ -2034,7 +2230,6 @@ const styles = {
     overflow: 'hidden',
   },
   sidebar: {
-    width: '250px',
     backgroundColor: '#252526',
     borderRight: '1px solid #3e3e42',
     overflow: 'auto',

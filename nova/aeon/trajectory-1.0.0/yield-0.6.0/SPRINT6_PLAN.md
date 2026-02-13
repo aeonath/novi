@@ -80,4 +80,21 @@ and not displayed when the file is saved.
 
 ## Task 6 - Cleanup Tasks Part 3
 
-1. 
+1.  Remove Quit from Right Click context menu on the monaco editor tab
+
+2. The file tree pane and the editor pane           should be resizeable, right now the file treepane is a fixed size.  there should be the ability to expand or shrink the size of the file tree when you hover the mouse between the panes.
+
+3. Allow only one Novi Shell tab open at a time.  If the user clicks on new novi shell in the application menu don't open a new tab, just set focus to the exsiting novi shell tab.
+
+4. Show .. directory on the file tree pane as the first directory if it is possible for the user to navigate up the 
+tree, this will enable easier navigation instead of reopening the filetree with the folder button.
+
+5. The bright blue status bar on the bottom of the window should be a dark blue color
+
+6. Help -> About Novi doesn't do anything.  It should bring a popup window with the version and &copy 2026 MiraNova Studios
+
+7. Help -> Documentation should go to lyric-lang.org/novi.html
+
+8. Help -> check for updates is not implemented.  It should bring a pop up saying currently not implemented.
+
+Bump the version to 0.6.6-dev when you are done with this task

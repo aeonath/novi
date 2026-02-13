@@ -328,7 +328,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
           const on = await window.api.getSetting<boolean>('vimode', true);
           if (on && editorRef.current && vimStatusBarRef.current) {
             console.log('[MonacoEditor] Initializing vim mode...');
-            const mod = await import('monaco-vim');
+            const mod = await import('../vim/index.js');
             vimAdapterRef.current = mod.initVimMode(editorRef.current, vimStatusBarRef.current);
             
             // Log model state after vim initialization
@@ -464,7 +464,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       
       if (enabled && vimStatusBarRef.current) {
         try {
-          const mod = await import('monaco-vim');
+          const mod = await import('../vim/index.js');
           vimAdapterRef.current = mod.initVimMode(editorRef.current, vimStatusBarRef.current);
           console.log('[MonacoEditor] Vim mode enabled (from Shell)');
         } catch (err) {
@@ -542,14 +542,6 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       } else {
         console.error('[MonacoEditor] Clipboard API not available');
       }
-    }
-    setContextMenu(null);
-  }, []);
-
-  const handleQuit = useCallback(() => {
-    const api = (window as any).api;
-    if (api && api.quit) {
-      api.quit();
     }
     setContextMenu(null);
   }, []);
@@ -802,15 +794,6 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             💻 New Terminal
-          </div>
-          <div style={styles.contextMenuSeparator} />
-          <div
-            style={styles.contextMenuItem}
-            onClick={handleQuit}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#37373d')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            🚪 Quit
           </div>
         </div>
       )}
