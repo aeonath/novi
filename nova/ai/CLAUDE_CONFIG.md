@@ -21,7 +21,7 @@ This applies to ALL filesystem modifications - code, config, docs, renames, dele
 
 ## 🖥️ SHELL ENVIRONMENT REMINDER 🖥️
 **Your shell is git-bash**
-- `date +"%Y%m%d/%H%M"`
+- `date +"%Y%m%d.%H%M"`
 
 ## ⏰ DATE/TIME REQUIREMENT ⏰
 **ALWAYS GET THE CURRENT DATE/TIME FIRST!**

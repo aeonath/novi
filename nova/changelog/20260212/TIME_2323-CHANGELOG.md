@@ -34,7 +34,7 @@ Sprint 6 Task 5: Cleanup Tasks Part 2 per SPRINT6_PLAN.md.
 - `npm test`: 30 suites, 582 tests passed (including 2 new compat tests).
 
 ## Git Commit Hash
-`TBD` — Sprint6 Task5 Cleanup Part 2
+`dc38f0e` — Sprint6 Task5 Cleanup Part 2
 
 ## Status
 ✅ Completed
