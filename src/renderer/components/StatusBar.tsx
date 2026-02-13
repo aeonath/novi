@@ -18,7 +18,12 @@ export interface StatusBarItem {
 
 type StatusBarSection = 'left' | 'center' | 'right';
 
-export const StatusBar: React.FC = () => {
+export interface StatusBarProps {
+  /** Absolute path of current file tree root; empty after reset workspace. */
+  fileTreePath?: string | null;
+}
+
+export const StatusBar: React.FC<StatusBarProps> = ({ fileTreePath }) => {
   const [items, setItems] = useState<Map<string, { item: StatusBarItem; section: StatusBarSection }>>(
     new Map([['main-status', { item: { id: 'main-status', text: 'Ready', priority: 100 }, section: 'center' }]])
   );
@@ -81,6 +86,11 @@ export const StatusBar: React.FC = () => {
   return (
     <div style={styles.container}>
       <div style={styles.section}>
+        {fileTreePath && (
+          <span style={styles.pathItem} title={fileTreePath}>
+            {fileTreePath}
+          </span>
+        )}
         {itemsBySection.left.map((item) => (
           <StatusBarItemComponent key={item.id} item={item} />
         ))}
@@ -131,6 +141,13 @@ const styles = {
     fontSize: '12px',
     userSelect: 'none' as const,
     borderTop: '1px solid #005a9e',
+  },
+  pathItem: {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+    maxWidth: '40vw',
+    opacity: 0.9,
   },
   section: {
     display: 'flex',

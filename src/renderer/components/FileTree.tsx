@@ -22,6 +22,8 @@ export interface FileTreeProps {
   initialPath?: string; // Auto-load this directory on mount
   /** When set, file tree root is controlled by parent (e.g. per-terminal CWD). Updates when this prop changes. */
   displayRoot?: string | null;
+  /** When true, style the root directory name in the header as terminal-tied (green). */
+  isTerminalTree?: boolean;
   hideHeader?: boolean; // Hide the header (for use in split view)
   /** If true (default), this tree drives the global file watcher. Set false for split-view trees to avoid flicker. */
   driveFileWatcher?: boolean;
@@ -50,7 +52,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, initialPath, displayRoot, hideHeader = false, driveFileWatcher = true }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, initialPath, displayRoot, isTerminalTree = false, hideHeader = false, driveFileWatcher = true }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -503,7 +505,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
       <div style={styles.container} onContextMenu={(e) => handleContextMenu(e, null)}>
         {!hideHeader && (
           <div style={styles.header}>
-            <span style={styles.title}>{getDirectoryName(rootPath)}</span>
+            <span style={{ ...styles.title, ...(isTerminalTree ? { color: '#4ec9b0' } : {}) }}>{getDirectoryName(rootPath)}</span>
             <div style={styles.headerButtons}>
               {showGitToggle && rootPath && onToggleGit && (
                 <button style={styles.button} onClick={onToggleGit} title="Toggle Git View">

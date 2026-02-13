@@ -1319,6 +1319,10 @@ const AppInner: React.FC = () => {
           // Show welcome screen
           setShowWelcome(true);
           
+          if ((window as any).__statusBarAPI) {
+            (window as any).__statusBarAPI.setStatus('Ready');
+          }
+          
           console.log('[App] Workspace reset complete');
         }
         break;
@@ -1556,6 +1560,7 @@ const AppInner: React.FC = () => {
                 onNewTerminal={actionContext.onNewTerminal}
                 onNoviPrompt={actionContext.onNoviPrompt}
                 displayRoot={currentFileTreeDisplayRoot}
+                isTerminalTree={!singleFileTree && activeTab?.type === 'terminal'}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
                   if (singleFileTree) {
@@ -1926,7 +1931,7 @@ const AppInner: React.FC = () => {
           </main>
         </div>
         
-        <StatusBar />
+        <StatusBar fileTreePath={currentFileTreeDisplayRoot} />
         
         {/* Modal components */}
         <ActionHUD actions={actions} />

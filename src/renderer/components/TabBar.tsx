@@ -215,7 +215,10 @@ const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose }) =
       onMouseLeave={() => setIsHovered(false)}
       onClick={onSelect}
     >
-      <span style={styles.tabLabel}>
+      <span style={{
+        ...styles.tabLabel,
+        ...(isActive && tab.type === 'terminal' ? { color: '#4ec9b0' } : {}),
+      }}>
         {tab.type === 'file' ? `${getFileIcon(tab.fileName)} ${tab.fileName}` : tab.fileName}
         {tab.type === 'file' && tab.isDirty && <span style={styles.dirtyIndicator}> ●</span>}
       </span>

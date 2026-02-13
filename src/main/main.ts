@@ -431,8 +431,14 @@ void app.whenReady().then(() => {
 
   ipcMain.handle('read-directory', async (_e, path: string) => {
     try {
-      // On Windows, "C:" is current dir on drive; normalize to "C:\" for drive root
-      const dirPath = /^[A-Za-z]:$/.test(path) ? path + '\\' : path;
+      // Normalize path: "C:" -> "C:\"; Git Bash/Unix-style "/c/Work" -> "C:\Work" so readdir sees a valid Windows path
+      let dirPath = /^[A-Za-z]:$/.test(path) ? path + '\\' : path;
+      const unixDriveMatch = path.match(/^\/([a-zA-Z])\/(.*)$/);
+      if (unixDriveMatch) {
+        const letter = unixDriveMatch[1].toUpperCase();
+        const rest = (unixDriveMatch[2] || '').replace(/\//g, '\\');
+        dirPath = rest ? `${letter}:\\${rest}` : `${letter}:\\`;
+      }
       const entries = await readdir(dirPath, { withFileTypes: true });
       const isDriveRoot = /^[A-Za-z]:[\/\\]?$/.test(dirPath.replace(/\\/g, '/'));
 

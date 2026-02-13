@@ -98,3 +98,15 @@ tree, this will enable easier navigation instead of reopening the filetree with 
 8. Help -> check for updates is not implemented.  It should bring a pop up saying currently not implemented.
 
 Bump the version to 0.6.6-dev when you are done with this task
+
+
+## Task 7 - Separate file tree view for Terminal Tabs
+
+The file tree will track the CWD of the terminal, and display the current working directory
+file tree of the terminal window instead of the file tree for editor tabs.  If a file is clicked on in that file tree, that file tree view will become associated with that editor 
+tab.  Multiple editor tabs could have different file tree views based on where and when that file was opened.  If a new terminal is opened, the file tree on that terminal tab will show its cwd. and when you switch back to the previous terminal tab, the file tree view will show the previous terminal cwd in the file tree. IF you click the open folder at the top, this will
+override the terminal's cwd in the file tree for that terminal and will show the user selection.   This feature can be enabled/disabled with the Nova Shell option
+
+set singlefiletree true which is disabled by default.
+
+If this option is set, it will use a single file tree for all windows like it does now.
