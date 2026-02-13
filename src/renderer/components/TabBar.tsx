@@ -172,15 +172,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
     };
   }, [addTab, removeTab, switchTab, updateTabDirty, updateTabContent, updateTabFileName, getActiveTab, getTabs]);
 
-  if (tabs.length === 0) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.emptyState}>No files open</div>
-      </div>
-    );
-  }
-
-  // Close tab context menu on click outside or when another menu opens
+  // Close tab context menu on click outside or when another menu opens (must be before any early return to keep hook order consistent)
   useEffect(() => {
     if (!tabContextMenu) return;
     const close = () => setTabContextMenu(null);
@@ -191,6 +183,14 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
       window.removeEventListener('novi-close-context-menus', close);
     };
   }, [tabContextMenu]);
+
+  if (tabs.length === 0) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.emptyState}>No files open</div>
+      </div>
+    );
+  }
 
   return (
     <div className="tab-bar-container" style={styles.container}>
