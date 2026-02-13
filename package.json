@@ -16,8 +16,8 @@
     "lint:fix": "eslint src --ext .ts --fix --config .eslintrc.js",
     "fmt": "prettier --write \"src/**/*.{ts,html,css}\"",
     "fmt:check": "prettier --check \"src/**/*.{ts,html,css}\"",
-    "pack:win": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
-    "pack:win:exe": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
+    "pack:win": "npm run clean && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
+    "pack:win:exe": "npm run clean && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
   },
   "repository": {
     "type": "git",
@@ -61,7 +61,7 @@
       "package.json"
     ],
     "win": {
-      "icon": "build/icon.png",
+      "icon": "src/renderer/assets/icon.png",
       "signAndEditExecutable": false,
       "compression": "store",
       "target": [
