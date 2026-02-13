@@ -65,15 +65,15 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       return undefined;
     }
 
-    // Define Nova themes
-    defineNovaThemes();
+    // Define Novi themes
+    defineNoviThemes();
 
     // Create editor instance
     try {
       editorRef.current = monaco.editor.create(containerRef.current, {
         value: '',
         language: 'typescript',
-        theme: theme?.name === 'light' ? 'nova-light' : 'nova-dark',
+        theme: theme?.name === 'light' ? 'novi-light' : 'novi-dark',
         fontSize,
         fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
         wordWrap,
@@ -108,7 +108,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         },
         wordBasedSuggestions: 'off',
         suggestOnTriggerCharacters: false,
-        // Disable Monaco's built-in context menu - we'll use Nova's custom menu
+        // Disable Monaco's built-in context menu - we'll use Novi's custom menu
         contextmenu: false,
       });
 
@@ -125,7 +125,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         e.preventDefault();
         e.stopPropagation();
         // Notify other components to close their context menus
-        window.dispatchEvent(new CustomEvent('nova-close-context-menus', { detail: { source: 'MonacoEditor' } }));
+        window.dispatchEvent(new CustomEvent('novi-close-context-menus', { detail: { source: 'MonacoEditor' } }));
         setContextMenu({ x: e.clientX, y: e.clientY });
       };
       
@@ -182,7 +182,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   // Update theme when it changes
   useEffect(() => {
     if (editorRef.current && theme) {
-      const monacoTheme = theme.name === 'light' ? 'nova-light' : 'nova-dark';
+      const monacoTheme = theme.name === 'light' ? 'novi-light' : 'novi-dark';
       monaco.editor.setTheme(monacoTheme);
     }
   }, [theme]);
@@ -221,8 +221,8 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         setContextMenu(null);
       }
     };
-    window.addEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
-    return () => window.removeEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+    window.addEventListener('novi-close-context-menus', handleCloseContextMenus as EventListener);
+    return () => window.removeEventListener('novi-close-context-menus', handleCloseContextMenus as EventListener);
   }, []);
 
   // Context menu action handlers
@@ -492,7 +492,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     <>
       <div ref={containerRef} style={styles.container} />
       
-      {/* Nova's custom context menu */}
+      {/* Novi's custom context menu */}
       {contextMenu && (
         <div
           style={{
@@ -567,8 +567,8 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
 MonacoEditor.displayName = 'MonacoEditor';
 
 // Helper functions
-function defineNovaThemes(): void {
-  monaco.editor.defineTheme('nova-dark', {
+function defineNoviThemes(): void {
+  monaco.editor.defineTheme('novi-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [
@@ -588,7 +588,7 @@ function defineNovaThemes(): void {
     },
   });
 
-  monaco.editor.defineTheme('nova-light', {
+  monaco.editor.defineTheme('novi-light', {
     base: 'vs',
     inherit: true,
     rules: [

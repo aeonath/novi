@@ -1,9 +1,9 @@
-# Claude Configuration — Nova Project (dev-core)
+# Claude Configuration — Novi Project (dev-core)
 
 # Claude Config
 
 You are a AI software engineer at miranova studios.  Please read this config before
-iterating on the tasks in the SPRINT plan documents.
+iterating on the tasks in the SPRINT plan documents or before doing an ad hoc modifications.
 
 ## 🚨 CRITICAL WORKFLOW RULE 🚨
 **NEVER COMMIT ANY CHANGES WITHOUT CREATING A CHANGELOG ENTRY FIRST!**
@@ -20,15 +20,12 @@ This applies to ALL filesystem modifications - code, config, docs, renames, dele
 - **NEVER** implement multiple tasks in one session unless explicitly instructed
 
 ## 🖥️ SHELL ENVIRONMENT REMINDER 🖥️
-**YOU ARE RUNNING POWERSHELL ON WINDOWS, NOT BASH!**
-- Use PowerShell commands: `Get-Date -Format "yyyyMMdd/HHmm"` NOT `date +"%Y%m%d/%H%M"`
-- Use PowerShell syntax for all terminal operations
-- Remember: Windows PowerShell environment in Cursor
-- Note: We may move to Linux in the future, but currently developing on Windows
+**Your shell is git-bash**
+- `date +"%Y%m%d/%H%M"`
 
 ## ⏰ DATE/TIME REQUIREMENT ⏰
 **ALWAYS GET THE CURRENT DATE/TIME FIRST!**
-- **MANDATORY**: At the start of ANY work session, run: `Get-Date -Format "yyyyMMdd HHmm"`
+- **MANDATORY**: At the start of ANY work session
 - Use this date for ALL changelog and documentation files
 - NEVER assume or guess the date - always verify with the system
 - Changelog directory structure: `nova/changelog/YYYYMMDD/TIME_HHMM-CHANGELOG.md`
@@ -41,9 +38,8 @@ This applies to ALL filesystem modifications - code, config, docs, renames, dele
 Should I commit changes to git and write changelog?
 USER_RESPONSE: YES
 
-
 **Options**
-- **YES** – Claude will document, stage, commit, and write changelog entries.
+- **YES** – AI Agent will document, stage, commit, and write changelog entries.
 - **NO** – Skip changelog and git operations; useful during debugging.
 
 ---
@@ -56,14 +52,13 @@ USER_RESPONSE: YES
 - Confirm toggles in this config are correct before each iteration.
 
 ### 2. Modify or Generate Code
-Claude will:
+AI agent will:
 - Create or update files inside `/src/`, `/src/tests/`, `/src/main/`, `/src/preload/`, `/src/renderer/`.
 
 - **🚨 COPYRIGHT HEADER REQUIREMENT 🚨**: **ALL NEW SOURCE FILES MUST INCLUDE COPYRIGHT HEADER!**
   ```typescript
   /**
-   * © 2025 MiraNova Studios. All rights reserved.
-   * See the LICENSE file in the project root for full license text.
+   * © 2025-2026 MiraNova Studios. All rights reserved.
    */
   ```
   This applies to all `.ts`, `.tsx`, and `.js` files. Do NOT add to `.d.ts` declaration files.
@@ -79,10 +74,9 @@ Claude will:
   - **RULE**: Always create new tests in the directory matching the current yield version
   - Do NOT move existing tests from previous directories
 
-- **TEST STRUCTURE**: Conform to the unit test structure defined in `nova/aeon/trajectory-1.0.0/TEST_STRUCTURE.md` if it exists. If no test structure exists, organize tests appropriately for the Nova Electron project (TypeScript/JavaScript).
+- **TEST STRUCTURE**: Conform to the unit test structure defined in `nova/aeon/trajectory-1.0.0/TEST_STRUCTURE.md` if it exists. If no test structure exists, organize tests appropriately for the Novi Electron project (TypeScript/JavaScript).
 - **🚨 CRITICAL TEST REQUIREMENT 🚨**: **ALL UNIT TESTS MUST PASS 100% BEFORE TASK COMPLETION!** You must implement unit tests for all features you implement. If there are no unit tests yet, you need to pick a framework (e.g., Jest, Mocha, Vitest) and write them. If you cannot achieve 100% test pass rate in a reasonable amount of time (typically 3-5 attempts), PAUSE EXECUTION and ask the user what should be done next. Do not consider any task complete until all tests are passing.
 - **🚨 TEST AFTER EVERY CHANGE 🚨**: **RUN `npm test` AFTER EVERY BUG FIX, FEATURE, OR CODE CHANGE!** This applies to ALL changes - not just sprint tasks. Fix any failing tests immediately. Unit tests are what keep our velocity high and technical debt low. ALWAYS ensure 100% test pass rate before creating changelog and committing changes.
-- **🚨 STUDIO DIRECTORY RESTRICTION 🚨**: **DO NOT MODIFY FILES IN THE `studio/` DIRECTORY!** The studio directory contains example scripts that should remain unchanged unless explicitly instructed otherwise. Focus development work on core Nova application files in `/src/`, `/src/tests/`, and related directories only.
 
 ### 3. Write Detailed CHANGELOG (Conditional)
 If **Git Commit Toggle = YES**, Claude writes a **DETAILED CHANGELOG** entry **AFTER** completing the task implementation:
@@ -157,21 +151,7 @@ nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md
 - **TASK SUMMARY** = High-level status report (for project tracking)
 - **BOTH ARE REQUIRED FOR EVERY TASK!**
 
-### 5. Write Sprint DOD Summary (Conditional)
-If **Git Commit Toggle = YES** and sprint is complete, Claude writes a sprint definition of done summary **AFTER** completing all sprint tasks:
-
-
-nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md
-
-
-**Include**
-- Sprint objective summary
-- All tasks completed status
-- Definition of done criteria verification
-- Overall sprint status (✅ Completed)
-- Reference to all task summaries and changelogs
-
-### 6. Git Add & Commit (Conditional)
+### 5. Git Add & Commit (Conditional)
 
 **🚨 CRITICAL REQUIREMENT 🚨**: 
 **NEVER COMMIT WITHOUT CREATING A CHANGELOG ENTRY FIRST!**
@@ -229,7 +209,7 @@ nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md
 2. High-level Summary in `nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md`
 
 ```bash
-git add *
+git add .
 git commit -a -m "SprintX TaskY: <brief description>"
 ```
 
@@ -281,7 +261,7 @@ Closes: Sprint 4 Task 2"
 git commit -m "Sprint4 Task2: Update specification and grammar"
 ```
 
-**Note**: For Nova project, examples might be:
+**Note**: For Novi project, examples might be:
 - `git commit -m "Sprint1 Task2: Implement main process IPC"`
 - `git commit -m "Sprint2 Task1: Add renderer UI components"`
 
@@ -297,7 +277,7 @@ Short explanation of what was implemented or fixed.
 - src/tests/main.test.ts — added unit tests
 
 ## Reason
-Establishes foundational main process and test coverage for Nova
+Establishes foundational main process and test coverage for Novi
 
 ## Git Commit Hash
 `TBD` - SprintX TaskY Implementation
@@ -310,7 +290,7 @@ Establishes foundational main process and test coverage for Nova
 
 ## Safety & Validation Rules
 
-Claude must never delete directories without confirmation.
+AI Agent must never delete directories without confirmation.
 
 Always include commit hash in changelog.
 
@@ -323,7 +303,7 @@ The Electron application must build and run correctly after task completion.
 ## Development Environment
 
 **IMPORTANT**: 
-- Nova is an Electron application written in TypeScript/JavaScript
+- Novi is an Electron application written in TypeScript/JavaScript
 - Development is currently on Windows using PowerShell
 - We may move to Linux in the future, but code should be cross-platform compatible
 - Test framework must be chosen and configured if not already present

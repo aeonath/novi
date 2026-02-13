@@ -5,7 +5,7 @@
 
 /**
  * App - Root React component
- * Main layout structure for Nova IDE
+ * Main layout structure for Novi Editor
  */
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
@@ -18,7 +18,7 @@ import { ImageEditor } from './ImageEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
-import { NovaPrompt } from './NovaPrompt.js';
+import { NoviPrompt } from './NoviPrompt.js';
 import { WorkspaceSplit } from './WorkspaceSplit.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
@@ -35,9 +35,9 @@ const AppInner: React.FC = () => {
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'nova-prompt' | 'workspace-split'; filePath?: string; workspacePath?: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'novi-prompt' | 'workspace-split'; filePath?: string; workspacePath?: string } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string; workspaceRoot?: string | null }>>([]);
-  const [novaPromptTabs, setNovaPromptTabs] = useState<Array<{ id: string; fileName: string }>>([]);
+  const [noviPromptTabs, setNoviPromptTabs] = useState<Array<{ id: string; fileName: string }>>([]);
   const [workspaceSplitTabs, setWorkspaceSplitTabs] = useState<Array<{ id: string; fileName: string; workspacePath: string }>>([]);
   const { setGitStatus } = useAppContext();
   
@@ -356,24 +356,24 @@ const AppInner: React.FC = () => {
           });
         }
 
-        // Restore nova prompts
-        if (workspace.openNovaPrompts && workspace.openNovaPrompts.length > 0) {
+        // Restore novi prompts
+        if (workspace.openNoviPrompts && workspace.openNoviPrompts.length > 0) {
           // Wait for TabBar to be ready
           ensureReady('tabbar-ready').then(() => {
             try {
               const tabBarAPI = (window as any).__tabBarAPI;
               if (!tabBarAPI) {
-                console.error('[App] TabBar API not ready for nova prompt restore');
+                console.error('[App] TabBar API not ready for novi prompt restore');
                 return;
               }
               
-              for (const promptInfo of workspace.openNovaPrompts) {
-                const promptId = `nova-prompt-${Date.now()}-${Math.random()}`;
+              for (const promptInfo of workspace.openNoviPrompts) {
+                const promptId = `novi-prompt-${Date.now()}-${Math.random()}`;
                 
-                // Add nova prompt tab
+                // Add novi prompt tab
                 tabBarAPI.addTab({
                   id: promptId,
-                  type: 'nova-prompt',
+                  type: 'novi-prompt',
                   filePath: promptId,
                   fileName: promptInfo.name || 'nova>',
                   isDirty: false,
@@ -381,17 +381,17 @@ const AppInner: React.FC = () => {
                   language: 'plaintext',
                 });
                 
-                // Add to nova prompt tabs state
-                setNovaPromptTabs(prev => [...prev, { id: promptId, fileName: promptInfo.name || 'nova>' }]);
-                console.log('[App] Restored nova prompt tab:', promptId);
+                // Add to novi prompt tabs state
+                setNoviPromptTabs(prev => [...prev, { id: promptId, fileName: promptInfo.name || 'nova>' }]);
+                console.log('[App] Restored novi prompt tab:', promptId);
               }
               
-              console.log('[App] Restored', workspace.openNovaPrompts.length, 'nova prompt tabs');
+              console.log('[App] Restored', workspace.openNoviPrompts.length, 'novi prompt tabs');
             } catch (error) {
-              console.error('[App] Failed to restore nova prompts:', error);
+              console.error('[App] Failed to restore novi prompts:', error);
             }
           }).catch(error => {
-            console.error('[App] Timeout waiting for TabBar (nova prompts):', error);
+            console.error('[App] Timeout waiting for TabBar (novi prompts):', error);
           });
         }
 
@@ -400,7 +400,7 @@ const AppInner: React.FC = () => {
           const hasAnyTabs = 
             (workspace.openFiles && workspace.openFiles.length > 0) ||
             (workspace.openTerminals && workspace.openTerminals.length > 0) ||
-            (workspace.openNovaPrompts && workspace.openNovaPrompts.length > 0);
+            (workspace.openNoviPrompts && workspace.openNoviPrompts.length > 0);
           
           if (hasAnyTabs) {
             setActiveTab({
@@ -440,8 +440,8 @@ const AppInner: React.FC = () => {
                     console.log('[App] Focused Monaco editor');
                   }
                 });
-              } else if ((activeTab.type === 'image' || activeTab.type === 'nova-prompt') && monacoAPI && monacoAPI.focus) {
-                // For image/nova-prompt tabs, try Monaco as fallback
+              } else if ((activeTab.type === 'image' || activeTab.type === 'novi-prompt') && monacoAPI && monacoAPI.focus) {
+                // For image/novi-prompt tabs, try Monaco as fallback
                 requestAnimationFrame(() => {
                   if (monacoAPI && monacoAPI.focus) {
                     monacoAPI.focus();
@@ -514,7 +514,7 @@ const AppInner: React.FC = () => {
           name: t.fileName,
         }));
 
-        const openNovaPrompts = novaPromptTabs.map(t => ({
+        const openNoviPrompts = noviPromptTabs.map(t => ({
           id: t.id,
           name: t.fileName,
         }));
@@ -524,7 +524,7 @@ const AppInner: React.FC = () => {
           openFiles,
           openImages,
           openTerminals,
-          openNovaPrompts,
+          openNoviPrompts,
           activeTabId: activeTab?.id || null,
           activeTabType: activeTab?.type || null,
           layout: {
@@ -546,7 +546,7 @@ const AppInner: React.FC = () => {
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [workspaceRoot, showGitPanel, activeTab, terminalTabs, novaPromptTabs]);
+  }, [workspaceRoot, showGitPanel, activeTab, terminalTabs, noviPromptTabs]);
 
   // Create action handlers
   const actionContext: ActionContext = useMemo(() => ({
@@ -806,22 +806,22 @@ const AppInner: React.FC = () => {
         }
       }
     },
-    onNovaPrompt: async () => {
-      console.log('[App] Nova Prompt action triggered');
+    onNoviPrompt: async () => {
+      console.log('[App] Novi Prompt action triggered');
       
       try {
         // Generate prompt ID
-        const promptId = `nova-prompt-${Date.now()}`;
-        console.log('[App] Creating Nova Prompt tab:', promptId);
+        const promptId = `novi-prompt-${Date.now()}`;
+        console.log('[App] Creating Novi Prompt tab:', promptId);
 
         // Hide welcome screen
         setShowWelcome(false);
 
-        // Add nova prompt tab
+        // Add novi prompt tab
         if ((window as any).__tabBarAPI) {
           (window as any).__tabBarAPI.addTab({
             id: promptId,
-            type: 'nova-prompt',
+            type: 'novi-prompt',
             filePath: promptId,
             fileName: 'nova>',
             isDirty: false,
@@ -830,23 +830,23 @@ const AppInner: React.FC = () => {
           });
         }
 
-        // Add to novaPromptTabs state
-        setNovaPromptTabs((prev) => [...prev, { id: promptId, fileName: 'nova>' }]);
-        console.log('[App] Added Nova Prompt to state:', promptId);
+        // Add to noviPromptTabs state
+        setNoviPromptTabs((prev) => [...prev, { id: promptId, fileName: 'nova>' }]);
+        console.log('[App] Added Novi Prompt to state:', promptId);
 
         // Switch to the new prompt tab
-        setActiveTab({ id: promptId, type: 'nova-prompt' });
+        setActiveTab({ id: promptId, type: 'novi-prompt' });
 
         // Update status bar
         if ((window as any).__statusBarAPI) {
-          (window as any).__statusBarAPI.setStatus('Nova Prompt ready');
+          (window as any).__statusBarAPI.setStatus('Novi Prompt ready');
         }
 
-        console.log('[App] Nova Prompt tab created successfully:', promptId);
+        console.log('[App] Novi Prompt tab created successfully:', promptId);
       } catch (error) {
-        console.error('[App] Failed to create Nova Prompt:', error);
+        console.error('[App] Failed to create Novi Prompt:', error);
         if ((window as any).__statusBarAPI) {
-          (window as any).__statusBarAPI.setStatus('Failed to create Nova Prompt');
+          (window as any).__statusBarAPI.setStatus('Failed to create Novi Prompt');
         }
       }
     },
@@ -1157,12 +1157,12 @@ const AppInner: React.FC = () => {
       case 'new-terminal':
         await actionContext.onNewTerminal?.();
         break;
-      case 'nova-prompt':
-        await actionContext.onNovaPrompt?.();
+      case 'novi-prompt':
+        await actionContext.onNoviPrompt?.();
         break;
-      case 'nova-agile':
-        // TODO: Implement Nova Agile
-        console.log('[App] Nova Agile not yet implemented');
+      case 'novi-agile':
+        // TODO: Implement Novi Agile
+        console.log('[App] Novi Agile not yet implemented');
         break;
       case 'command-palette':
         // TODO: Implement Command Palette
@@ -1231,9 +1231,9 @@ const AppInner: React.FC = () => {
             tabBarAPI.removeTab(tab.id);
           }
           
-          // Clear terminal and nova prompt tabs state
+          // Clear terminal and novi prompt tabs state
           setTerminalTabs([]);
-          setNovaPromptTabs([]);
+          setNoviPromptTabs([]);
           setActiveTab(null);
           
           // Clear Git status
@@ -1288,7 +1288,7 @@ const AppInner: React.FC = () => {
       default:
         console.warn('[App] Unknown menu command:', command);
     }
-  }, [actionContext, untitledCounter, setTerminalTabs, setNovaPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt, setShowGitPanel, setGitStatus]);
+  }, [actionContext, untitledCounter, setTerminalTabs, setNoviPromptTabs, setActiveTab, setWorkspaceRoot, setShowWelcome, setSavePrompt, setShowGitPanel, setGitStatus]);
 
   // Expose action API globally for components that can't access context
   useEffect(() => {
@@ -1331,7 +1331,7 @@ const AppInner: React.FC = () => {
           setActiveTab({ 
             id: nextTab.id, 
             type: nextTab.type,
-            filePath: (nextTab.type === 'image' || nextTab.type === 'nova-prompt') ? nextTab.filePath : undefined
+            filePath: (nextTab.type === 'image' || nextTab.type === 'novi-prompt') ? nextTab.filePath : undefined
           });
           tabBarAPI.setActiveTab(nextTab.id);
         }
@@ -1407,7 +1407,7 @@ const AppInner: React.FC = () => {
   }, []);
 
   return (
-      <div className="nova-layout" style={styles.layout}>
+      <div className="novi-layout" style={styles.layout}>
         <TitleBar onCommand={handleMenuCommand} />
         
         <div style={styles.mainContent}>
@@ -1417,7 +1417,7 @@ const AppInner: React.FC = () => {
               <FileTree
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
                 onNewTerminal={actionContext.onNewTerminal}
-                onNovaPrompt={actionContext.onNovaPrompt}
+                onNoviPrompt={actionContext.onNoviPrompt}
                 onWorkspaceSplitOpen={async (dirPath: string) => {
                   console.log('[App] Opening workspace split:', dirPath);
                   
@@ -1590,7 +1590,7 @@ const AppInner: React.FC = () => {
                 setActiveTab({ 
                   id: tab.id, 
                   type: tab.type,
-                  filePath: (tab.type === 'image' || tab.type === 'nova-prompt') ? tab.filePath : undefined
+                  filePath: (tab.type === 'image' || tab.type === 'novi-prompt') ? tab.filePath : undefined
                 });
                 
                 // Hide welcome screen when a tab is clicked
@@ -1637,10 +1637,10 @@ const AppInner: React.FC = () => {
                     console.log('[App] Removed terminal from state:', tabId);
                   }
                   
-                  if (tab && tab.type === 'nova-prompt') {
-                    // Remove from nova prompt tabs state
-                    setNovaPromptTabs(prev => prev.filter(t => t.id !== tabId));
-                    console.log('[App] Removed nova prompt from state:', tabId);
+                  if (tab && tab.type === 'novi-prompt') {
+                    // Remove from novi prompt tabs state
+                    setNoviPromptTabs(prev => prev.filter(t => t.id !== tabId));
+                    console.log('[App] Removed novi prompt from state:', tabId);
                   }
                   
                   // For file tabs, check if they're dirty (unsaved changes)
@@ -1664,12 +1664,12 @@ const AppInner: React.FC = () => {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showWelcome && !monacoReady ? (
                 <div style={styles.welcome} onContextMenu={handleWelcomeContextMenu}>
-                  <h1>Nova</h1>
+                  <h1>Novi</h1>
                   <p>Loading editor...</p>
                 </div>
               ) : showWelcome ? (
                 <div style={styles.welcome} onContextMenu={handleWelcomeContextMenu}>
-                  <h1>Nova</h1>
+                  <h1>Novi</h1>
                   <p>Open a file to start editing</p>
                   <p style={{ fontSize: '0.85em', opacity: 0.5, marginTop: '20px' }}>
                     Right-click for options
@@ -1706,8 +1706,8 @@ const AppInner: React.FC = () => {
                 );
               })}
               
-              {/* Render all nova prompts (hidden when not active) to preserve state */}
-              {novaPromptTabs.map((tab) => {
+              {/* Render all novi prompts (hidden when not active) to preserve state */}
+              {noviPromptTabs.map((tab) => {
                 return (
                   <div
                     key={tab.id}
@@ -1719,7 +1719,7 @@ const AppInner: React.FC = () => {
                       backgroundColor: '#1e1e1e',
                     }}
                   >
-                    <NovaPrompt 
+                    <NoviPrompt 
                       promptId={tab.id}
                       isActive={activeTab?.id === tab.id}
                     />
@@ -1933,7 +1933,7 @@ const AppInner: React.FC = () => {
             </div>
             <div
               onClick={() => {
-                actionContext.onNovaPrompt?.();
+                actionContext.onNoviPrompt?.();
                 handleWelcomeMenuClose();
               }}
               style={{
@@ -1950,7 +1950,7 @@ const AppInner: React.FC = () => {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              ▶️ Nova Prompt
+              ▶️ Novi Prompt
             </div>
             <div
               onClick={() => {

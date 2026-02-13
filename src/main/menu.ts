@@ -30,8 +30,8 @@ export type MenuCommand =
   | 'zoom-out'
   | 'zoom-reset'
   | 'new-terminal'
-  | 'nova-prompt'
-  | 'nova-agile'
+  | 'novi-prompt'
+  | 'novi-agile'
   | 'command-palette'
   | 'debug'
   | 'reset-workspace'
@@ -171,7 +171,7 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
       ],
     },
     {
-      label: 'Nova',
+      label: 'Novi',
       submenu: [
         {
           label: 'New Terminal',
@@ -179,14 +179,14 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           click: () => executeCommand('new-terminal', mainWindow),
         },
         {
-          label: 'Nova Prompt',
+          label: 'Novi Prompt',
           accelerator: 'CmdOrCtrl+Shift+P',
-          click: () => executeCommand('nova-prompt', mainWindow),
+          click: () => executeCommand('novi-prompt', mainWindow),
         },
         {
-          label: 'Nova Agile',
+          label: 'Novi Agile',
           accelerator: 'CmdOrCtrl+Shift+A',
-          click: () => executeCommand('nova-agile', mainWindow),
+          click: () => executeCommand('novi-agile', mainWindow),
         },
         { type: 'separator' },
         {
@@ -219,7 +219,7 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         },
         { type: 'separator' },
         {
-          label: 'About Nova',
+          label: 'About Novi',
           click: () => executeCommand('about', mainWindow),
         },
         {

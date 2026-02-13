@@ -146,7 +146,7 @@ describe('MonacoEditorView', () => {
     });
   });
 
-  describe('Nova Theme Synchronization', () => {
+  describe('Novi Theme Synchronization', () => {
     it('should define Nova custom themes on initialization', () => {
       const editor = new MonacoEditorView(container);
       expect(editor).toBeDefined();
@@ -167,19 +167,19 @@ describe('MonacoEditorView', () => {
       expect(createCalls.length).toBeGreaterThan(0);
     });
 
-    it('should switch to nova-light theme', () => {
+    it('should switch to novi-light theme', () => {
       const editor = new MonacoEditorView(container);
       editor.setTheme('light');
-      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-light');
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('novi-light');
     });
 
-    it('should switch to nova-dark theme', () => {
+    it('should switch to novi-dark theme', () => {
       const editor = new MonacoEditorView(container);
       editor.setTheme('dark');
-      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-dark');
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('novi-dark');
     });
 
-    it('should apply theme from Nova Theme object (light)', () => {
+    it('should apply theme from Novi Theme object (light)', () => {
       const editor = new MonacoEditorView(container);
       const mockTheme = {
         id: 'light',
@@ -190,11 +190,11 @@ describe('MonacoEditorView', () => {
         shadows: {} as any,
         borderRadius: {} as any,
       };
-      editor.applyNovaTheme(mockTheme);
-      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-light');
+      editor.applyNoviTheme(mockTheme);
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('novi-light');
     });
 
-    it('should apply theme from Nova Theme object (dark)', () => {
+    it('should apply theme from Novi Theme object (dark)', () => {
       const editor = new MonacoEditorView(container);
       const mockTheme = {
         id: 'dark',
@@ -205,8 +205,8 @@ describe('MonacoEditorView', () => {
         shadows: {} as any,
         borderRadius: {} as any,
       };
-      editor.applyNovaTheme(mockTheme);
-      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-dark');
+      editor.applyNoviTheme(mockTheme);
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('novi-dark');
     });
 
     it('should default to dark theme for unknown theme ids', () => {
@@ -220,8 +220,8 @@ describe('MonacoEditorView', () => {
         shadows: {} as any,
         borderRadius: {} as any,
       };
-      editor.applyNovaTheme(mockTheme);
-      expect(monaco.editor.setTheme).toHaveBeenCalledWith('nova-dark');
+      editor.applyNoviTheme(mockTheme);
+      expect(monaco.editor.setTheme).toHaveBeenCalledWith('novi-dark');
     });
   });
 

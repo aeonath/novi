@@ -246,7 +246,7 @@ export class EditorService {
       endColumn: diag.endColumn,
     }));
 
-    monaco.editor.setModelMarkers(model, 'nova', markers);
+    monaco.editor.setModelMarkers(model, 'novi', markers);
     console.log(`[EditorService] Set ${markers.length} diagnostic(s)`);
   }
 
@@ -259,7 +259,7 @@ export class EditorService {
       return;
     }
 
-    monaco.editor.setModelMarkers(model, 'nova', []);
+    monaco.editor.setModelMarkers(model, 'novi', []);
     console.log('[EditorService] Cleared diagnostics');
   }
 

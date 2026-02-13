@@ -4,14 +4,14 @@
  */
 
 /**
- * Nova IDE - Main Renderer Entry (React)
+ * Novi Editor - Main Renderer Entry (React)
  */
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './components/App.js';
 
-console.log('[Nova] Initializing Nova IDE v0.4.0 with React...');
+console.log('[Novi] Initializing Novi Editor v0.4.0 with React...');
 
 // Wait for Monaco to load before initializing
 const waitForMonaco = async (): Promise<boolean> => {
@@ -21,14 +21,14 @@ const waitForMonaco = async (): Promise<boolean> => {
   return new Promise((resolve) => {
     const checkMonaco = () => {
       if (typeof (window as any).monaco !== 'undefined') {
-        console.log(`[Nova] Monaco loaded successfully after ${attempts * 50}ms`);
+        console.log(`[Novi] Monaco loaded successfully after ${attempts * 50}ms`);
         resolve(true);
         return true;
       }
 
       attempts++;
       if (attempts >= maxAttempts) {
-        console.warn('[Nova] Monaco failed to load after 10 seconds');
+        console.warn('[Novi] Monaco failed to load after 10 seconds');
         resolve(false);
         return false;
       }
@@ -53,13 +53,13 @@ async function initializeApp() {
     // Wait for Monaco
     const monacoLoaded = await waitForMonaco();
     if (!monacoLoaded) {
-      console.error('[Nova] Proceeding without Monaco editor');
+      console.error('[Novi] Proceeding without Monaco editor');
     }
 
     // Get root element
     const rootElement = document.getElementById('root');
     if (!rootElement) {
-      throw new Error('[Nova] Root element not found');
+      throw new Error('[Novi] Root element not found');
     }
 
     // Render React app
@@ -68,7 +68,7 @@ async function initializeApp() {
       <App />
     );
 
-    console.log('[Nova] React app rendered successfully');
+    console.log('[Novi] React app rendered successfully');
 
     // Track last focus time to debounce rapid focus events
     let lastFocusTime = 0;
@@ -118,7 +118,7 @@ async function initializeApp() {
             return;
           }
           // For image and nova-prompt tabs, try to focus Monaco or body as fallback
-          else if (activeTab.type === 'image' || activeTab.type === 'nova-prompt') {
+          else if (activeTab.type === 'image' || activeTab.type === 'novi-prompt') {
             console.log('[Renderer] Active tab is', activeTab.type, '- focusing Monaco or body');
             // Try Monaco first as it may still be visible
             if (monacoAPI && monacoAPI.focus) {
@@ -161,11 +161,11 @@ async function initializeApp() {
         ev.filename?.includes('monaco') ||
         ev.filename?.includes('vs/')
       ) {
-        console.warn('[Nova] Monaco internal error (handled):', ev.message);
+        console.warn('[Novi] Monaco internal error (handled):', ev.message);
         return;
       }
 
-      console.error('[Nova] Unhandled error:', ev.error);
+      console.error('[Novi] Unhandled error:', ev.error);
     });
 
     window.addEventListener('unhandledrejection', (ev) => {
@@ -174,16 +174,16 @@ async function initializeApp() {
         ev.reason?.message?.includes('monaco') ||
         ev.reason?.message?.includes('vs/')
       ) {
-        console.warn('[Nova] Monaco rejection (handled):', ev.reason);
+        console.warn('[Novi] Monaco rejection (handled):', ev.reason);
         return;
       }
 
-      console.error('[Nova] Unhandled rejection:', ev.reason);
+      console.error('[Novi] Unhandled rejection:', ev.reason);
     });
 
-    console.log('[Nova] Initialization complete');
+    console.log('[Novi] Initialization complete');
   } catch (error) {
-    console.error('[Nova] Fatal initialization error:', error);
+    console.error('[Novi] Fatal initialization error:', error);
   }
 }
 

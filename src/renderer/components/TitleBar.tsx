@@ -22,7 +22,7 @@ export interface TitleBarProps {
   onCommand?: (command: string) => void;
 }
 
-export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE', onCommand }) => {
+export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCommand }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [activeButton, setActiveButton] = useState<string | null>(null);
@@ -108,17 +108,17 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE', onComman
       { separator: true },
       { label: 'Action HUD', command: 'action-hud', shortcut: 'Ctrl+K' },
     ],
-    Nova: [
+    Novi: [
       { label: 'New Terminal', command: 'new-terminal', shortcut: 'Ctrl+T' },
-      { label: 'Nova Prompt', command: 'nova-prompt', shortcut: 'Ctrl+Shift+N' },
-      { label: 'Nova Agile', command: 'nova-agile', shortcut: 'Ctrl+Shift+A' },
+      { label: 'Novi Prompt', command: 'novi-prompt', shortcut: 'Ctrl+Shift+N' },
+      { label: 'Novi Agile', command: 'novi-agile', shortcut: 'Ctrl+Shift+A' },
       { separator: true },
       { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P' },
       { separator: true },
       { label: 'Reset Workspace', command: 'reset-workspace' },
     ],
     Help: [
-      { label: 'About Nova', command: 'about' },
+      { label: 'About Novi', command: 'about' },
       { label: 'Documentation', command: 'documentation' },
       { separator: true },
       { label: 'Check for Updates', command: 'check-updates' },
@@ -215,7 +215,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Nova IDE', onComman
     <div style={styles.container}>
       <div style={styles.leftSection}>
         <div style={styles.logoContainer}>
-          <img src="assets/nova_logo.png" alt="Nova IDE" style={styles.logo} />
+          <img src="assets/nova_logo.png" alt="Novi Editor" style={styles.logo} />
         </div>
         <div style={styles.menuBar}>
           {Object.keys(menus).map((menuName) => (

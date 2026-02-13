@@ -34,7 +34,7 @@ describe('WorkspaceManager', () => {
           { filePath: '/test/file1.ts', content: 'test content', isDirty: false },
         ],
         openTerminals: [],
-        openNovaPrompts: [],
+        openNoviPrompts: [],
         activeTabId: 'tab-1',
         activeTabType: 'file',
         layout: {
@@ -60,7 +60,7 @@ describe('WorkspaceManager', () => {
         workspaceRoot: null,
         openFiles: [],
         openTerminals: [],
-        openNovaPrompts: [],
+        openNoviPrompts: [],
         activeTabId: null,
         activeTabType: null,
         layout: {
@@ -84,7 +84,7 @@ describe('WorkspaceManager', () => {
         workspaceRoot: null,
         openFiles: [],
         openTerminals: [],
-        openNovaPrompts: [],
+        openNoviPrompts: [],
         activeTabId: null,
         activeTabType: null,
         layout: {
@@ -115,7 +115,7 @@ lastSaved=2025-11-04T12:00:00.000Z
 openFiles=/test/file1.ts
 openFilesDirty=0
 openTerminals=
-openNovaPrompts=`;
+openNoviPrompts=`;
 
       (existsSync as jest.Mock).mockReturnValue(true);
       (readFile as jest.Mock).mockResolvedValue(mockConfig);
@@ -221,8 +221,8 @@ openNovaPrompts=`;
         openTerminals: [
           { id: 'terminal-1', name: 'bash' },
         ],
-        openNovaPrompts: [
-          { id: 'prompt-1', name: 'nova>' },
+        openNoviPrompts: [
+          { id: 'prompt-1', name: 'novi>' },
         ],
         activeTabId: 'tab-2',
         activeTabType: 'file',
@@ -242,7 +242,7 @@ openNovaPrompts=`;
       
       expect(savedData).toContain('openFiles=/test/file1.ts|/test/file2.ts|/test/file3.ts');
       expect(savedData).toContain('openTerminals=terminal-1');
-      expect(savedData).toContain('openNovaPrompts=prompt-1');
+      expect(savedData).toContain('openNoviPrompts=prompt-1');
       expect(savedData).toContain('activeTabId=tab-2');
       expect(savedData).toContain('activeTabType=file');
     });
@@ -252,7 +252,7 @@ openNovaPrompts=`;
         workspaceRoot: null,
         openFiles: [],
         openTerminals: [],
-        openNovaPrompts: [],
+        openNoviPrompts: [],
         activeTabId: null,
         activeTabType: null,
         layout: {

@@ -18,7 +18,7 @@ export interface FileTreeProps {
   showGitToggle?: boolean;
   onDirectoryOpen?: (dirPath: string) => void;
   onNewTerminal?: () => void;
-  onNovaPrompt?: () => void;
+  onNoviPrompt?: () => void;
   onWorkspaceSplitOpen?: (dirPath: string) => void;
   initialPath?: string; // Auto-load this directory on mount
   hideHeader?: boolean; // Hide the header (for use in split view)
@@ -47,7 +47,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNovaPrompt, onWorkspaceSplitOpen, initialPath, hideHeader = false }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, onWorkspaceSplitOpen, initialPath, hideHeader = false }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -170,7 +170,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     e.preventDefault();
     e.stopPropagation();
     // Notify other components to close their context menus
-    window.dispatchEvent(new CustomEvent('nova-close-context-menus', { detail: { source: 'FileTree' } }));
+    window.dispatchEvent(new CustomEvent('novi-close-context-menus', { detail: { source: 'FileTree' } }));
     setContextMenu({ x: e.clientX, y: e.clientY, node });
   }, []);
 
@@ -362,8 +362,8 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
         setContextMenu(null);
       }
     };
-    window.addEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
-    return () => window.removeEventListener('nova-close-context-menus', handleCloseContextMenus as EventListener);
+    window.addEventListener('novi-close-context-menus', handleCloseContextMenus as EventListener);
+    return () => window.removeEventListener('novi-close-context-menus', handleCloseContextMenus as EventListener);
   }, []);
 
   // Method to programmatically load a directory (for workspace restore)
@@ -547,9 +547,9 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
               closeContextMenu();
               onNewTerminal?.();
             }}
-            onNovaPrompt={() => {
+            onNoviPrompt={() => {
               closeContextMenu();
-              onNovaPrompt?.();
+              onNoviPrompt?.();
             }}
             onEditImage={() => {
               closeContextMenu();
@@ -707,7 +707,7 @@ interface ContextMenuProps {
   onNewFile: () => void;
   onNewFolder: () => void;
   onNewTerminal: () => void;
-  onNovaPrompt: () => void;
+  onNoviPrompt: () => void;
   onEditImage: () => void;
   onRename: () => void;
   onDelete: () => void;
@@ -715,7 +715,7 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
-const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onNovaPrompt, onEditImage, onRename, onDelete, onQuit, onClose }) => {
+const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFile, onNewFolder, onNewTerminal, onNoviPrompt, onEditImage, onRename, onDelete, onQuit, onClose }) => {
   // Check if the selected node is an image file
   const isImage = node && !node.isDirectory && (
     node.name.endsWith('.png') ||
@@ -737,8 +737,8 @@ const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFil
       <div style={styles.menuItem} onClick={onNewTerminal}>
         💻 New Terminal
       </div>
-      <div style={styles.menuItem} onClick={onNovaPrompt}>
-        ▶️ Nova Prompt
+      <div style={styles.menuItem} onClick={onNoviPrompt}>
+        ▶️ Novi Prompt
       </div>
       {node && (
         <>

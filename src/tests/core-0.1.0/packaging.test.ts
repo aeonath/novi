@@ -46,12 +46,12 @@ describe('Windows Packaging Configuration', () => {
       expect(typeof packageJson.build).toBe('object');
     });
 
-    it('should have productName configured as "Nova"', () => {
-      expect(packageJson.build?.productName).toBe('Nova');
+    it('should have productName configured as "Novi"', () => {
+      expect(packageJson.build?.productName).toBe('Novi');
     });
 
-    it('should have appId configured as "studio.miranova.nova"', () => {
-      expect(packageJson.build?.appId).toBe('studio.miranova.nova');
+    it('should have appId configured as "studio.miranova.novi"', () => {
+      expect(packageJson.build?.appId).toBe('studio.miranova.novi');
     });
 
     it('should have Windows target configuration', () => {

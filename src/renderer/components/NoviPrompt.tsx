@@ -4,20 +4,20 @@
  */
 
 /**
- * NovaPrompt - Nova's custom command-line interface
- * Provides a simple REPL for Nova-specific commands
+ * NoviPrompt - Novi's custom command-line interface
+ * Provides a simple REPL for Novi-specific commands
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
-export interface NovaPromptProps {
+export interface NoviPromptProps {
   promptId: string;
   isActive?: boolean;
 }
 
-export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) => {
+export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -30,7 +30,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
       return;
     }
 
-    console.log(`[NovaPrompt] Initializing xterm for prompt: ${promptId}`);
+    console.log(`[NoviPrompt] Initializing xterm for prompt: ${promptId}`);
 
     const terminal = new XTerm({
       cursorBlink: true,
@@ -74,7 +74,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
       fitAddonRef.current = fitAddon;
 
       // Display welcome message and prompt
-      terminal.writeln('Nova Prompt v0.4.0');
+      terminal.writeln('Novi Prompt v0.4.0');
       terminal.writeln('Type "help" for available commands');
       terminal.writeln('');
       writePrompt(terminal);
@@ -84,9 +84,9 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
         handleInput(terminal, data);
       });
 
-      console.log('[NovaPrompt] Prompt initialized successfully');
+      console.log('[NoviPrompt] Prompt initialized successfully');
     } catch (error) {
-      console.error('[NovaPrompt] Failed to initialize:', error);
+      console.error('[NoviPrompt] Failed to initialize:', error);
     }
 
     // Handle window resize
@@ -95,7 +95,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
         try {
           fitAddonRef.current.fit();
         } catch (error) {
-          console.error('[NovaPrompt] Resize failed:', error);
+          console.error('[NoviPrompt] Resize failed:', error);
         }
       }
     };
@@ -119,14 +119,14 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
         try {
           fitAddonRef.current?.fit();
         } catch (error) {
-          console.error('[NovaPrompt] Fit failed:', error);
+          console.error('[NoviPrompt] Fit failed:', error);
         }
       }, 100);
     }
   }, [isActive]);
 
   const writePrompt = (terminal: XTerm) => {
-    terminal.write('\r\n\x1b[36mnova>\x1b[0m ');
+    terminal.write('\r\n\x1b[36mnovi>\x1b[0m ');
   };
 
   const handleInput = (terminal: XTerm, data: string) => {
@@ -136,11 +136,11 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
     if (char === 13) {
       const command = currentLineRef.current.trim();
       terminal.write('\r\n');
-      
+
       if (command) {
         executeCommand(terminal, command);
       }
-      
+
       currentLineRef.current = '';
       writePrompt(terminal);
       return;
@@ -178,7 +178,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
   };
 
   const executeCommand = async (terminal: XTerm, command: string) => {
-    console.log(`[NovaPrompt] Executing command: ${command}`);
+    console.log(`[NoviPrompt] Executing command: ${command}`);
 
     const parts = command.split(/\s+/);
     const cmd = parts[0].toLowerCase();
@@ -227,7 +227,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
   const commandHelp = (terminal: XTerm) => {
     terminal.writeln('Available Commands:');
     terminal.writeln('');
-    terminal.writeln('  \x1b[33mversion\x1b[0m      - Display Nova version information');
+    terminal.writeln('  \x1b[33mversion\x1b[0m      - Display Novi version information');
     terminal.writeln('  \x1b[33mopen\x1b[0m         - Open file dialog');
     terminal.writeln('  \x1b[33msave\x1b[0m         - Save current file');
     terminal.writeln('  \x1b[33mlist\x1b[0m         - List all open tabs');
@@ -240,7 +240,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
   };
 
   const commandVersion = (terminal: XTerm) => {
-    terminal.writeln('Nova IDE v0.4.0');
+    terminal.writeln('Novi Editor v0.4.0');
     terminal.writeln('Integration Layer - Sprint 4');
     terminal.writeln('');
     terminal.writeln('© 2025 MiraNova Studios');
@@ -263,16 +263,16 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
       if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
         const filePath = result.filePaths[0];
         terminal.writeln(`\x1b[32mOpening: ${filePath}\x1b[0m`);
-        
+
         // Read and open the file
         const fileData = await window.api.readFile(filePath);
         const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
-        
+
         // Load into Monaco editor
         if ((window as any).__monacoEditorAPI) {
           (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
         }
-        
+
         // Add tab
         if ((window as any).__tabBarAPI) {
           (window as any).__tabBarAPI.addTab({
@@ -285,7 +285,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
             language: 'typescript',
           });
         }
-        
+
         terminal.writeln('\x1b[32mFile opened successfully\x1b[0m');
       } else {
         terminal.writeln('\x1b[33mFile open cancelled\x1b[0m');
@@ -298,7 +298,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
   const commandSave = async (terminal: XTerm) => {
     try {
       const activeTab = (window as any).__tabBarAPI?.getActiveTab();
-      
+
       if (!activeTab) {
         terminal.writeln('\x1b[33mNo file is currently open\x1b[0m');
         return;
@@ -344,8 +344,8 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
       const isActive = activeTab && activeTab.id === tab.id;
       const marker = isActive ? '\x1b[32m*\x1b[0m' : ' ';
       const dirtyMarker = tab.isDirty ? '\x1b[33m●\x1b[0m' : ' ';
-      const typeIcon = tab.type === 'terminal' ? '💻' : tab.type === 'nova-prompt' ? '>' : '📄';
-      
+      const typeIcon = tab.type === 'terminal' ? '💻' : tab.type === 'novi-prompt' ? '>' : '📄';
+
       terminal.writeln(`  ${marker} ${typeIcon} ${tab.fileName} ${dirtyMarker}`);
     });
 
@@ -359,7 +359,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
     setContextMenu({ x: e.clientX, y: e.clientY });
 
     // Close other context menus
-    window.dispatchEvent(new CustomEvent('nova-close-context-menus'));
+    window.dispatchEvent(new CustomEvent('novi-close-context-menus'));
   };
 
   const handleCopy = async () => {
@@ -368,9 +368,9 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
       if (selection) {
         try {
           await window.api.clipboardWriteText(selection);
-          console.log('[NovaPrompt] Copied to clipboard');
+          console.log('[NoviPrompt] Copied to clipboard');
         } catch (error) {
-          console.error('[NovaPrompt] Copy failed:', error);
+          console.error('[NoviPrompt] Copy failed:', error);
         }
       }
     }
@@ -385,10 +385,10 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
           // Add to current line and display
           currentLineRef.current += text;
           terminalRef.current.write(text);
-          console.log('[NovaPrompt] Pasted from clipboard');
+          console.log('[NoviPrompt] Pasted from clipboard');
         }
       } catch (error) {
-        console.error('[NovaPrompt] Paste failed:', error);
+        console.error('[NoviPrompt] Paste failed:', error);
       }
     }
     setContextMenu(null);
@@ -406,13 +406,13 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);
     const handleGlobalClose = () => setContextMenu(null);
-    
+
     document.addEventListener('click', handleClickOutside);
-    window.addEventListener('nova-close-context-menus', handleGlobalClose);
-    
+    window.addEventListener('novi-close-context-menus', handleGlobalClose);
+
     return () => {
       document.removeEventListener('click', handleClickOutside);
-      window.removeEventListener('nova-close-context-menus', handleGlobalClose);
+      window.removeEventListener('novi-close-context-menus', handleGlobalClose);
     };
   }, []);
 
@@ -423,7 +423,7 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
         style={styles.terminal}
         onContextMenu={handleContextMenu}
       />
-      
+
       {contextMenu && (
         <div
           style={{
@@ -440,8 +440,8 @@ export const NovaPrompt: React.FC<NovaPromptProps> = ({ promptId, isActive }) =>
             Paste
           </div>
           <div style={styles.menuSeparator} />
-          <div 
-            style={styles.menuItem} 
+          <div
+            style={styles.menuItem}
             onClick={() => {
               setContextMenu(null);
               // Call the global action handler
@@ -499,4 +499,3 @@ const styles = {
     margin: '4px 0',
   },
 };
-

@@ -187,7 +187,7 @@ describe('EditorService', () => {
 
       expect(mockMonaco.editor.setModelMarkers).toHaveBeenCalledWith(
         expect.any(Object),
-        'nova',
+        'novi',
         expect.arrayContaining([
           expect.objectContaining({
             severity: mockMonaco.MarkerSeverity.Error,
@@ -203,7 +203,7 @@ describe('EditorService', () => {
 
       expect(mockMonaco.editor.setModelMarkers).toHaveBeenCalledWith(
         expect.any(Object),
-        'nova',
+        'novi',
         []
       );
     });

@@ -36,12 +36,12 @@ export interface WorkspaceState {
     id: string;
     name: string;
   }>;
-  openNovaPrompts: Array<{
+  openNoviPrompts: Array<{
     id: string;
     name: string;
   }>;
   activeTabId: string | null;
-  activeTabType: 'file' | 'terminal' | 'nova-prompt' | null;
+  activeTabType: 'file' | 'terminal' | 'novi-prompt' | null;
   layout: {
     showGitPanel: boolean;
     gitPanelCollapsed?: boolean;

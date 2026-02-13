@@ -199,7 +199,7 @@ export async function loadAllExtensions(): Promise<ExtensionLoadResult> {
 
     // Check if extensions directory exists
     if (!fs.existsSync(extensionsDir)) {
-      console.log(`[Nova] Extensions directory not found: ${extensionsDir}`);
+      console.log(`[Novi] Extensions directory not found: ${extensionsDir}`);
       return {
         success: true,
         loaded: 0,
@@ -226,7 +226,7 @@ export async function loadAllExtensions(): Promise<ExtensionLoadResult> {
     // Log discarded extensions
     discarded.forEach(result => {
       const reason = result.reason || result.error || 'Unknown error';
-      console.log(`[Nova] Skipping extension '${result.extensionName}': ${reason}`);
+      console.log(`[Novi] Skipping extension '${result.extensionName}': ${reason}`);
     });
 
     // Build language list
@@ -237,7 +237,7 @@ export async function loadAllExtensions(): Promise<ExtensionLoadResult> {
     }));
 
     // Log summary
-    console.log(`[Nova] Loaded ${successful.length} syntax extension(s), ${discarded.length} discarded.`);
+    console.log(`[Novi] Loaded ${successful.length} syntax extension(s), ${discarded.length} discarded.`);
 
     return {
       success: true,
@@ -350,7 +350,7 @@ export async function loadLyricExtension(): Promise<ExtensionLoadResult> {
     }
 
     // Log success message (works in both Node.js and renderer contexts)
-    console.log(`[Nova] Lyric syntax loaded successfully.`);
+    console.log(`[Novi] Lyric syntax loaded successfully.`);
     
     // Return success after validating all files exist
     return {
@@ -470,11 +470,11 @@ export function ensureEditorFallback(languageId: string): void {
     if (!existingLang) {
       // Register minimal language definition
       monacoInstance.languages.register({ id: languageId });
-      console.log(`[Nova] Registered fallback for language: ${languageId}`);
+      console.log(`[Novi] Registered fallback for language: ${languageId}`);
     }
   } catch (error) {
     // Silently handle errors in fallback mechanism
-    console.warn(`[Nova] Could not register fallback for language: ${languageId}`, error);
+    console.warn(`[Novi] Could not register fallback for language: ${languageId}`, error);
   }
 }
 

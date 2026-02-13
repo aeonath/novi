@@ -7,7 +7,7 @@
  * Extension Loader Tests
  * 
  * Tests for the extension-loader module that loads TextMate grammars
- * from Nova extensions and registers them with Monaco Editor.
+ * from Novi extensions and registers them with Monaco Editor.
  */
 
 import * as fs from 'fs';
@@ -66,7 +66,7 @@ describe('extension-loader', () => {
       if (result.success) {
         // Verify success message was logged
         expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('[Nova] Lyric syntax loaded successfully')
+          expect.stringContaining('[Novi] Lyric syntax loaded successfully')
         );
       }
     });
@@ -254,9 +254,9 @@ describe('extension-loader', () => {
       const result = await loadAllExtensions();
       
       if (result.success) {
-        // Should log: "[Nova] Loaded N syntax extension(s), M discarded."
+        // Should log: "[Novi] Loaded N syntax extension(s), M discarded."
         expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/\[Nova\] Loaded \d+ syntax extension\(s\), \d+ discarded\./)
+          expect.stringMatching(/\[Novi\] Loaded \d+ syntax extension\(s\), \d+ discarded\./)
         );
       }
     });

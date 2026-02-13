@@ -49,7 +49,7 @@ export class MonacoEditorView {
    */
   private defineNovaThemes(): void {
     // Define Nova Dark theme
-    monaco.editor.defineTheme('nova-dark', {
+    monaco.editor.defineTheme('novi-dark', {
       base: 'vs-dark',
       inherit: true,
       rules: [
@@ -99,7 +99,7 @@ export class MonacoEditorView {
     });
 
     // Define Nova Light theme
-    monaco.editor.defineTheme('nova-light', {
+    monaco.editor.defineTheme('novi-light', {
       base: 'vs',
       inherit: true,
       rules: [
@@ -178,7 +178,7 @@ export class MonacoEditorView {
       this.editor = monaco.editor.create(this.container, {
         value: this.getWelcomeContent(),
         language: options.language || 'plaintext',
-        theme: this.currentTheme === 'light' ? 'nova-light' : 'nova-dark',
+        theme: this.currentTheme === 'light' ? 'novi-light' : 'novi-dark',
         fontSize: options.fontSize || 14,
         wordWrap: options.wordWrap || 'on',
         minimap: {
@@ -282,14 +282,14 @@ function helloNova() {
   public setTheme(theme: 'light' | 'dark'): void {
     this.currentTheme = theme;
     if (this.editor) {
-      monaco.editor.setTheme(theme === 'light' ? 'nova-light' : 'nova-dark');
+      monaco.editor.setTheme(theme === 'light' ? 'novi-light' : 'novi-dark');
     }
   }
 
   /**
-   * Apply Nova theme from Theme object
+   * Apply Novi theme from Theme object
    */
-  public applyNovaTheme(theme: Theme): void {
+  public applyNoviTheme(theme: Theme): void {
     const monacoTheme = theme.id === 'light' ? 'light' : 'dark';
     this.setTheme(monacoTheme);
   }
