@@ -42,6 +42,8 @@ export interface MonacoEditorProps {
 export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((props, ref) => {
   const { onDirtyChange, fontSize = 14, wordWrap = 'on' } = props;
   const containerRef = useRef<HTMLDivElement>(null);
+  const vimStatusBarRef = useRef<HTMLDivElement>(null);
+  const vimAdapterRef = useRef<{ dispose: () => void } | null>(null);
   const editorRef = useRef<any>(null);
   const editorServiceRef = useRef<EditorService | null>(null);
   const { theme, setActiveFilePath } = useAppContext();
@@ -164,10 +166,30 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
 
       document.addEventListener('keydown', handleKeyDown);
 
+      // Initialize vim mode from setting (default on)
+      (async () => {
+        try {
+          const on = await window.api.getSetting<boolean>('vimode', true);
+          if (on && editorRef.current && vimStatusBarRef.current) {
+            const mod = await import('monaco-vim');
+            vimAdapterRef.current = mod.initVimMode(editorRef.current, vimStatusBarRef.current);
+            console.log('[MonacoEditor] Vim mode enabled');
+          }
+        } catch (e) {
+          console.warn('[MonacoEditor] Vim mode init failed (optional):', e);
+        }
+      })();
+
       return () => {
         document.removeEventListener('keydown', handleKeyDown);
         if (containerRef.current) {
           containerRef.current.removeEventListener('contextmenu', handleContextMenu, true);
+        }
+        if (vimAdapterRef.current) {
+          try {
+            vimAdapterRef.current.dispose();
+          } catch (_) {}
+          vimAdapterRef.current = null;
         }
         disposable?.dispose();
         editorServiceRef.current?.dispose();
@@ -223,6 +245,31 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     };
     window.addEventListener('novi-close-context-menus', handleCloseContextMenus as EventListener);
     return () => window.removeEventListener('novi-close-context-menus', handleCloseContextMenus as EventListener);
+  }, []);
+
+  // React to vimode setting changes from Novi Shell (set vimode on/off)
+  useEffect(() => {
+    const handleVimodeChanged = async (e: CustomEvent<{ enabled: boolean }>) => {
+      const enabled = e.detail?.enabled ?? false;
+      if (!editorRef.current) return;
+      if (vimAdapterRef.current) {
+        try {
+          vimAdapterRef.current.dispose();
+        } catch (_) {}
+        vimAdapterRef.current = null;
+      }
+      if (enabled && vimStatusBarRef.current) {
+        try {
+          const mod = await import('monaco-vim');
+          vimAdapterRef.current = mod.initVimMode(editorRef.current, vimStatusBarRef.current);
+          console.log('[MonacoEditor] Vim mode enabled (from Shell)');
+        } catch (err) {
+          console.warn('[MonacoEditor] Vim mode init failed:', err);
+        }
+      }
+    };
+    window.addEventListener('novi-vimode-changed', handleVimodeChanged as EventListener);
+    return () => window.removeEventListener('novi-vimode-changed', handleVimodeChanged as EventListener);
   }, []);
 
   // Context menu action handlers
@@ -490,7 +537,10 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   
   return (
     <>
-      <div ref={containerRef} style={styles.container} />
+      <div style={styles.editorWrapper}>
+        <div ref={containerRef} style={styles.container} />
+        <div ref={vimStatusBarRef} style={styles.vimStatusBar} aria-hidden="true" />
+      </div>
       
       {/* Novi's custom context menu */}
       {contextMenu && (
@@ -637,10 +687,29 @@ function detectLanguage(filePath: string): string {
 }
 
 const styles = {
-  container: {
+  editorWrapper: {
+    display: 'flex',
+    flexDirection: 'column' as const,
     width: '100%',
     height: '100%',
     overflow: 'hidden',
+  },
+  container: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  vimStatusBar: {
+    flexShrink: 0,
+    height: '22px',
+    minHeight: '22px',
+    backgroundColor: '#252526',
+    borderTop: '1px solid #3e3e42',
+    fontSize: '12px',
+    color: '#cccccc',
+    padding: '0 8px',
+    display: 'flex',
+    alignItems: 'center',
   },
   contextMenuItem: {
     padding: '6px 12px',

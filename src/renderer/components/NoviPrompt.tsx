@@ -210,6 +210,10 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
           terminal.clear();
           break;
 
+        case 'set':
+          await commandSet(terminal, args);
+          break;
+
         case '':
           // Empty command, do nothing
           break;
@@ -224,6 +228,47 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
     }
   };
 
+  const commandSet = async (terminal: XTerm, args: string[]) => {
+    if (args.length === 0) {
+      terminal.writeln('Usage: set <option> [on|off]');
+      terminal.writeln('  set vimode       - Show vi mode status');
+      terminal.writeln('  set vimode on    - Enable vi mode in editor');
+      terminal.writeln('  set vimode off   - Disable vi mode in editor');
+      return;
+    }
+    const option = args[0].toLowerCase();
+    const value = args[1]?.toLowerCase();
+
+    if (option !== 'vimode') {
+      terminal.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
+      terminal.writeln('Supported: vimode');
+      return;
+    }
+
+    if (value === undefined || value === '') {
+      try {
+        const on = await window.api.getSetting<boolean>('vimode', true);
+        terminal.writeln(on ? '\x1b[32mvimode is on\x1b[0m' : '\x1b[33mvimode is off\x1b[0m');
+      } catch (e) {
+        terminal.writeln('\x1b[31mFailed to read vimode setting\x1b[0m');
+      }
+      return;
+    }
+
+    if (value === 'on' || value === 'off') {
+      try {
+        await window.api.setSetting('vimode', value === 'on');
+        window.dispatchEvent(new CustomEvent('novi-vimode-changed', { detail: { enabled: value === 'on' } }));
+        terminal.writeln(value === 'on' ? '\x1b[32mvimode on\x1b[0m' : '\x1b[33mvimode off\x1b[0m');
+      } catch (e) {
+        terminal.writeln('\x1b[31mFailed to set vimode\x1b[0m');
+      }
+      return;
+    }
+
+    terminal.writeln(`\x1b[31mExpected "on" or "off", got: ${value}\x1b[0m`);
+  };
+
   const commandHelp = (terminal: XTerm) => {
     terminal.writeln('Available Commands:');
     terminal.writeln('');
@@ -232,6 +277,7 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
     terminal.writeln('  \x1b[33msave\x1b[0m         - Save current file');
     terminal.writeln('  \x1b[33mlist\x1b[0m         - List all open tabs');
     terminal.writeln('  \x1b[33mclear\x1b[0m        - Clear the screen');
+    terminal.writeln('  \x1b[33mset\x1b[0m         - Set options (e.g. set vimode on|off)');
     terminal.writeln('  \x1b[33mhelp\x1b[0m         - Show this help message');
     terminal.writeln('');
     terminal.writeln('Keyboard Shortcuts:');
