@@ -540,10 +540,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
           </div>
         ) : (
           <div className="file-tree-scroll" style={styles.tree}>
-            {/* Show ".." parent directory entry if not at root */}
+            {/* Show ".." parent directory entry if not at root; hide when tree is tied to terminal */}
             {(() => {
               if (!rootPath) return null;
-              // Check if we're not at a root (C:\, D:\, /, etc.)
+              if (isTerminalTree) return null;
               const normalizedPath = rootPath.replace(/\\/g, '/');
               const isAtRoot = /^([A-Z]:\/?)$|^\/$/.test(normalizedPath);
               if (isAtRoot) return null;
