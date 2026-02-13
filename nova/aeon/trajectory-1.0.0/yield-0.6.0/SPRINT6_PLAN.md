@@ -110,3 +110,18 @@ override the terminal's cwd in the file tree for that terminal and will show the
 set singlefiletree true which is disabled by default.
 
 If this option is set, it will use a single file tree for all windows like it does now.
+
+## Task 8 - Implement the novi terminal command
+
+When on a terminal tab, if the command starts with novi like
+
+novi myfile.py
+
+We intercept this command and open myfile.py in the editor tab in our monaco editor
+
+Is the command is novi -s we display the current novi shell set options
+
+novi -c will open the novi shell tab or switch focus to it if it is already open
+
+novi with no arguments will currently not do anything but will be reserved for a future
+operation

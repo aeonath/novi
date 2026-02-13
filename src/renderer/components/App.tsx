@@ -8,7 +8,7 @@
  * Main layout structure for Novi Editor
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
@@ -27,6 +27,7 @@ import { SavePrompt } from './SavePrompt.js';
 import { createDefaultActions, ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
+import { parseNoviCommand } from '../utils/novi-command.js';
 
 
 const AppInner: React.FC = () => {
@@ -71,6 +72,16 @@ const AppInner: React.FC = () => {
   const [terminalFileTreeRoots, setTerminalFileTreeRoots] = useState<Record<string, { cwd: string; overriddenRoot?: string }>>({});
   const [fileTabToTreeRoot, setFileTabToTreeRoot] = useState<Record<string, string>>({});
   const [fileTreeReportedRoot, setFileTreeReportedRoot] = useState<string | null>(null);
+
+  // Refs for novi command handling (Task 8) — so handleTerminalData sees latest state without changing callback identity
+  const terminalLineBufferRef = useRef<Record<string, string>>({});
+  const terminalFileTreeRootsRef = useRef(terminalFileTreeRoots);
+  const noviPromptTabsRef = useRef(noviPromptTabs);
+  const onNoviPromptRef = useRef<(() => Promise<void>) | null>(null);
+  useEffect(() => {
+    terminalFileTreeRootsRef.current = terminalFileTreeRoots;
+    noviPromptTabsRef.current = noviPromptTabs;
+  }, [terminalFileTreeRoots, noviPromptTabs]);
 
   // Set up global terminal data listener
   useEffect(() => {
@@ -1394,7 +1405,7 @@ const AppInner: React.FC = () => {
     (window as any).__actionAPI = {
       onNewTerminal: actionContext.onNewTerminal,
     };
-    
+    onNoviPromptRef.current = actionContext.onNoviPrompt ?? null;
     return () => {
       delete (window as any).__actionAPI;
     };
@@ -1515,11 +1526,111 @@ const AppInner: React.FC = () => {
   // CRITICAL: These callbacks were being recreated inline on every render,
   // causing Terminal component's useEffect dependencies to change,
   // triggering refits and redraws every 5-10 seconds
+  // Task 8: Intercept "novi" commands on terminal (novi <file>, novi -s, novi -c); buffer input by line.
   const handleTerminalData = useCallback(async (terminalId: string, data: string) => {
-    if (window.api?.terminalWrite) {
-      await window.api.terminalWrite(terminalId, data);
+    const buffer = terminalLineBufferRef.current;
+    if (!buffer[terminalId]) buffer[terminalId] = '';
+    buffer[terminalId] += data;
+
+    if (!/\r|\n/.test(data)) return;
+
+    while (/\r|\n/.test(buffer[terminalId])) {
+      const lineEnd = buffer[terminalId].search(/\r|\n/);
+      const newlineMatch = buffer[terminalId].slice(lineEnd).match(/^\r\n|\r|\n/);
+      const newlineLen = newlineMatch?.[0]?.length ?? 1;
+      const line = buffer[terminalId].slice(0, lineEnd).trim();
+      const toSend = buffer[terminalId].slice(0, lineEnd + newlineLen);
+      buffer[terminalId] = buffer[terminalId].slice(lineEnd + newlineLen);
+
+      const trimmed = line.trim();
+      const novi = parseNoviCommand(trimmed);
+
+      if (novi.handled && window.api?.terminalWrite) {
+        if (novi.kind === 'none') {
+          await window.api.terminalWrite(terminalId, '\r\n');
+          continue;
+        }
+        if (novi.kind === 'settings') {
+          try {
+            const vimode = await window.api.getSetting<boolean>('vimode', true);
+            const compat = await window.api.getSetting<boolean>('compat', false);
+            const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
+            const lines = [
+              '\r\n\x1b[36mCurrent settings:\x1b[0m',
+              `  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`,
+              `  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`,
+              `  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`,
+              '',
+            ];
+            const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+            if (terminalAPI?.write) {
+              lines.forEach((l) => terminalAPI.write(l + '\r\n'));
+            }
+          } catch (_e) {
+            const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+            if (terminalAPI?.write) terminalAPI.write('\r\n\x1b[31mFailed to read settings\x1b[0m\r\n');
+          }
+          await window.api.terminalWrite(terminalId, '\r\n');
+          continue;
+        }
+        if (novi.kind === 'shell') {
+          const prompts = noviPromptTabsRef.current;
+          if (prompts.length > 0) {
+            setActiveTab({ id: prompts[0].id, type: 'novi-prompt', filePath: prompts[0].id });
+            const tabBarAPI = (window as any).__tabBarAPI;
+            if (tabBarAPI) tabBarAPI.setActiveTab(prompts[0].id);
+            setShowWelcome(false);
+          } else {
+            void onNoviPromptRef.current?.();
+          }
+          await window.api.terminalWrite(terminalId, '\r\n');
+          continue;
+        }
+        if (novi.kind === 'open' && novi.path) {
+          const arg = novi.path;
+          const cwd = terminalFileTreeRootsRef.current[terminalId]?.cwd || '';
+          const sep = /\\/.test(cwd) ? '\\' : '/';
+          const normalizedCwd = cwd.replace(/[/\\]+$/, '');
+          const fullPath = /^[/\\]|^[A-Za-z]:/.test(arg) ? arg : (normalizedCwd ? normalizedCwd + sep + arg.replace(/^[/\\]+/, '') : arg);
+          if (window.api?.readFile) {
+            try {
+              setShowWelcome(false);
+              if (isImageFile(fullPath)) {
+                const tabBarAPI = (window as any).__tabBarAPI;
+                if (tabBarAPI) {
+                  const fileName = fullPath.split(/[\\/]/).pop() || 'untitled';
+                  const tabId = `tab-${Date.now()}`;
+                  tabBarAPI.addTab({ id: tabId, type: 'image', filePath: fullPath, fileName, isDirty: false, content: '' });
+                  setActiveTab({ id: tabId, type: 'image' });
+                }
+                if ((window as any).__statusBarAPI) (window as any).__statusBarAPI.setStatus(`Viewing: ${fullPath.split(/[\\/]/).pop()}`);
+              } else {
+                const fileData = await window.api.readFile(fullPath);
+                if ((window as any).__monacoEditorAPI) (window as any).__monacoEditorAPI.loadFile(fullPath, fileData.content);
+                const tabBarAPI = (window as any).__tabBarAPI;
+                if (tabBarAPI) {
+                  const fileName = fullPath.split(/[\\/]/).pop() || 'untitled';
+                  const tabId = `tab-${Date.now()}`;
+                  tabBarAPI.addTab({ id: tabId, type: 'file', filePath: fullPath, fileName, isDirty: false, content: fileData.content });
+                  setActiveTab({ id: tabId, type: 'file' });
+                }
+                if ((window as any).__statusBarAPI) (window as any).__statusBarAPI.setStatus(`Editing: ${fullPath.split(/[\\/]/).pop()}`);
+              }
+            } catch (err) {
+              const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+              if (terminalAPI?.write) terminalAPI.write(`\r\n\x1b[31mnovi: ${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n`);
+            }
+          }
+          await window.api.terminalWrite(terminalId, '\r\n');
+          continue;
+        }
+      }
+
+      if (window.api?.terminalWrite) {
+        await window.api.terminalWrite(terminalId, toSend);
+      }
     }
-  }, []);
+  }, [setActiveTab, setShowWelcome]);
 
   const handleTerminalResize = useCallback(async (terminalId: string, cols: number, rows: number) => {
     console.log(`[App] Terminal ${terminalId} resize: ${cols}x${rows}`);

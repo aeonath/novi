@@ -69,7 +69,8 @@ contextBridge.exposeInMainWorld('api', {
   gitProvideCredentials: (response: any) => ipcRenderer.invoke('git-credential-response', response),
   
   // File tree watcher
-  fileTreeStartWatching: (dirPath: string) => ipcRenderer.invoke('filetree-start-watching', dirPath),
+  fileTreeStartWatching: (rootPath: string, expandedPaths?: string[]) =>
+    ipcRenderer.invoke('filetree-start-watching', rootPath, expandedPaths ?? []),
   fileTreeStopWatching: () => ipcRenderer.invoke('filetree-stop-watching'),
   fileTreeOnChange: (callback: (event: { type: string; path: string }) => void) => {
     const handler = (_event: any, data: { type: string; path: string }) => callback(data);

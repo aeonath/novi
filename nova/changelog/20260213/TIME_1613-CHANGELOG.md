@@ -12,7 +12,7 @@ When the file tree is tied to a terminal tab (`isTerminalTree` true), the ".." (
 User requested that the ".." folder not be present on the terminal-tab file tree view since it is tied to the terminal.
 
 ## Git Commit Hash
-`9b1bf7b` — Ad hoc: hide .. in terminal file tree view
+`e0381b8` — Ad hoc: hide .. in terminal file tree view
 
 ## Status
 ✅ Completed

@@ -407,15 +407,18 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   }, []);
 
   // Watch for file system changes (only the primary/main tree drives the single global watcher)
+  // Do not watch when tree is tied to a terminal (CWD can be C:\, Users\..., etc. — too broad and noisy)
   useEffect(() => {
     if (!driveFileWatcher || !rootPath || !window.api?.fileTreeStartWatching) return;
+    if (isTerminalTree) return;
     // Don't watch drive root (C:\, D:\) - causes EPERM on system dirs and is not useful
     const normalized = rootPath.replace(/\\/g, '/');
     if (/^[A-Za-z]:\/?$/.test(normalized)) return;
 
-    // Start watching the directory
-    window.api.fileTreeStartWatching(rootPath);
-    console.log('[FileTree] Started watching:', rootPath);
+    // Start watching only root + expanded dirs (depth 1 — no recursion into collapsed folders)
+    const expandedList = Array.from(expandedDirs);
+    window.api.fileTreeStartWatching(rootPath, expandedList);
+    console.log('[FileTree] Started watching:', rootPath, expandedList.length, 'expanded');
 
     // Listen for file tree changes
     const handleFileTreeChange = async (event: { type: string; path: string }) => {
@@ -476,7 +479,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
         window.api.fileTreeRemoveChangeListener();
       }
     };
-  }, [rootPath, driveFileWatcher]); // Only depend on rootPath, not expandedDirs
+  }, [rootPath, driveFileWatcher, isTerminalTree, expandedDirs]); // Re-watch when expanded set changes
 
   // Expose methods for compatibility (only primary tree registers so restore/loadDirectory always target main tree)
   useEffect(() => {

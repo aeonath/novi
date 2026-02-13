@@ -772,11 +772,11 @@ void app.whenReady().then(() => {
     mainWindowRef?.webContents.send('git-batch-change', files);
   });
 
-  // File tree watcher IPC handlers
-  ipcMain.handle('filetree-start-watching', async (_e, dirPath: string) => {
+  // File tree watcher IPC handlers (root + expanded dirs only, depth 1)
+  ipcMain.handle('filetree-start-watching', async (_e, rootPath: string, expandedPaths?: string[]) => {
     try {
-      fileTreeWatcher.watch(dirPath);
-      logInfo(`Started watching file tree: ${dirPath}`);
+      fileTreeWatcher.watch(rootPath, expandedPaths ?? []);
+      logInfo(`Started watching file tree: ${rootPath} (${(expandedPaths ?? []).length} expanded)`);
     } catch (error) {
       logError('Failed to start file tree watcher', error as Error);
       throw error;

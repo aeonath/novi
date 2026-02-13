@@ -14,39 +14,42 @@ import { EventEmitter } from 'events';
 export class FileTreeWatcher extends EventEmitter {
   private watcher: FSWatcher | null = null;
   private watchedPath: string | null = null;
+  private watchedPathsKey: string = '';
 
   /**
-   * Start watching a directory
+   * Start watching only the root and currently expanded directories (no recursion into collapsed folders).
+   * @param rootPath - Tree root directory
+   * @param expandedPaths - Paths of expanded directories in the tree (direct children of root or deeper)
    */
-  watch(dirPath: string): void {
-    if (this.watchedPath === dirPath && this.watcher) {
-      console.log('[FileTreeWatcher] Already watching:', dirPath);
-      return;
-    }
-
-    // Don't watch drive root (C:\, D:\) - causes EPERM on system dirs
-    const normalized = dirPath.replace(/\\/g, '/');
-    if (/^[A-Za-z]:\/?$/.test(normalized)) {
+  watch(rootPath: string, expandedPaths: string[] = []): void {
+    // Don't watch empty, root, or drive root - avoids watching entire drive (noisy, EPERM on system dirs)
+    const normalizedRoot = (rootPath || '').trim().replace(/\\/g, '/');
+    if (!normalizedRoot || normalizedRoot === '/' || /^[A-Za-z]:\/?$/.test(normalizedRoot)) {
       this.stop();
       return;
     }
 
-    // Stop existing watcher
-    this.stop();
+    // Only watch root + expanded dirs; each with depth 1 so we only see direct children (no recursion)
+    const pathsToWatch = Array.from(new Set([rootPath, ...expandedPaths]));
+    const pathsKey = pathsToWatch.slice().sort().join('\0');
+    if (this.watcher && this.watchedPath === rootPath && this.watchedPathsKey === pathsKey) {
+      return;
+    }
 
-    console.log('[FileTreeWatcher] Starting watch:', dirPath);
-    this.watchedPath = dirPath;
+    this.stop();
+    this.watchedPath = rootPath;
+    this.watchedPathsKey = pathsKey;
+
+    console.log('[FileTreeWatcher] Starting watch (root + expanded only, depth 1):', pathsToWatch.length, 'paths');
 
     try {
-      this.watcher = watch(dirPath, {
+      this.watcher = watch(pathsToWatch, {
         ignoreInitial: true,
         persistent: true,
         ignorePermissionErrors: true,
+        depth: 1, // Only watch direct children of each path — no recursion into collapsed folders
         ignored: (path: string) => {
-          // Normalize path to use forward slashes
           const normalizedPath = path.replace(/\\/g, '/');
-          
-          // Check if path contains any ignored patterns
           const ignoredPatterns = [
             '/node_modules/',
             '/.git/',
@@ -54,56 +57,32 @@ export class FileTreeWatcher extends EventEmitter {
             '/build/',
             '/.nova/',
           ];
-          
-          // Also ignore specific files
-          const ignoredFiles = [
-            '.DS_Store',
-            '.swp',
-            '.swo',
-          ];
-          
-          // Check if path contains any ignored directory
+          const ignoredFiles = ['.DS_Store', '.swp', '.swo'];
           for (const pattern of ignoredPatterns) {
-            if (normalizedPath.includes(pattern)) {
-              return true;
-            }
+            if (normalizedPath.includes(pattern)) return true;
           }
-          
-          // Check if filename matches ignored files
           const fileName = normalizedPath.split('/').pop() || '';
           for (const ignoredFile of ignoredFiles) {
-            if (fileName.endsWith(ignoredFile)) {
-              return true;
-            }
+            if (fileName.endsWith(ignoredFile)) return true;
           }
-          
-          // Check for vim swap files
-          if (fileName.startsWith('~') || fileName.match(/\.sw[op]$/)) {
-            return true;
-          }
-          
+          if (fileName.startsWith('~') || fileName.match(/\.sw[op]$/)) return true;
           return false;
         },
-        depth: 10, // Reasonable depth limit
       });
 
       this.watcher.on('add', (path: string) => {
-        console.log('[FileTreeWatcher] File added:', path);
         this.emit('change', { type: 'add', path });
       });
 
       this.watcher.on('unlink', (path: string) => {
-        console.log('[FileTreeWatcher] File removed:', path);
         this.emit('change', { type: 'unlink', path });
       });
 
       this.watcher.on('addDir', (path: string) => {
-        console.log('[FileTreeWatcher] Directory added:', path);
         this.emit('change', { type: 'addDir', path });
       });
 
       this.watcher.on('unlinkDir', (path: string) => {
-        console.log('[FileTreeWatcher] Directory removed:', path);
         this.emit('change', { type: 'unlinkDir', path });
       });
 
@@ -134,6 +113,7 @@ export class FileTreeWatcher extends EventEmitter {
       this.watcher.close();
       this.watcher = null;
       this.watchedPath = null;
+      this.watchedPathsKey = '';
     }
   }
 

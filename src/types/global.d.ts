@@ -127,7 +127,7 @@ declare global {
       gitOnCredentialRequest: (callback: (request: GitCredentialRequest) => void) => void;
       gitRemoveCredentialListener: () => void;
       gitProvideCredentials: (response: GitCredentialResponse) => Promise<{ success: boolean }>;
-      fileTreeStartWatching: (dirPath: string) => Promise<void>;
+      fileTreeStartWatching: (rootPath: string, expandedPaths?: string[]) => Promise<void>;
       fileTreeStopWatching: () => Promise<void>;
       fileTreeOnChange: (callback: (event: { type: string; path: string }) => void) => void;
       fileTreeRemoveChangeListener: () => void;
