@@ -18,7 +18,7 @@ import { ImageEditor } from './ImageEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
-import { NoviPrompt } from './NoviPrompt.js';
+import { NoviShell } from './NoviShell.js';
 import { WorkspaceSplit } from './WorkspaceSplit.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
@@ -375,14 +375,14 @@ const AppInner: React.FC = () => {
                   id: promptId,
                   type: 'novi-prompt',
                   filePath: promptId,
-                  fileName: promptInfo.name || 'nova>',
+                  fileName: promptInfo.name || '⚙ novi>',
                   isDirty: false,
                   content: '',
                   language: 'plaintext',
                 });
                 
                 // Add to novi prompt tabs state
-                setNoviPromptTabs(prev => [...prev, { id: promptId, fileName: promptInfo.name || 'nova>' }]);
+                setNoviPromptTabs(prev => [...prev, { id: promptId, fileName: promptInfo.name || '⚙ novi>' }]);
                 console.log('[App] Restored novi prompt tab:', promptId);
               }
               
@@ -823,7 +823,7 @@ const AppInner: React.FC = () => {
             id: promptId,
             type: 'novi-prompt',
             filePath: promptId,
-            fileName: 'nova>',
+            fileName: '⚙ novi>',
             isDirty: false,
             content: '',
             language: 'plaintext',
@@ -831,7 +831,7 @@ const AppInner: React.FC = () => {
         }
 
         // Add to noviPromptTabs state
-        setNoviPromptTabs((prev) => [...prev, { id: promptId, fileName: 'nova>' }]);
+        setNoviPromptTabs((prev) => [...prev, { id: promptId, fileName: '⚙ novi>' }]);
         console.log('[App] Added Novi Prompt to state:', promptId);
 
         // Switch to the new prompt tab
@@ -839,14 +839,14 @@ const AppInner: React.FC = () => {
 
         // Update status bar
         if ((window as any).__statusBarAPI) {
-          (window as any).__statusBarAPI.setStatus('Novi Prompt ready');
+          (window as any).__statusBarAPI.setStatus('Novi Shell ready');
         }
 
         console.log('[App] Novi Prompt tab created successfully:', promptId);
       } catch (error) {
         console.error('[App] Failed to create Novi Prompt:', error);
         if ((window as any).__statusBarAPI) {
-          (window as any).__statusBarAPI.setStatus('Failed to create Novi Prompt');
+          (window as any).__statusBarAPI.setStatus('Failed to create Novi Shell');
         }
       }
     },
@@ -1159,10 +1159,6 @@ const AppInner: React.FC = () => {
         break;
       case 'novi-prompt':
         await actionContext.onNoviPrompt?.();
-        break;
-      case 'novi-agile':
-        // TODO: Implement Novi Agile
-        console.log('[App] Novi Agile not yet implemented');
         break;
       case 'command-palette':
         // TODO: Implement Command Palette
@@ -1719,7 +1715,7 @@ const AppInner: React.FC = () => {
                       backgroundColor: '#1e1e1e',
                     }}
                   >
-                    <NoviPrompt 
+                    <NoviShell 
                       promptId={tab.id}
                       isActive={activeTab?.id === tab.id}
                     />
@@ -1950,7 +1946,7 @@ const AppInner: React.FC = () => {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              ▶️ Novi Prompt
+              ▶️ Novi Shell
             </div>
             <div
               onClick={() => {

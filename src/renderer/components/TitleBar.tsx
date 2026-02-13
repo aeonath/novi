@@ -15,6 +15,7 @@ interface MenuItem {
   shortcut?: string;
   submenu?: MenuItem[];
   separator?: boolean;
+  disabled?: boolean;
 }
 
 export interface TitleBarProps {
@@ -110,10 +111,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCom
     ],
     Novi: [
       { label: 'New Terminal', command: 'new-terminal', shortcut: 'Ctrl+T' },
-      { label: 'Novi Prompt', command: 'novi-prompt', shortcut: 'Ctrl+Shift+N' },
-      { label: 'Novi Agile', command: 'novi-agile', shortcut: 'Ctrl+Shift+A' },
+      { label: 'Novi Shell', command: 'novi-prompt', shortcut: 'Ctrl+Shift+N' },
       { separator: true },
-      { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P' },
+      { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P', disabled: true },
       { separator: true },
       { label: 'Reset Workspace', command: 'reset-workspace' },
     ],
@@ -191,12 +191,17 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCom
       return <div key={`sep-${index}`} style={styles.separator} />;
     }
 
+    const disabled = item.disabled === true;
     return (
       <div
         key={index}
-        style={styles.menuItem}
-        onClick={() => handleItemClick(item.command)}
+        style={{
+          ...styles.menuItem,
+          ...(disabled ? { opacity: 0.5, cursor: 'default' } : {}),
+        }}
+        onClick={() => !disabled && handleItemClick(item.command)}
         onMouseEnter={(e) => {
+          if (disabled) return;
           const target = e.currentTarget;
           target.style.backgroundColor = '#094771';
         }}

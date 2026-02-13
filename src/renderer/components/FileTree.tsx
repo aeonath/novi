@@ -738,7 +738,7 @@ const ContextMenuComponent: React.FC<ContextMenuProps> = ({ x, y, node, onNewFil
         💻 New Terminal
       </div>
       <div style={styles.menuItem} onClick={onNoviPrompt}>
-        ▶️ Novi Prompt
+        ▶️ Novi Shell
       </div>
       {node && (
         <>

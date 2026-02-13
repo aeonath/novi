@@ -31,7 +31,6 @@ export type MenuCommand =
   | 'zoom-reset'
   | 'new-terminal'
   | 'novi-prompt'
-  | 'novi-agile'
   | 'command-palette'
   | 'debug'
   | 'reset-workspace'
@@ -179,20 +178,16 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           click: () => executeCommand('new-terminal', mainWindow),
         },
         {
-          label: 'Novi Prompt',
+          label: 'Novi Shell',
           accelerator: 'CmdOrCtrl+Shift+P',
           click: () => executeCommand('novi-prompt', mainWindow),
-        },
-        {
-          label: 'Novi Agile',
-          accelerator: 'CmdOrCtrl+Shift+A',
-          click: () => executeCommand('novi-agile', mainWindow),
         },
         { type: 'separator' },
         {
           label: 'Command Palette',
           accelerator: 'CmdOrCtrl+Shift+P',
           click: () => executeCommand('command-palette', mainWindow),
+          enabled: false,
         },
         { type: 'separator' },
         {

@@ -4,20 +4,20 @@
  */
 
 /**
- * NoviPrompt - Novi's custom command-line interface
- * Provides a simple REPL for Novi-specific commands
+ * NoviShell - Novi's command-line interface for settings and commands
+ * Provides a simple REPL for Novi-specific commands (e.g. set vimode)
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
-export interface NoviPromptProps {
+export interface NoviShellProps {
   promptId: string;
   isActive?: boolean;
 }
 
-export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) => {
+export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -30,7 +30,7 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
       return;
     }
 
-    console.log(`[NoviPrompt] Initializing xterm for prompt: ${promptId}`);
+    console.log(`[NoviShell] Initializing for: ${promptId}`);
 
     const terminal = new XTerm({
       cursorBlink: true,
@@ -74,7 +74,7 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
       fitAddonRef.current = fitAddon;
 
       // Display welcome message and prompt
-      terminal.writeln('Novi Prompt v0.4.0');
+      terminal.writeln('Novi Shell v0.4.0');
       terminal.writeln('Type "help" for available commands');
       terminal.writeln('');
       writePrompt(terminal);
@@ -84,9 +84,9 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
         handleInput(terminal, data);
       });
 
-      console.log('[NoviPrompt] Prompt initialized successfully');
+      console.log('[NoviShell] Initialized successfully');
     } catch (error) {
-      console.error('[NoviPrompt] Failed to initialize:', error);
+      console.error('[NoviShell] Failed to initialize:', error);
     }
 
     // Handle window resize
@@ -95,7 +95,7 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
         try {
           fitAddonRef.current.fit();
         } catch (error) {
-          console.error('[NoviPrompt] Resize failed:', error);
+          console.error('[NoviShell] Resize failed:', error);
         }
       }
     };
@@ -119,7 +119,7 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
         try {
           fitAddonRef.current?.fit();
         } catch (error) {
-          console.error('[NoviPrompt] Fit failed:', error);
+          console.error('[NoviShell] Fit failed:', error);
         }
       }, 100);
     }
@@ -138,11 +138,14 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
       terminal.write('\r\n');
 
       if (command) {
-        executeCommand(terminal, command);
+        executeCommand(terminal, command).then(() => {
+          currentLineRef.current = '';
+          writePrompt(terminal);
+        });
+      } else {
+        currentLineRef.current = '';
+        writePrompt(terminal);
       }
-
-      currentLineRef.current = '';
-      writePrompt(terminal);
       return;
     }
 
@@ -178,7 +181,7 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
   };
 
   const executeCommand = async (terminal: XTerm, command: string) => {
-    console.log(`[NoviPrompt] Executing command: ${command}`);
+    console.log(`[NoviShell] Executing command: ${command}`);
 
     const parts = command.split(/\s+/);
     const cmd = parts[0].toLowerCase();
@@ -192,14 +195,6 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
 
         case 'version':
           commandVersion(terminal);
-          break;
-
-        case 'open':
-          await commandOpen(terminal);
-          break;
-
-        case 'save':
-          await commandSave(terminal);
           break;
 
         case 'list':
@@ -273,11 +268,9 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
     terminal.writeln('Available Commands:');
     terminal.writeln('');
     terminal.writeln('  \x1b[33mversion\x1b[0m      - Display Novi version information');
-    terminal.writeln('  \x1b[33mopen\x1b[0m         - Open file dialog');
-    terminal.writeln('  \x1b[33msave\x1b[0m         - Save current file');
     terminal.writeln('  \x1b[33mlist\x1b[0m         - List all open tabs');
     terminal.writeln('  \x1b[33mclear\x1b[0m        - Clear the screen');
-    terminal.writeln('  \x1b[33mset\x1b[0m         - Set options (e.g. set vimode on|off)');
+    terminal.writeln('  \x1b[33mset\x1b[0m          - Set options (e.g. set vimode on|off)');
     terminal.writeln('  \x1b[33mhelp\x1b[0m         - Show this help message');
     terminal.writeln('');
     terminal.writeln('Keyboard Shortcuts:');
@@ -291,87 +284,6 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
     terminal.writeln('');
     terminal.writeln('© 2025 MiraNova Studios');
     terminal.writeln('Build: Sprint4-Task6');
-  };
-
-  const commandOpen = async (terminal: XTerm) => {
-    try {
-      terminal.writeln('Opening file dialog...');
-      const result = await window.api.showOpenDialog({
-        properties: ['openFile'],
-        filters: [
-          { name: 'All Files', extensions: ['*'] },
-          { name: 'TypeScript', extensions: ['ts', 'tsx'] },
-          { name: 'JavaScript', extensions: ['js', 'jsx'] },
-          { name: 'Text', extensions: ['txt', 'md'] },
-        ],
-      });
-
-      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
-        const filePath = result.filePaths[0];
-        terminal.writeln(`\x1b[32mOpening: ${filePath}\x1b[0m`);
-
-        // Read and open the file
-        const fileData = await window.api.readFile(filePath);
-        const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
-
-        // Load into Monaco editor
-        if ((window as any).__monacoEditorAPI) {
-          (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
-        }
-
-        // Add tab
-        if ((window as any).__tabBarAPI) {
-          (window as any).__tabBarAPI.addTab({
-            id: `tab-${Date.now()}`,
-            type: 'file',
-            filePath: filePath,
-            fileName: fileName,
-            isDirty: false,
-            content: fileData.content,
-            language: 'typescript',
-          });
-        }
-
-        terminal.writeln('\x1b[32mFile opened successfully\x1b[0m');
-      } else {
-        terminal.writeln('\x1b[33mFile open cancelled\x1b[0m');
-      }
-    } catch (error) {
-      terminal.writeln(`\x1b[31mError opening file: ${error instanceof Error ? error.message : 'Unknown error'}\x1b[0m`);
-    }
-  };
-
-  const commandSave = async (terminal: XTerm) => {
-    try {
-      const activeTab = (window as any).__tabBarAPI?.getActiveTab();
-
-      if (!activeTab) {
-        terminal.writeln('\x1b[33mNo file is currently open\x1b[0m');
-        return;
-      }
-
-      if (activeTab.type !== 'file') {
-        terminal.writeln('\x1b[33mActive tab is not a file\x1b[0m');
-        return;
-      }
-
-      terminal.writeln(`Saving: ${activeTab.fileName}`);
-
-      // Get current content from Monaco
-      const content = (window as any).__monacoEditorAPI?.getValue() || activeTab.content;
-
-      // Write to file
-      await window.api.writeFile(activeTab.filePath, content);
-
-      // Mark as not dirty
-      if ((window as any).__tabBarAPI) {
-        (window as any).__tabBarAPI.updateTabDirty(activeTab.id, false);
-      }
-
-      terminal.writeln('\x1b[32mFile saved successfully\x1b[0m');
-    } catch (error) {
-      terminal.writeln(`\x1b[31mError saving file: ${error instanceof Error ? error.message : 'Unknown error'}\x1b[0m`);
-    }
   };
 
   const commandList = (terminal: XTerm) => {
@@ -390,7 +302,7 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
       const isActive = activeTab && activeTab.id === tab.id;
       const marker = isActive ? '\x1b[32m*\x1b[0m' : ' ';
       const dirtyMarker = tab.isDirty ? '\x1b[33m●\x1b[0m' : ' ';
-      const typeIcon = tab.type === 'terminal' ? '💻' : tab.type === 'novi-prompt' ? '>' : '📄';
+      const typeIcon = tab.type === 'terminal' ? '💻' : tab.type === 'novi-prompt' ? '⚙' : '📄';
 
       terminal.writeln(`  ${marker} ${typeIcon} ${tab.fileName} ${dirtyMarker}`);
     });
@@ -414,9 +326,9 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
       if (selection) {
         try {
           await window.api.clipboardWriteText(selection);
-          console.log('[NoviPrompt] Copied to clipboard');
+          console.log('[NoviShell] Copied to clipboard');
         } catch (error) {
-          console.error('[NoviPrompt] Copy failed:', error);
+          console.error('[NoviShell] Copy failed:', error);
         }
       }
     }
@@ -431,10 +343,10 @@ export const NoviPrompt: React.FC<NoviPromptProps> = ({ promptId, isActive }) =>
           // Add to current line and display
           currentLineRef.current += text;
           terminalRef.current.write(text);
-          console.log('[NoviPrompt] Pasted from clipboard');
+          console.log('[NoviShell] Pasted from clipboard');
         }
       } catch (error) {
-        console.error('[NoviPrompt] Paste failed:', error);
+        console.error('[NoviShell] Paste failed:', error);
       }
     }
     setContextMenu(null);
