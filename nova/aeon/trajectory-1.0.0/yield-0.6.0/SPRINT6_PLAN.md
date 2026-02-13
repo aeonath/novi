@@ -77,3 +77,7 @@ note just issuing the set command with no arguments will return all current sett
 8. The dirty file dot on the tab does not display in vimode if the file has been 
 modified.  make sure the dirty dot on the tab is displayed when the file is modified
 and not displayed when the file is saved.
+
+## Task 6 - Cleanup Tasks Part 3
+
+1. 

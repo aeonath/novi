@@ -67,6 +67,161 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       return undefined;
     }
 
+    // Note: MonacoEnvironment is now configured in monaco-loader.js (before Monaco loads)
+    // This ensures workers are available immediately when Monaco initializes
+    
+    // Register Monaco's built-in languages to ensure proper auto-detection.
+    // Two types of languages:
+    // 1. Worker-based (TS, JS, JSON, HTML, CSS) - use web workers for advanced features
+    // 2. Monarch-based (Python, Shell, Markdown) - use synchronous Monarch grammars
+    
+    // Ensure worker-based languages are registered (Monaco should do this automatically, but we verify)
+    const workerLangs = [
+      { id: 'typescript', extensions: ['.ts', '.tsx'], aliases: ['TypeScript', 'ts', 'typescript'] },
+      { id: 'javascript', extensions: ['.js', '.jsx', '.mjs', '.cjs'], aliases: ['JavaScript', 'js', 'javascript'] },
+      { id: 'json', extensions: ['.json', '.jsonc'], aliases: ['JSON', 'json'] },
+      { id: 'html', extensions: ['.html', '.htm', '.shtml', '.xhtml', '.mdoc', '.jsp', '.asp', '.aspx', '.jshtm'], aliases: ['HTML', 'html'] },
+      { id: 'css', extensions: ['.css'], aliases: ['CSS', 'css'] },
+    ];
+    
+    workerLangs.forEach(({ id, extensions, aliases }) => {
+      const existing = monaco.languages.getLanguages().find(l => l.id === id);
+      if (!existing) {
+        monaco.languages.register({ id, extensions, aliases });
+        console.log(`[MonacoEditor] Registered worker-based language: ${id}`);
+      }
+    });
+    
+    // Configure TypeScript/JavaScript compiler options for language services
+    try {
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ESNext,
+        allowNonTsExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        allowJs: true,
+        typeRoots: ['node_modules/@types'],
+      });
+      
+      monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ESNext,
+        allowNonTsExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        allowJs: true,
+      });
+      
+      // Enable diagnostics for TypeScript/JavaScript
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+      
+      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+      
+      // Force eager mode - this makes Monaco immediately start the language service
+      monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+      monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+      
+      console.log('[MonacoEditor] TypeScript/JavaScript language services configured');
+    } catch (e) {
+      console.warn('[MonacoEditor] Failed to configure TS/JS language services:', e);
+    }
+    
+    // Register Monarch-based languages and load their grammars via AMD
+    const amdRequire = (typeof (window as any).require === 'function') ? (window as any).require : null;
+    if (amdRequire) {
+      const builtInLangModules: { 
+        languageId: string; 
+        moduleId: string; 
+        extensions: string[];
+        aliases: string[];
+      }[] = [
+        { 
+          languageId: 'python', 
+          moduleId: 'vs/python-B-Y2SC3b',
+          extensions: ['.py', '.rpy', '.pyw', '.cpy', '.gyp', '.gypi'],
+          aliases: ['Python', 'py']
+        },
+        { 
+          languageId: 'shell', 
+          moduleId: 'vs/shell-ClXCKCEW',
+          extensions: ['.sh', '.bash', '.zsh'],
+          aliases: ['Shell Script', 'sh', 'bash', 'zsh']
+        },
+        { 
+          languageId: 'markdown', 
+          moduleId: 'vs/markdown-C_rD0bIw',
+          extensions: ['.md', '.markdown', '.mdown', '.mkdn', '.mkd', '.mdwn', '.mdtxt', '.mdtext'],
+          aliases: ['Markdown', 'markdown']
+        },
+      ];
+      
+      builtInLangModules.forEach(({ languageId, moduleId, extensions, aliases }) => {
+        // Load grammar chunk first, then register/configure
+        amdRequire([moduleId], (mod: { language?: unknown; conf?: unknown }) => {
+          try {
+            // CRITICAL: Register language AFTER loading the chunk
+            // Monaco's getLanguages() shows if it's already registered
+            const existingLangs = monaco.languages.getLanguages();
+            const isRegistered = existingLangs.some(l => l.id === languageId);
+            
+            if (!isRegistered) {
+              monaco.languages.register({
+                id: languageId,
+                extensions: extensions,
+                aliases: aliases,
+              });
+              console.log(`[MonacoEditor] Registered language: ${languageId}`);
+            } else {
+              console.log(`[MonacoEditor] Language '${languageId}' already registered by Monaco`);
+            }
+            
+            // Set the tokenizer (Monarch grammar)
+            if (mod?.language) {
+              monaco.languages.setMonarchTokensProvider(languageId, mod.language as any);
+              console.log(`[MonacoEditor] Set tokenizer for: ${languageId}`);
+            }
+            
+            // Set language configuration (brackets, comments, auto-closing, etc.)
+            if (mod?.conf) {
+              try {
+                monaco.languages.setLanguageConfiguration(languageId, mod.conf as any);
+                console.log(`[MonacoEditor] Set configuration for: ${languageId}`);
+              } catch (confErr) {
+                // Configuration may fail if Monaco already has config for this language
+                console.log(`[MonacoEditor] Could not set configuration for '${languageId}':`, confErr);
+              }
+            }
+            
+            // Force retokenization of any existing models with this language
+            // This fixes the race condition where models are created before tokenizers are loaded
+            const allModels = monaco.editor.getModels();
+            allModels.forEach((model) => {
+              if (model.getLanguageId() === languageId) {
+                console.log(`[MonacoEditor] Retokenizing existing ${languageId} model:`, model.uri.toString());
+                // Force Monaco to retokenize by temporarily switching language and switching back
+                monaco.editor.setModelLanguage(model, 'plaintext');
+                monaco.editor.setModelLanguage(model, languageId);
+              }
+            });
+          } catch (e) {
+            console.warn(`[MonacoEditor] Failed to initialize language '${languageId}':`, e);
+          }
+        }, (err: unknown) => {
+          console.warn(`[MonacoEditor] Failed to load language chunk '${moduleId}':`, err);
+        });
+      });
+    }
+
     // Define Novi themes
     defineNoviThemes();
 
@@ -79,6 +234,10 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         fontSize,
         fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
         wordWrap,
+        wrappingStrategy: 'advanced',
+        wrappingIndent: 'same',
+        lineHeight: Math.round(fontSize * 1.5),
+        allowVariableLineHeights: false,
         minimap: { enabled: false },
         automaticLayout: true,
         scrollBeyondLastLine: false,
@@ -137,16 +296,13 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         console.log('[MonacoEditor] Context menu listener attached to container');
       }
 
-      // Set up change listener
+      // Set up change listener (runs for all edits including vim)
       const disposable = editorRef.current.onDidChangeModelContent(() => {
         if (editorRef.current) {
           const currentContent = editorRef.current.getValue();
-          const dirty = currentContent !== savedContentRef.current; // Use ref to get current value
-          
-          if (dirty !== isDirtyFlag) {
-            setIsDirtyFlag(dirty);
-            onDirtyChangeRef.current?.(dirty); // Use ref to get current callback
-          }
+          const dirty = currentContent !== savedContentRef.current;
+          setIsDirtyFlag(dirty);
+          onDirtyChangeRef.current?.(dirty); // Always notify so tab bar dirty dot stays in sync
         }
       });
 
@@ -166,13 +322,45 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
 
       document.addEventListener('keydown', handleKeyDown);
 
-      // Initialize vim mode from setting (default on)
+      // Initialize vim mode from setting (default on) and register :w to save to disk
       (async () => {
         try {
           const on = await window.api.getSetting<boolean>('vimode', true);
           if (on && editorRef.current && vimStatusBarRef.current) {
+            console.log('[MonacoEditor] Initializing vim mode...');
             const mod = await import('monaco-vim');
             vimAdapterRef.current = mod.initVimMode(editorRef.current, vimStatusBarRef.current);
+            
+            // Log model state after vim initialization
+            const currentModel = editorRef.current.getModel();
+            if (currentModel) {
+              console.log('[MonacoEditor] After vim init - Model language:', currentModel.getLanguageId());
+            }
+            
+            // Override :w so it saves the file via IPC and updates tab dirty state
+            const Vim = (mod as any).VimMode?.Vim;
+            if (Vim && typeof Vim.defineEx === 'function') {
+              Vim.defineEx('write', 'w', function (_cm: unknown, params: { callback?: () => void }) {
+                const win = window as any;
+                const api = win.__monacoEditorAPI;
+                if (!api?.getFilePath || !win.api?.saveFile) return;
+                const filePath = api.getFilePath();
+                if (!filePath) return;
+                const content = api.getValue();
+                win.api.saveFile(filePath, content).then(() => {
+                  api.markAsSaved();
+                  const tabBar = win.__tabBarAPI;
+                  if (tabBar?.getActiveTab) {
+                    const active = tabBar.getActiveTab();
+                    if (active?.type === 'file') tabBar.updateTabDirty(active.id, false);
+                  }
+                  params?.callback?.();
+                }).catch((err: unknown) => {
+                  console.error('[MonacoEditor] :w save failed', err);
+                  params?.callback?.();
+                });
+              });
+            }
             console.log('[MonacoEditor] Vim mode enabled');
           }
         } catch (e) {
@@ -212,7 +400,12 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
   // Update options when they change
   useEffect(() => {
     if (editorRef.current) {
-      editorRef.current.updateOptions({ fontSize, wordWrap });
+      editorRef.current.updateOptions({
+        fontSize,
+        wordWrap,
+        lineHeight: Math.round(fontSize * 1.5),
+        allowVariableLineHeights: false,
+      });
     }
   }, [fontSize, wordWrap]);
 
@@ -252,12 +445,23 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
     const handleVimodeChanged = async (e: CustomEvent<{ enabled: boolean }>) => {
       const enabled = e.detail?.enabled ?? false;
       if (!editorRef.current) return;
+      
       if (vimAdapterRef.current) {
+        console.log('[MonacoEditor] Disposing vim mode...');
         try {
           vimAdapterRef.current.dispose();
         } catch (_) {}
         vimAdapterRef.current = null;
+        
+        // Force a model refresh after vim disposal to trigger retokenization
+        const currentModel = editorRef.current.getModel();
+        if (currentModel) {
+          console.log('[MonacoEditor] Refreshing model after vim dispose:', currentModel.getLanguageId());
+          editorRef.current.setModel(null);
+          editorRef.current.setModel(currentModel);
+        }
       }
+      
       if (enabled && vimStatusBarRef.current) {
         try {
           const mod = await import('monaco-vim');

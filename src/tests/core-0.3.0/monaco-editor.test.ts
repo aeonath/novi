@@ -357,13 +357,14 @@ describe('Monaco Environment Configuration', () => {
     new MonacoEditorView(document.createElement('div'));
 
     const getWorkerUrl = (global as any).self.MonacoEnvironment.getWorkerUrl;
-    
-    expect(getWorkerUrl('', 'json')).toBe('./vs/language/json/json.worker.js');
-    expect(getWorkerUrl('', 'css')).toBe('./vs/language/css/css.worker.js');
-    expect(getWorkerUrl('', 'html')).toBe('./vs/language/html/html.worker.js');
-    expect(getWorkerUrl('', 'typescript')).toBe('./vs/language/typescript/ts.worker.js');
-    expect(getWorkerUrl('', 'javascript')).toBe('./vs/language/typescript/ts.worker.js');
-    expect(getWorkerUrl('', 'other')).toBe('./vs/editor/editor.worker.js');
+    const editorWorker = './vs/assets/editor.worker-DM0G1eFj.js';
+
+    expect(getWorkerUrl('', 'json')).toBe('./vs/assets/json.worker-DghZTZS7.js');
+    expect(getWorkerUrl('', 'css')).toBe('./vs/assets/css.worker-cO8rX8Iy.js');
+    expect(getWorkerUrl('', 'html')).toBe('./vs/assets/html.worker-BruuIJkK.js');
+    expect(getWorkerUrl('', 'typescript')).toBe('./vs/assets/ts.worker-C4E4vgbE.js');
+    expect(getWorkerUrl('', 'javascript')).toBe('./vs/assets/ts.worker-C4E4vgbE.js');
+    expect(getWorkerUrl('', 'other')).toBe(editorWorker);
   });
 });
 

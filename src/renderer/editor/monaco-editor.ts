@@ -151,22 +151,22 @@ export class MonacoEditorView {
 
   private initializeMonaco(options: EditorOptions): void {
     try {
-      // Set up Monaco environment for web workers
+      // Set up Monaco environment for web workers (minified build uses hashed files in vs/assets/)
+      const workerPaths: Record<string, string> = {
+        json: './vs/assets/json.worker-DghZTZS7.js',
+        css: './vs/assets/css.worker-cO8rX8Iy.js',
+        scss: './vs/assets/css.worker-cO8rX8Iy.js',
+        less: './vs/assets/css.worker-cO8rX8Iy.js',
+        html: './vs/assets/html.worker-BruuIJkK.js',
+        handlebars: './vs/assets/html.worker-BruuIJkK.js',
+        razor: './vs/assets/html.worker-BruuIJkK.js',
+        typescript: './vs/assets/ts.worker-C4E4vgbE.js',
+        javascript: './vs/assets/ts.worker-C4E4vgbE.js',
+        editor: './vs/assets/editor.worker-DM0G1eFj.js',
+      };
       self.MonacoEnvironment = {
         getWorkerUrl: function (_moduleId: string, label: string) {
-          if (label === 'json') {
-            return './vs/language/json/json.worker.js';
-          }
-          if (label === 'css' || label === 'scss' || label === 'less') {
-            return './vs/language/css/css.worker.js';
-          }
-          if (label === 'html' || label === 'handlebars' || label === 'razor') {
-            return './vs/language/html/html.worker.js';
-          }
-          if (label === 'typescript' || label === 'javascript') {
-            return './vs/language/typescript/ts.worker.js';
-          }
-          return './vs/editor/editor.worker.js';
+          return workerPaths[label] ?? './vs/assets/editor.worker-DM0G1eFj.js';
         },
       };
 

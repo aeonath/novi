@@ -56,6 +56,31 @@ export class EditorService {
     this.models.set(filePath, editorModel);
     console.log(`[EditorService] Created model for ${filePath} (${language})`);
 
+    // Force retokenization for worker-based languages (TypeScript, JavaScript)
+    // Monaco's TS/JS language services sometimes don't tokenize models immediately
+    if (language === 'typescript' || language === 'javascript') {
+      // Small delay to ensure worker is spawned and ready
+      setTimeout(() => {
+        console.log(`[EditorService] Triggering ${language} worker for: ${filePath}`);
+        try {
+          // Explicitly trigger worker by requesting it
+          // This forces Monaco to spawn the TS/JS worker if it hasn't already
+          monaco.languages.typescript.getTypeScriptWorker()
+            .then((_worker: any) => {
+              console.log(`[EditorService] ${language} worker obtained, forcing tokenization`);
+              // Now force retokenization
+              monaco.editor.setModelLanguage(model, 'plaintext');
+              monaco.editor.setModelLanguage(model, language);
+            })
+            .catch((err: any) => {
+              console.warn(`[EditorService] Failed to get ${language} worker:`, err);
+            });
+        } catch (e) {
+          console.warn(`[EditorService] Failed to trigger ${language} worker:`, e);
+        }
+      }, 200);
+    }
+
     return editorModel;
   }
 
