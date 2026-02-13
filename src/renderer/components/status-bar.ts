@@ -121,10 +121,10 @@ export class StatusBar {
   }
 
   /**
-   * Set the main status text (displayed on the left)
+   * Set the main status text (displayed in the center)
    */
   public setStatus(text: string, tooltip?: string): void {
-    this.addItem({ id: 'main-status', text, tooltip, priority: 100 }, 'left');
+    this.addItem({ id: 'main-status', text, tooltip, priority: 100 }, 'center');
   }
 
   /**

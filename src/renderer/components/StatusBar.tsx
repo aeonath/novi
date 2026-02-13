@@ -20,7 +20,7 @@ type StatusBarSection = 'left' | 'center' | 'right';
 
 export const StatusBar: React.FC = () => {
   const [items, setItems] = useState<Map<string, { item: StatusBarItem; section: StatusBarSection }>>(
-    new Map([['main-status', { item: { id: 'main-status', text: 'Ready', priority: 100 }, section: 'left' }]])
+    new Map([['main-status', { item: { id: 'main-status', text: 'Ready', priority: 100 }, section: 'center' }]])
   );
 
   // Public API exposed via ref (if needed by parent components)
@@ -29,7 +29,7 @@ export const StatusBar: React.FC = () => {
       const newItems = new Map(prev);
       newItems.set('main-status', {
         item: { id: 'main-status', text, tooltip, priority: 100 },
-        section: 'left',
+        section: 'center',
       });
       return newItems;
     });

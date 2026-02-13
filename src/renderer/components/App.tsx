@@ -1538,6 +1538,17 @@ const AppInner: React.FC = () => {
                   console.log('[App] Directory opened:', dirPath);
                   setWorkspaceRoot(dirPath);
                   
+                  // Reload FileTree with new directory
+                  const fileTreeAPI = (window as any).__fileTreeAPI;
+                  if (fileTreeAPI && fileTreeAPI.loadDirectory) {
+                    try {
+                      await fileTreeAPI.loadDirectory(dirPath);
+                      console.log('[App] FileTree reloaded with:', dirPath);
+                    } catch (error) {
+                      console.error('[App] Failed to reload FileTree:', error);
+                    }
+                  }
+                  
                   // Fetch git status for workspace
                   if (window.api?.gitGetStatus) {
                     try {

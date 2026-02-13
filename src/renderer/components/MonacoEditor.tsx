@@ -236,8 +236,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         wordWrap,
         wrappingStrategy: 'advanced',
         wrappingIndent: 'same',
-        lineHeight: Math.round(fontSize * 1.5),
-        allowVariableLineHeights: false,
+        lineHeight: fontSize + 8, // Fixed spacing: font size + 8px
         minimap: { enabled: false },
         automaticLayout: true,
         scrollBeyondLastLine: false,
@@ -403,8 +402,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       editorRef.current.updateOptions({
         fontSize,
         wordWrap,
-        lineHeight: Math.round(fontSize * 1.5),
-        allowVariableLineHeights: false,
+        lineHeight: fontSize + 8, // Fixed spacing: font size + 8px
       });
     }
   }, [fontSize, wordWrap]);
