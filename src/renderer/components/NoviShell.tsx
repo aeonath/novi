@@ -15,9 +15,10 @@ import { FitAddon } from '@xterm/addon-fit';
 export interface NoviShellProps {
   promptId: string;
   isActive?: boolean;
+  onClose?: () => void;
 }
 
-export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
+export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClose }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -438,18 +439,10 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
             style={styles.menuItem}
             onClick={() => {
               setContextMenu(null);
-              // Call the global action handler
-              const actionAPI = (window as any).__actionAPI;
-              if (actionAPI && actionAPI.onNewTerminal) {
-                actionAPI.onNewTerminal();
-              }
+              onClose?.();
             }}
           >
-            New Terminal
-          </div>
-          <div style={styles.menuSeparator} />
-          <div style={styles.menuItem} onClick={handleClear}>
-            Clear Screen
+            Close
           </div>
         </div>
       )}

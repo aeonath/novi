@@ -1883,6 +1883,10 @@ const AppInner: React.FC = () => {
                     <NoviShell 
                       promptId={tab.id}
                       isActive={activeTab?.id === tab.id}
+                      onClose={() => {
+                        const tabBarAPI = (window as any).__tabBarAPI;
+                        if (tabBarAPI) tabBarAPI.closeTab(tab.id);
+                      }}
                     />
                   </div>
                 );
