@@ -1400,13 +1400,14 @@ const AppInner: React.FC = () => {
     };
   }, [actionContext]);
 
-  // File tree root to display: single tree (workspaceRoot) or per-terminal/file-tab (Task 7)
+  // File tree root to display. When a terminal tab is active, always show that terminal's CWD so file tree stays in sync.
   const currentFileTreeDisplayRoot = useMemo(() => {
-    if (singleFileTree || !workspaceRoot) return workspaceRoot;
     if (activeTab?.type === 'terminal') {
       const t = terminalFileTreeRoots[activeTab.id];
-      return (t?.overriddenRoot || t?.cwd) || workspaceRoot;
+      const cwd = (t?.overriddenRoot ?? t?.cwd) ?? workspaceRoot ?? '';
+      return cwd || workspaceRoot;
     }
+    if (singleFileTree || !workspaceRoot) return workspaceRoot;
     if (activeTab?.type === 'file' || activeTab?.type === 'image') {
       return fileTabToTreeRoot[activeTab.id] || workspaceRoot;
     }
