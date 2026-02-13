@@ -19,8 +19,9 @@ export interface FileTreeProps {
   onDirectoryOpen?: (dirPath: string) => void;
   onNewTerminal?: () => void;
   onNoviPrompt?: () => void;
-  onWorkspaceSplitOpen?: (dirPath: string) => void;
   initialPath?: string; // Auto-load this directory on mount
+  /** When set, file tree root is controlled by parent (e.g. per-terminal CWD). Updates when this prop changes. */
+  displayRoot?: string | null;
   hideHeader?: boolean; // Hide the header (for use in split view)
   /** If true (default), this tree drives the global file watcher. Set false for split-view trees to avoid flicker. */
   driveFileWatcher?: boolean;
@@ -49,7 +50,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, onWorkspaceSplitOpen, initialPath, hideHeader = false, driveFileWatcher = true }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, initialPath, displayRoot, hideHeader = false, driveFileWatcher = true }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -63,9 +64,18 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     expandedDirsRef.current = expandedDirs;
   }, [expandedDirs]);
 
-  // Auto-load initial path if provided
+  // When parent controls root via displayRoot (e.g. per-terminal CWD), sync and load
   useEffect(() => {
-    if (initialPath && !rootPath) {
+    if (displayRoot && displayRoot !== rootPath) {
+      console.log('[FileTree] Display root changed to:', displayRoot);
+      setRootPath(displayRoot);
+      loadDirectory(displayRoot);
+    }
+  }, [displayRoot]);
+
+  // Auto-load initial path if provided (only when displayRoot is not controlling)
+  useEffect(() => {
+    if (initialPath && !rootPath && (displayRoot === undefined || displayRoot === null)) {
       console.log('[FileTree] Auto-loading initial path:', initialPath);
       setRootPath(initialPath);
       loadDirectory(initialPath);
@@ -77,32 +87,23 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     }
   }, [initialPath]); // Only run when initialPath changes
 
-  const openDirectory = useCallback(async (e?: React.MouseEvent) => {
+  const openDirectory = useCallback(async () => {
     if (!window.api?.selectDirectory) return;
 
     try {
       const dirPath = await window.api.selectDirectory();
       if (!dirPath) return;
 
-      // Check if Ctrl+Click - open in split view
-      if (e && e.ctrlKey && onWorkspaceSplitOpen) {
-        console.log('[FileTree] Ctrl+Click detected - opening workspace split:', dirPath);
-        onWorkspaceSplitOpen(dirPath);
-        return;
-      }
-
-      // Normal click - open in main file tree
       setRootPath(dirPath);
       await loadDirectory(dirPath);
-      
-      // Notify parent of directory change
+
       if (onDirectoryOpen) {
         onDirectoryOpen(dirPath);
       }
     } catch (error) {
       console.error('[FileTree] Failed to open directory:', error);
     }
-  }, [onDirectoryOpen, onWorkspaceSplitOpen]);
+  }, [onDirectoryOpen]);
 
   const loadDirectory = async (path: string, parentPath?: string) => {
     if (!window.api?.readDirectory) return;
@@ -510,7 +511,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
                 </button>
               )}
               {rootPath && (
-                <button style={styles.button} onClick={(e) => openDirectory(e)} title="Open Folder (Ctrl+Click for split view)">
+                <button style={styles.button} onClick={() => openDirectory()} title="Open Folder">
                   📂
                 </button>
               )}
@@ -521,7 +522,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
         {tree.length === 0 ? (
           <div className="file-tree-scroll" style={styles.emptyState}>
             <p>No folder open</p>
-            <button style={styles.openButton} onClick={(e) => openDirectory(e)}>
+            <button style={styles.openButton} onClick={() => openDirectory()}>
               Open Folder
             </button>
           </div>

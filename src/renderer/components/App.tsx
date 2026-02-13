@@ -19,7 +19,6 @@ import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
 import { NoviShell } from './NoviShell.js';
-import { WorkspaceSplit } from './WorkspaceSplit.js';
 import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
@@ -35,10 +34,9 @@ const AppInner: React.FC = () => {
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'novi-prompt' | 'workspace-split'; filePath?: string; workspacePath?: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<{ id: string; type: 'file' | 'image' | 'terminal' | 'novi-prompt'; filePath?: string } | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; fileName: string; workspaceRoot?: string | null }>>([]);
   const [noviPromptTabs, setNoviPromptTabs] = useState<Array<{ id: string; fileName: string }>>([]);
-  const [workspaceSplitTabs, setWorkspaceSplitTabs] = useState<Array<{ id: string; fileName: string; workspacePath: string }>>([]);
   const { setGitStatus } = useAppContext();
   
   // Context menu state for welcome screen
@@ -67,6 +65,11 @@ const AppInner: React.FC = () => {
     tabId: '',
     resolve: null,
   });
+
+  // Separate file tree per terminal/file tab (Task 7). When singleFileTree is true, use one tree like before.
+  const [singleFileTree, setSingleFileTree] = useState<boolean>(true); // default true = current behavior until loaded
+  const [terminalFileTreeRoots, setTerminalFileTreeRoots] = useState<Record<string, { cwd: string; overriddenRoot?: string }>>({});
+  const [fileTabToTreeRoot, setFileTabToTreeRoot] = useState<Record<string, string>>({});
 
   // Set up global terminal data listener
   useEffect(() => {
@@ -156,10 +159,14 @@ const AppInner: React.FC = () => {
     // Remove any existing listeners first to prevent duplicates
     window.api.terminalRemovePwdListener();
     
-    window.api.terminalOnPwd((terminalId: string, dirName: string) => {
-      console.log('[App] Terminal', terminalId, 'PWD changed to:', dirName);
-      
-      // Update tab title with trailing slash to indicate it's a directory
+    window.api.terminalOnPwd((terminalId: string, pwd: string) => {
+      console.log('[App] Terminal', terminalId, 'PWD changed to:', pwd);
+      setTerminalFileTreeRoots(prev => ({
+        ...prev,
+        [terminalId]: { ...prev[terminalId], cwd: pwd },
+      }));
+      const segments = pwd.replace(/\\/g, '/').split('/').filter(Boolean);
+      const dirName = segments[segments.length - 1] || pwd;
       const tabBarAPI = (window as any).__tabBarAPI;
       if (tabBarAPI) {
         tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}/`);
@@ -172,6 +179,28 @@ const AppInner: React.FC = () => {
         window.api.terminalRemovePwdListener();
       }
     };
+  }, []);
+
+  // Load singlefiletree setting (default false = separate file tree per terminal/tab)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!window.api?.getSetting) return;
+      try {
+        const value = await window.api.getSetting<boolean>('singlefiletree', false);
+        if (!cancelled) setSingleFileTree(!!value);
+      } catch {
+        if (!cancelled) setSingleFileTree(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const handler = () => {
+      window.api?.getSetting<boolean>('singlefiletree', false).then(setSingleFileTree);
+    };
+    window.addEventListener('novi-singlefiletree-changed', handler);
+    return () => window.removeEventListener('novi-singlefiletree-changed', handler);
   }, []);
 
   // Load workspace on startup
@@ -366,8 +395,9 @@ const AppInner: React.FC = () => {
                   language: 'terminal',
                 });
                 
-                // Add to terminal tabs state
+                // Add to terminal tabs state and initial file tree root (CWD will update on first PWD)
                 setTerminalTabs(prev => [...prev, { id: terminalId, fileName: terminalInfo.name || 'bash', workspaceRoot }]);
+                setTerminalFileTreeRoots(prev => ({ ...prev, [terminalId]: { cwd: workspace.workspaceRoot || '', overriddenRoot: undefined } }));
                 console.log('[App] Restored terminal tab:', terminalId);
               }
               
@@ -931,8 +961,9 @@ const AppInner: React.FC = () => {
             language: 'terminal',
           });
           
-          // Add to terminal tabs state to trigger re-render
+          // Add to terminal tabs state and initial file tree root (CWD will update on first PWD)
           setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 bash', workspaceRoot }]);
+          setTerminalFileTreeRoots(prev => ({ ...prev, [terminalId]: { cwd: workspaceRoot || '', overriddenRoot: undefined } }));
           console.log('[App] Added terminal to state:', terminalId);
           
           // Switch to terminal tab
@@ -1345,6 +1376,19 @@ const AppInner: React.FC = () => {
     };
   }, [actionContext]);
 
+  // File tree root to display: single tree (workspaceRoot) or per-terminal/file-tab (Task 7)
+  const currentFileTreeDisplayRoot = useMemo(() => {
+    if (singleFileTree || !workspaceRoot) return workspaceRoot;
+    if (activeTab?.type === 'terminal') {
+      const t = terminalFileTreeRoots[activeTab.id];
+      return (t?.overriddenRoot || t?.cwd) || workspaceRoot;
+    }
+    if (activeTab?.type === 'file' || activeTab?.type === 'image') {
+      return fileTabToTreeRoot[activeTab.id] || workspaceRoot;
+    }
+    return workspaceRoot;
+  }, [singleFileTree, workspaceRoot, activeTab, terminalFileTreeRoots, fileTabToTreeRoot]);
+
   // Ctrl+Tab keybinding to cycle through tabs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1511,64 +1555,31 @@ const AppInner: React.FC = () => {
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
                 onNewTerminal={actionContext.onNewTerminal}
                 onNoviPrompt={actionContext.onNoviPrompt}
-                onWorkspaceSplitOpen={async (dirPath: string) => {
-                  console.log('[App] Opening workspace split:', dirPath);
-                  
-                  // Generate unique ID for this workspace split
-                  const splitId = `workspace-split-${Date.now()}`;
-                  const dirName = dirPath.replace(/\\/g, '/').split('/').pop() || 'Workspace';
-                  
-                  // Add tab to TabBar
-                  const tabBarAPI = (window as any).__tabBarAPI;
-                  if (tabBarAPI) {
-                    tabBarAPI.addTab({
-                      id: splitId,
-                      fileName: `📂 ${dirName}`,
-                      filePath: dirPath,
-                      type: 'workspace-split',
-                      isDirty: false,
-                      canClose: true,
-                    });
-                    
-                    // Add to workspace split tabs state
-                    setWorkspaceSplitTabs(prev => [...prev, {
-                      id: splitId,
-                      fileName: dirName,
-                      workspacePath: dirPath,
-                    }]);
-                    
-                    // Switch to the new split tab
-                    setActiveTab({
-                      id: splitId,
-                      type: 'workspace-split',
-                      workspacePath: dirPath,
-                    });
-                    
-                    // Hide welcome screen
-                    setShowWelcome(false);
-                    
-                    console.log('[App] Workspace split tab created:', splitId);
-                  }
-                }}
+                displayRoot={currentFileTreeDisplayRoot}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);
-                  setWorkspaceRoot(dirPath);
-                  // FileTree already set its root and loaded in openDirectory; avoid calling
-                  // fileTreeAPI.loadDirectory here to prevent recursive loop and wrong-tree updates.
-                  
-                  // Fetch git status for workspace
-                  if (window.api?.gitGetStatus) {
-                    try {
-                      const status = await window.api.gitGetStatus(dirPath);
-                      console.log('[App] Git status fetched:', status);
-                      if (status.isRepo) {
-                        setGitStatus(status);
-                      } else {
+                  if (singleFileTree) {
+                    setWorkspaceRoot(dirPath);
+                  } else if (activeTab?.type === 'terminal') {
+                    setTerminalFileTreeRoots(prev => ({
+                      ...prev,
+                      [activeTab.id]: { ...prev[activeTab.id], cwd: prev[activeTab.id]?.cwd ?? '', overriddenRoot: dirPath },
+                    }));
+                  } else if (activeTab?.type === 'file' || activeTab?.type === 'image') {
+                    setFileTabToTreeRoot(prev => ({ ...prev, [activeTab.id]: dirPath }));
+                  } else {
+                    setWorkspaceRoot(dirPath);
+                  }
+                  if (singleFileTree || !activeTab || activeTab.type === 'novi-prompt') {
+                    if (window.api?.gitGetStatus) {
+                      try {
+                        const status = await window.api.gitGetStatus(dirPath);
+                        if (status.isRepo) setGitStatus(status);
+                        else setGitStatus(null);
+                      } catch (error) {
+                        console.error('[App] Failed to get git status:', error);
                         setGitStatus(null);
                       }
-                    } catch (error) {
-                      console.error('[App] Failed to get git status:', error);
-                      setGitStatus(null);
                     }
                   }
                 }}
@@ -1590,7 +1601,7 @@ const AppInner: React.FC = () => {
                       console.log('[App] Image file detected from tree:', filePath);
                       console.log('[App] MIME type:', mimeType);
 
-                      // Add image tab
+                      // Add image tab and associate current file tree root with this tab
                       if ((window as any).__tabBarAPI) {
                         const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
                         const tabId = `tab-${Date.now()}`;
@@ -1602,8 +1613,9 @@ const AppInner: React.FC = () => {
                           isDirty: false,
                           content: '',
                         });
-
-                        // Set as active tab
+                        if (currentFileTreeDisplayRoot) {
+                          setFileTabToTreeRoot(prev => ({ ...prev, [tabId]: currentFileTreeDisplayRoot }));
+                        }
                         setActiveTab({
                           id: tabId,
                           type: 'image',
@@ -1628,11 +1640,12 @@ const AppInner: React.FC = () => {
                       (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
                     }
 
-                    // Add tab
+                    // Add tab and associate current file tree root with this tab
                     if ((window as any).__tabBarAPI) {
                       const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+                      const tabId = `tab-${Date.now()}`;
                       (window as any).__tabBarAPI.addTab({
-                        id: `tab-${Date.now()}`,
+                        id: tabId,
                         type: 'file',
                         filePath: filePath,
                         fileName: fileName,
@@ -1640,6 +1653,9 @@ const AppInner: React.FC = () => {
                         content: fileData.content,
                         language: 'typescript', // Will be auto-detected by Monaco
                       });
+                      if (currentFileTreeDisplayRoot) {
+                        setFileTabToTreeRoot(prev => ({ ...prev, [tabId]: currentFileTreeDisplayRoot }));
+                      }
                     }
 
                     // Update status bar
@@ -1746,16 +1762,18 @@ const AppInner: React.FC = () => {
                     if (window.api?.terminalKill) {
                       await window.api.terminalKill(tab.filePath); // filePath is terminalId for terminals
                     }
-                    
-                    // Remove from terminal tabs state
                     setTerminalTabs(prev => prev.filter(t => t.id !== tabId));
+                    setTerminalFileTreeRoots(prev => { const next = { ...prev }; delete next[tabId]; return next; });
                     console.log('[App] Removed terminal from state:', tabId);
                   }
                   
                   if (tab && tab.type === 'novi-prompt') {
-                    // Remove from novi prompt tabs state
                     setNoviPromptTabs(prev => prev.filter(t => t.id !== tabId));
                     console.log('[App] Removed novi prompt from state:', tabId);
+                  }
+                  
+                  if (tab && (tab.type === 'file' || tab.type === 'image')) {
+                    setFileTabToTreeRoot(prev => { const next = { ...prev }; delete next[tabId]; return next; });
                   }
                   
                   // For file tabs, check if they're dirty (unsaved changes)
@@ -1836,28 +1854,6 @@ const AppInner: React.FC = () => {
                   >
                     <NoviShell 
                       promptId={tab.id}
-                      isActive={activeTab?.id === tab.id}
-                    />
-                  </div>
-                );
-              })}
-              
-              {/* Render all workspace splits (hidden when not active) to preserve state */}
-              {workspaceSplitTabs.map((tab) => {
-                return (
-                  <div
-                    key={tab.id}
-                    style={{ 
-                      flex: 1, 
-                      display: activeTab?.id === tab.id ? 'flex' : 'none',
-                      flexDirection: 'column',
-                      overflow: 'hidden',
-                      backgroundColor: '#1e1e1e',
-                    }}
-                  >
-                    <WorkspaceSplit 
-                      workspaceId={tab.id}
-                      workspacePath={tab.workspacePath}
                       isActive={activeTab?.id === tab.id}
                     />
                   </div>

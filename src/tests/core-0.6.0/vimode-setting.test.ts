@@ -90,4 +90,18 @@ describe('vimode setting (core-0.6.0)', () => {
       expect(getSetting<boolean>('compat', true)).toBe(false);
     });
   });
+
+  describe('singlefiletree setting (Sprint 6 Task 7)', () => {
+    it('should return false when singlefiletree is unset and default false is provided', () => {
+      const value = getSetting<boolean>('singlefiletree', false);
+      expect(value).toBe(false);
+    });
+
+    it('should persist singlefiletree on and off', () => {
+      setSetting('singlefiletree', true);
+      expect(getSetting<boolean>('singlefiletree', false)).toBe(true);
+      setSetting('singlefiletree', false);
+      expect(getSetting<boolean>('singlefiletree', true)).toBe(false);
+    });
+  });
 });

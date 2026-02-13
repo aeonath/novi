@@ -228,9 +228,11 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
       try {
         const vimode = await window.api.getSetting<boolean>('vimode', true);
         const compat = await window.api.getSetting<boolean>('compat', false);
+        const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
         terminal.writeln('\x1b[36mCurrent settings:\x1b[0m');
-        terminal.writeln(`  vimode  ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
-        terminal.writeln(`  compat  ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
+        terminal.writeln(`  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
+        terminal.writeln(`  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
+        terminal.writeln(`  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
       } catch (e) {
         terminal.writeln('\x1b[31mFailed to read settings\x1b[0m');
       }
@@ -239,9 +241,9 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
     const option = args[0].toLowerCase();
     const value = args[1]?.toLowerCase();
 
-    if (option !== 'vimode' && option !== 'compat') {
+    if (option !== 'vimode' && option !== 'compat' && option !== 'singlefiletree') {
       terminal.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
-      terminal.writeln('Supported: vimode, compat');
+      terminal.writeln('Supported: vimode, compat, singlefiletree');
       return;
     }
 
@@ -250,9 +252,12 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
         if (option === 'vimode') {
           const on = await window.api.getSetting<boolean>('vimode', true);
           terminal.writeln(on ? '\x1b[32mvimode is on\x1b[0m' : '\x1b[33mvimode is off\x1b[0m');
-        } else {
+        } else if (option === 'compat') {
           const on = await window.api.getSetting<boolean>('compat', false);
           terminal.writeln(on ? '\x1b[32mcompat is on\x1b[0m' : '\x1b[33mcompat is off\x1b[0m');
+        } else {
+          const on = await window.api.getSetting<boolean>('singlefiletree', false);
+          terminal.writeln(on ? '\x1b[32msinglefiletree is on\x1b[0m' : '\x1b[33msinglefiletree is off\x1b[0m');
         }
       } catch (e) {
         terminal.writeln('\x1b[31mFailed to read setting\x1b[0m');
@@ -282,6 +287,17 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive }) => {
         terminal.writeln(value === 'on' ? '\x1b[32mcompat on\x1b[0m' : '\x1b[33mcompat off\x1b[0m');
       } catch (e) {
         terminal.writeln('\x1b[31mFailed to set compat\x1b[0m');
+      }
+      return;
+    }
+
+    if (option === 'singlefiletree') {
+      try {
+        await window.api.setSetting('singlefiletree', value === 'on');
+        window.dispatchEvent(new CustomEvent('novi-singlefiletree-changed'));
+        terminal.writeln(value === 'on' ? '\x1b[32msinglefiletree on\x1b[0m' : '\x1b[33msinglefiletree off\x1b[0m');
+      } catch (e) {
+        terminal.writeln('\x1b[31mFailed to set singlefiletree\x1b[0m');
       }
     }
   };

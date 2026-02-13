@@ -888,12 +888,8 @@ void app.whenReady().then(() => {
           const pwdMatch = data.match(/__NOVA_PWD__:([^\r\n]+)/);
           if (pwdMatch) {
             const pwd = pwdMatch[1].trim();
-            // Extract directory name from full path
-            const segments = pwd.split('/').filter(Boolean);
-            const dirName = segments[segments.length - 1] || pwd;
-            
-            // Send PWD update to renderer
-            mainWindowRef.webContents.send('terminal-pwd', terminalId, dirName);
+            // Send full path to renderer (for file tree CWD and tab title)
+            mainWindowRef.webContents.send('terminal-pwd', terminalId, pwd);
             
             // Remove the PWD marker from output so it doesn't display in terminal
             data = data.replace(/__NOVA_PWD__:[^\r\n]+\r?\n?/g, '');
