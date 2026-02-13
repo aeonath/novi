@@ -23,7 +23,7 @@ Sprint 6 Task 3: Implement vi mode from Task 2 proposal using monaco-vim; contro
 - `npm run build`: success (renderer bundle includes monaco-vim).
 
 ## Git Commit Hash
-`fd64ce5` — Sprint6 Task3 Vi mode
+`8a406e4` — Sprint6 Task3 Vi mode
 
 ## Status
 ✅ Completed
