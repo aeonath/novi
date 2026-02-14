@@ -125,3 +125,17 @@ novi -c will open the novi shell tab or switch focus to it if it is already open
 
 novi with no arguments will currently not do anything but will be reserved for a future
 operation
+
+## Task 9 - Cleanup Tasks final sprint tasks
+
+1. Add a exit command to the novi shell that will exit the tab
+
+2. IN the terminal tab, auto copy any highlighted text to the clipboard
+
+3. In the vim plugin, add the ability to use q in :ex commands
+examples
+:q exits the tab
+:q! exits without saving
+:wq saves and exists the tab
+
+4. 

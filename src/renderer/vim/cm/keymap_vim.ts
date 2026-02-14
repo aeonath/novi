@@ -892,6 +892,8 @@ var defaultExCommandMap = [
   { name: "vmap", shortName: "vm" },
   { name: "unmap" },
   { name: "write", shortName: "w" },
+  { name: "quit", shortName: "q" },
+  { name: "wq", shortName: "x" },
   { name: "undo", shortName: "u" },
   { name: "redo", shortName: "red" },
   { name: "set", shortName: "se" },
@@ -6515,6 +6517,28 @@ var Vim = function () {
       } else if (cm.save) {
         // Saves to text area if no save command is defined and cm.save() is available.
         cm.save();
+      }
+    },
+    quit: function (cm, params) {
+      var force = params.argString && params.argString.indexOf("!") !== -1;
+      if (typeof (window as any).__noviVimQuit === "function") {
+        (window as any).__noviVimQuit(force);
+      }
+    },
+    wq: function (cm) {
+      var done = function () {
+        if (typeof (window as any).__noviVimQuit === "function") {
+          (window as any).__noviVimQuit(false);
+        }
+      };
+      if (CodeMirror.commands.save) {
+        CodeMirror.commands.save(cm);
+        setTimeout(done, 200);
+      } else if (cm.save) {
+        cm.save();
+        setTimeout(done, 200);
+      } else {
+        done();
       }
     },
     nohlsearch: function (cm) {

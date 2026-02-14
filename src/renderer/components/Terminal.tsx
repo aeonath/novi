@@ -20,9 +20,11 @@ export interface TerminalProps {
   onResize?: (cols: number, rows: number) => void;
   isActive?: boolean;
   onNewTerminal?: () => void;
+  /** Font size for terminal (default 14). Sprint 6 Task 9.9 */
+  fontSize?: number;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, isActive, onNewTerminal }) => {
+export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, onData, onResize, isActive, onNewTerminal, fontSize: fontSizeProp = 14 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -79,7 +81,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       // IMPORTANT: Create without padding to get raw dimensions
       const tempTerminal = new XTerm({ 
         convertEol: true,
-        fontSize: 14,
+        fontSize: fontSizeProp,
         fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
         lineHeight: 1.2,
       });
@@ -163,7 +165,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
         brightCyan: '#29b8db',
         brightWhite: '#e5e5e5',
       },
-      fontSize: 14,
+      fontSize: fontSizeProp,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
       cursorBlink: false, // No blinking
       cursorStyle: 'underline', // Changed from 'block' to 'underline'
@@ -222,6 +224,18 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       terminal.onData((data) => {
         onDataRef.current?.(data);
       });
+
+      // Auto-copy highlighted text to clipboard (Sprint 6 Task 9.2)
+      if (typeof terminal.onSelectionChange === 'function') {
+        terminal.onSelectionChange(async () => {
+          const s = terminal.getSelection();
+          if (s && (window as any).api?.clipboardWriteText) {
+            try {
+              await (window as any).api.clipboardWriteText(s);
+            } catch (_) {}
+          }
+        });
+      }
     } catch (error) {
       console.error('[Terminal] Failed to open terminal:', error);
     }
@@ -250,7 +264,20 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       resizeObserver.disconnect();
       // DO NOT dispose terminal here - it should persist
     };
-  }, [terminalId, ptyCreated, isActive]); // Keep isActive to handle focus
+  }, [terminalId, ptyCreated, isActive, fontSizeProp]); // Keep isActive to handle focus
+
+  // Update terminal font size when prop changes (Sprint 6 Task 9.9)
+  useEffect(() => {
+    if (terminalRef.current && fitAddonRef.current) {
+      terminalRef.current.options.fontSize = fontSizeProp;
+      try {
+        fitAddonRef.current.fit();
+        if (onResizeRef.current && terminalRef.current.cols && terminalRef.current.rows) {
+          onResizeRef.current(terminalRef.current.cols, terminalRef.current.rows);
+        }
+      } catch (_) {}
+    }
+  }, [fontSizeProp]);
 
   // Expose write and focus methods for incoming data and tab switching
   useEffect(() => {

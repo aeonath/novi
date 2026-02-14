@@ -4,7 +4,7 @@
  */
 
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
-import { join } from 'node:path';
+import { join, normalize } from 'node:path';
 import { readdir, stat, readFile, writeFile, mkdir, rm, rename as fsRename } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
@@ -505,12 +505,22 @@ void app.whenReady().then(() => {
     return result.filePaths[0];
   });
   
+  /** Normalize path for fs: on Windows convert MSYS (/c/...) to Windows (C:\...) and normalize slashes */
+  function normalizePathForFs(p: string): string {
+    if (process.platform === 'win32') {
+      const m = p.match(/^\/([a-zA-Z])\/(.*)$/);
+      if (m) p = m[1].toUpperCase() + ':\\' + m[2].replace(/\//g, '\\');
+    }
+    return normalize(p);
+  }
+
   ipcMain.handle('read-file', async (_e, filePath: string) => {
     try {
-      const content = await readFile(filePath, 'utf-8');
-      const stats = await stat(filePath);
+      const resolvedPath = normalizePathForFs(filePath);
+      const content = await readFile(resolvedPath, 'utf-8');
+      const stats = await stat(resolvedPath);
       return {
-        path: filePath,
+        path: resolvedPath,
         content,
         size: stats.size,
         modified: stats.mtime,

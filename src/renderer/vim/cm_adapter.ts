@@ -531,7 +531,9 @@ class CMAdapter {
     this.state[key] = value;
 
     if (key === "theme") {
-      monacoEditor.setTheme(value);
+      // Use same Monaco theme IDs as monaco-editor.ts (novi-light / novi-dark), not UI theme names like 'dark'
+      const monacoTheme = value === "light" || value === "novi-light" ? "novi-light" : "novi-dark";
+      monacoEditor.setTheme(monacoTheme);
     }
   }
 

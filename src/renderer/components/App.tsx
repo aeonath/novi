@@ -33,6 +33,8 @@ import { parseNoviCommand } from '../utils/novi-command.js';
 function toWindowsPathIfNeeded(p: string): string {
   const m = p.match(/^\/([a-zA-Z])\/(.*)$/);
   if (m) return m[1].toUpperCase() + ':\\' + m[2].replace(/\//g, '\\');
+  // Already Windows-style: ensure no mixed slashes
+  if (/^[A-Za-z]:[\\/]/.test(p)) return p.replace(/\//g, '\\');
   return p;
 }
 
@@ -57,6 +59,10 @@ const AppInner: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [isResizing, setIsResizing] = useState(false);
   
+  // Font sizes for editor and terminal (from settings)
+  const [editorFontSize, setEditorFontSize] = useState(14);
+  const [terminalFontSize, setTerminalFontSize] = useState(14);
+
   // Help menu popups
   const [showAbout, setShowAbout] = useState(false);
   const [showCheckUpdates, setShowCheckUpdates] = useState(false);
@@ -86,6 +92,8 @@ const AppInner: React.FC = () => {
   const onNoviPromptRef = useRef<(() => Promise<void>) | null>(null);
   // Track current line from PTY output; when we see a newline that line is the command we inspect for "novi ..."
   const commandLineBufferRef = useRef<Record<string, string>>({});
+  // When set, onTabClose allows closing this tab without save prompt (vim :q!)
+  const forceCloseTabIdRef = useRef<string | null>(null);
   useEffect(() => {
     terminalFileTreeRootsRef.current = terminalFileTreeRoots;
     noviPromptTabsRef.current = noviPromptTabs;
@@ -120,7 +128,7 @@ const AppInner: React.FC = () => {
             if (novi.kind === 'settings') {
               (async () => {
                 try {
-                  const vimode = await window.api?.getSetting<boolean>('vimode', true);
+                  const vimode = await window.api?.getSetting<boolean>('vimode', false);
                   const compat = await window.api?.getSetting<boolean>('compat', false);
                   const singlefiletree = await window.api?.getSetting<boolean>('singlefiletree', false);
                   const lines = ['\r\n\x1b[36mCurrent settings:\x1b[0m', `  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`, `  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`, `  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`, ''];
@@ -142,11 +150,12 @@ const AppInner: React.FC = () => {
                 void onNoviPromptRef.current?.();
               }
             } else if (novi.kind === 'open' && novi.path) {
-              const cwd = terminalFileTreeRootsRef.current[terminalId]?.cwd || '';
+              const cwd = (terminalFileTreeRootsRef.current[terminalId]?.cwd || '').replace(/[\r\n]+/g, '').trim();
               const sep = /\\/.test(cwd) ? '\\' : '/';
               const normalizedCwd = cwd.replace(/[/\\]+$/, '');
-              let fullPath = /^[/\\]|^[A-Za-z]:/.test(novi.path) ? novi.path : (normalizedCwd ? normalizedCwd + sep + novi.path.replace(/^[/\\]+/, '') : novi.path);
-              fullPath = toWindowsPathIfNeeded(fullPath);
+              const pathArg = novi.path.replace(/[\r\n]+/g, '').trim();
+              let fullPath = /^[/\\]|^[A-Za-z]:/.test(pathArg) ? pathArg : (normalizedCwd ? normalizedCwd + sep + pathArg.replace(/^[/\\]+/, '') : pathArg);
+              fullPath = toWindowsPathIfNeeded(fullPath).replace(/[\r\n]+/g, '').trim();
               if (window.api?.readFile) {
                 (async () => {
                   try {
@@ -284,6 +293,21 @@ const AppInner: React.FC = () => {
     });
     return () => {
       window.api?.terminalRemoveInitialCwdListener();
+    };
+  }, []);
+
+  // Vim :q / :q! / :wq — close current editor tab (force = skip save prompt)
+  useEffect(() => {
+    (window as any).__noviVimQuit = (force: boolean) => {
+      const tabBarAPI = (window as any).__tabBarAPI;
+      const active = tabBarAPI?.getActiveTab();
+      if (active && active.type === 'file') {
+        if (force) forceCloseTabIdRef.current = active.id;
+        void tabBarAPI.closeTab(active.id);
+      }
+    };
+    return () => {
+      delete (window as any).__noviVimQuit;
     };
   }, []);
 
@@ -620,6 +644,22 @@ const AppInner: React.FC = () => {
 
     loadWorkspace();
   }, []); // Only run on mount
+
+  // Load font sizes from settings
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ef = await window.api?.getSetting<number>('fontSize', 14);
+        const tf = await window.api?.getSetting<number>('terminalFontSize', 14);
+        if (!cancelled) {
+          setEditorFontSize(ef ?? 14);
+          setTerminalFontSize(tf ?? 14);
+        }
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Menu command listener
   useEffect(() => {
@@ -1328,10 +1368,37 @@ const AppInner: React.FC = () => {
         break;
       case 'increase-font-size':
       case 'decrease-font-size':
-      case 'reset-font-size':
-        // TODO: Implement font size controls
-        console.log('[App] Font size control not yet implemented');
+      case 'reset-font-size': {
+        if (activeTab?.type === 'novi-prompt') break;
+        const tabBarAPI = (window as any).__tabBarAPI;
+        const current = tabBarAPI?.getActiveTab();
+        if (current?.type === 'file') {
+          const step = 2;
+          const min = 10;
+          const max = 24;
+          let next = editorFontSize;
+          if (command === 'increase-font-size') next = Math.min(max, editorFontSize + step);
+          else if (command === 'decrease-font-size') next = Math.max(min, editorFontSize - step);
+          else if (command === 'reset-font-size') next = 14;
+          if (next !== editorFontSize) {
+            setEditorFontSize(next);
+            window.api?.setSetting?.('fontSize', next);
+          }
+        } else if (current?.type === 'terminal') {
+          const step = 2;
+          const min = 10;
+          const max = 24;
+          let next = terminalFontSize;
+          if (command === 'increase-font-size') next = Math.min(max, terminalFontSize + step);
+          else if (command === 'decrease-font-size') next = Math.max(min, terminalFontSize - step);
+          else if (command === 'reset-font-size') next = 14;
+          if (next !== terminalFontSize) {
+            setTerminalFontSize(next);
+            window.api?.setSetting?.('terminalFontSize', next);
+          }
+        }
         break;
+      }
       case 'theme-light':
       case 'theme-dark':
       case 'theme-system':
@@ -1658,7 +1725,7 @@ const AppInner: React.FC = () => {
 
   return (
       <div className="novi-layout" style={styles.layout}>
-        <TitleBar onCommand={handleMenuCommand} />
+        <TitleBar onCommand={handleMenuCommand} activeTabType={activeTab?.type} />
         
         <div style={styles.mainContent}>
           <aside style={{ ...styles.sidebar, width: `${sidebarWidth}px`, flexShrink: 0 }}>
@@ -1867,6 +1934,10 @@ const AppInner: React.FC = () => {
                 }
               }}
               onTabClose={async (tabId: string) => {
+                if (forceCloseTabIdRef.current === tabId) {
+                  forceCloseTabIdRef.current = null;
+                  return true;
+                }
                 // Get the tab to check its type
                 if ((window as any).__tabBarAPI) {
                   const tabs = (window as any).__tabBarAPI.getTabs();
@@ -1950,6 +2021,7 @@ const AppInner: React.FC = () => {
                       onData={terminalOnData}
                       onResize={terminalOnResize}
                       onNewTerminal={actionContext.onNewTerminal}
+                      fontSize={terminalFontSize}
                     />
                   </div>
                 );
@@ -1987,6 +2059,7 @@ const AppInner: React.FC = () => {
                 overflow: 'hidden',
               }}>
                 <MonacoEditor 
+                  fontSize={editorFontSize}
                   onDirtyChange={(isDirty) => {
                     // Update the active tab's dirty state
                     if (activeTab && activeTab.type === 'file') {
@@ -2046,7 +2119,7 @@ const AppInner: React.FC = () => {
           </main>
         </div>
         
-        <StatusBar fileTreePath={fileTreeReportedRoot} />
+        <StatusBar fileTreePath={fileTreeReportedRoot} onHomeClick={() => setShowWelcome(true)} />
         
         {/* Modal components */}
         <ActionHUD actions={actions} />

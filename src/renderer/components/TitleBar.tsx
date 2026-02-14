@@ -21,9 +21,11 @@ interface MenuItem {
 export interface TitleBarProps {
   title?: string;
   onCommand?: (command: string) => void;
+  /** When 'novi-prompt', View > Increase/Decrease/Reset Font Size are disabled (Sprint 6 Task 9.9). */
+  activeTabType?: string | null;
 }
 
-export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCommand }) => {
+export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCommand, activeTabType }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [activeButton, setActiveButton] = useState<string | null>(null);
@@ -186,12 +188,15 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCom
     }
   }, [openMenu]);
 
+  const fontCommands = ['increase-font-size', 'decrease-font-size', 'reset-font-size'];
   const renderMenuItem = (item: MenuItem, index: number) => {
     if (item.separator) {
       return <div key={`sep-${index}`} style={styles.separator} />;
     }
 
-    const disabled = item.disabled === true;
+    const disabled =
+      item.disabled === true ||
+      (activeTabType === 'novi-prompt' && item.command && fontCommands.includes(item.command));
     return (
       <div
         key={index}

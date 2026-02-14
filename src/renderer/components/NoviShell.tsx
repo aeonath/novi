@@ -208,6 +208,9 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
           terminal.clear();
           break;
 
+        case 'exit':
+          onClose?.();
+          return;
         case 'set':
           await commandSet(terminal, args);
           break;
@@ -229,7 +232,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
   const commandSet = async (terminal: XTerm, args: string[]) => {
     if (args.length === 0) {
       try {
-        const vimode = await window.api.getSetting<boolean>('vimode', true);
+        const vimode = await window.api.getSetting<boolean>('vimode', false);
         const compat = await window.api.getSetting<boolean>('compat', false);
         const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
         terminal.writeln('\x1b[36mCurrent settings:\x1b[0m');
@@ -253,7 +256,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
     if (value === undefined || value === '') {
       try {
         if (option === 'vimode') {
-          const on = await window.api.getSetting<boolean>('vimode', true);
+          const on = await window.api.getSetting<boolean>('vimode', false);
           terminal.writeln(on ? '\x1b[32mvimode is on\x1b[0m' : '\x1b[33mvimode is off\x1b[0m');
         } else if (option === 'compat') {
           const on = await window.api.getSetting<boolean>('compat', false);
@@ -311,6 +314,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
     terminal.writeln('  \x1b[33mversion\x1b[0m      - Display Novi version information');
     terminal.writeln('  \x1b[33mlist\x1b[0m         - List all open tabs');
     terminal.writeln('  \x1b[33mclear\x1b[0m        - Clear the screen');
+    terminal.writeln('  \x1b[33mexit\x1b[0m         - Close this Novi Shell tab');
     terminal.writeln('  \x1b[33mset\x1b[0m          - Set options (e.g. set vimode on|off); set with no args shows all');
     terminal.writeln('  \x1b[33mhelp\x1b[0m         - Show this help message');
     terminal.writeln('');
@@ -427,7 +431,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
   }, []);
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} onContextMenu={handleContextMenu}>
       <div
         ref={containerRef}
         style={styles.terminal}

@@ -305,6 +305,22 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
         }
       });
 
+      // Update status bar with line, column, and line count (Sprint 6 Task 9.7)
+      const updateStatusBarPosition = () => {
+        const editor = editorRef.current;
+        const api = (window as any).__statusBarAPI;
+        if (!editor || !api?.addItem) return;
+        const pos = editor.getPosition();
+        const model = editor.getModel();
+        const lineCount = model?.getLineCount() ?? 0;
+        if (pos) {
+          const text = `Ln ${pos.lineNumber}, Col ${pos.column} (${lineCount} lines)`;
+          api.addItem({ id: 'editor-position', text, section: 'right' }, 'right');
+        }
+      };
+      updateStatusBarPosition();
+      const posDisposable = editorRef.current.onDidChangeCursorPosition(updateStatusBarPosition);
+
       // Set up keyboard shortcuts for Find and Replace
       const handleKeyDown = (e: KeyboardEvent) => {
         // Ctrl+F for Find
@@ -324,7 +340,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
       // Initialize vim mode from setting (default on) and register :w to save to disk
       (async () => {
         try {
-          const on = await window.api.getSetting<boolean>('vimode', true);
+          const on = await window.api.getSetting<boolean>('vimode', false);
           if (on && editorRef.current && vimStatusBarRef.current) {
             console.log('[MonacoEditor] Initializing vim mode...');
             const mod = await import('../vim/index.js');
@@ -391,6 +407,8 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>((p
           } catch (_) {}
           vimAdapterRef.current = null;
         }
+        posDisposable?.dispose();
+        (window as any).__statusBarAPI?.removeItem?.('editor-position');
         disposable?.dispose();
         editorServiceRef.current?.dispose();
         editorRef.current?.dispose();

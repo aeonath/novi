@@ -21,9 +21,11 @@ type StatusBarSection = 'left' | 'center' | 'right';
 export interface StatusBarProps {
   /** Absolute path of current file tree root; empty after reset workspace. */
   fileTreePath?: string | null;
+  /** Called when the home button is clicked (show home screen). */
+  onHomeClick?: () => void;
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({ fileTreePath }) => {
+export const StatusBar: React.FC<StatusBarProps> = ({ fileTreePath, onHomeClick }) => {
   const [items, setItems] = useState<Map<string, { item: StatusBarItem; section: StatusBarSection }>>(
     new Map([['main-status', { item: { id: 'main-status', text: 'Ready', priority: 100 }, section: 'center' }]])
   );
@@ -102,10 +104,21 @@ export const StatusBar: React.FC<StatusBarProps> = ({ fileTreePath }) => {
         ))}
       </div>
 
-      <div style={{ ...styles.section, justifyContent: 'flex-end' }}>
+      <div style={{ ...styles.section, justifyContent: 'flex-end', gap: '8px' }}>
         {itemsBySection.right.map((item) => (
           <StatusBarItemComponent key={item.id} item={item} />
         ))}
+        {onHomeClick && (
+          <button
+            type="button"
+            onClick={onHomeClick}
+            title="Show home screen"
+            style={styles.homeButton}
+            aria-label="Home"
+          >
+            ⌂
+          </button>
+        )}
       </div>
     </div>
   );
@@ -160,6 +173,16 @@ const styles = {
     cursor: 'default',
     whiteSpace: 'nowrap' as const,
     transition: 'background-color 0.15s ease',
+  },
+  homeButton: {
+    padding: '2px 8px',
+    fontSize: '14px',
+    lineHeight: 1,
+    background: 'transparent',
+    border: 'none',
+    color: '#ffffff',
+    cursor: 'pointer',
+    borderRadius: '2px',
   },
 };
 
