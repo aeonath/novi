@@ -119,7 +119,7 @@ const AppInner: React.FC = () => {
         const newlineLen = buf[terminalId].slice(firstNewline).match(/^\r\n|\r|\n/)?.[0]?.length ?? 1;
         let line = buf[terminalId].slice(0, firstNewline).trim().replace(/\r$/, '');
         buf[terminalId] = buf[terminalId].slice(firstNewline + newlineLen);
-        // Line may include shell prompt (e.g. "user@host path novi README.md"); extract the novi command
+        // Line may have leading whitespace or prompt (e.g. "$        novi        filename.md"); extract from first "novi"
         const noviIdx = line.indexOf('novi');
         if (noviIdx >= 0) {
           const fromNovi = line.slice(noviIdx).trim();

@@ -14,23 +14,24 @@ export type NoviCommandResult =
   | { handled: true; kind: 'open'; path: string };
 
 /**
- * Parse a trimmed terminal line for the "novi" command.
- * Used to intercept "novi myfile.py", "novi -s", "novi -c", and "novi" (no args).
+ * Parse a terminal line for the "novi" command.
+ * Allows leading/trailing whitespace (e.g. "   novi   filename.md" or "$        novi        file.md").
  */
 export function parseNoviCommand(trimmed: string): NoviCommandResult {
-  if (trimmed !== 'novi' && !trimmed.startsWith('novi ')) {
+  const s = trimmed.trim();
+  if (s !== 'novi' && !s.startsWith('novi ')) {
     return { handled: false };
   }
-  if (trimmed === 'novi') {
+  if (s === 'novi') {
     return { handled: true, kind: 'none' };
   }
-  if (trimmed === 'novi -s') {
+  if (s === 'novi -s') {
     return { handled: true, kind: 'settings' };
   }
-  if (trimmed === 'novi -c') {
+  if (s === 'novi -c') {
     return { handled: true, kind: 'shell' };
   }
-  const arg = trimmed.slice(4).trim();
+  const arg = s.slice(4).trim();
   if (arg && arg !== '-s' && arg !== '-c') {
     return { handled: true, kind: 'open', path: arg };
   }

@@ -31,6 +31,12 @@ describe('parseNoviCommand', () => {
     expect(parseNoviCommand('novi  foo.txt')).toEqual({ handled: true, kind: 'open', path: 'foo.txt' });
   });
 
+  it('allows leading and trailing whitespace (e.g. "$        novi        filename.md")', () => {
+    expect(parseNoviCommand('   novi   filename.md')).toEqual({ handled: true, kind: 'open', path: 'filename.md' });
+    expect(parseNoviCommand('  novi -s  ')).toEqual({ handled: true, kind: 'settings' });
+    expect(parseNoviCommand('  novi  ')).toEqual({ handled: true, kind: 'none' });
+  });
+
   it('does not treat -s or -c as path when they are the only arg', () => {
     expect(parseNoviCommand('novi -s')).toEqual({ handled: true, kind: 'settings' });
     expect(parseNoviCommand('novi -c')).toEqual({ handled: true, kind: 'shell' });
