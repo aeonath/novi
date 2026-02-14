@@ -120,13 +120,9 @@ const AppInner: React.FC = () => {
         const newlineLen = buf[terminalId].slice(firstNewline).match(/^\r\n|\r|\n/)?.[0]?.length ?? 1;
         let line = buf[terminalId].slice(0, firstNewline).trim().replace(/\r$/, '');
         buf[terminalId] = buf[terminalId].slice(firstNewline + newlineLen);
-        // Line may have leading whitespace or prompt (e.g. "$        novi        filename.md"); extract from first "novi"
-        const noviIdx = line.indexOf('novi');
-        if (noviIdx >= 0) {
-          const fromNovi = line.slice(noviIdx).trim();
-          if (fromNovi === 'novi' || fromNovi.startsWith('novi ')) line = fromNovi;
-        }
-        const novi = parseNoviCommand(line);
+        // Only recognize lines that begin with #novi (optional leading ws) so "echo #novi" does not trigger (Sprint 7 Task 1)
+        const trimmedLine = line.trim();
+        const novi = trimmedLine.startsWith('#novi') ? parseNoviCommand(trimmedLine) : { handled: false as const };
           if (novi.handled) {
             if (novi.kind === 'settings') {
               (async () => {

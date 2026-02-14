@@ -4,7 +4,8 @@
  */
 
 /**
- * Result of parsing a terminal line for the "novi" command (Task 8).
+ * Result of parsing a terminal line for the "#novi" command (Sprint 7 Task 1).
+ * Command must begin with #novi (optional leading whitespace) so the shell ignores it; e.g. echo #novi must not trigger.
  */
 export type NoviCommandResult =
   | { handled: false }
@@ -14,24 +15,25 @@ export type NoviCommandResult =
   | { handled: true; kind: 'open'; path: string };
 
 /**
- * Parse a terminal line for the "novi" command.
- * Allows leading/trailing whitespace (e.g. "   novi   filename.md" or "$        novi        file.md").
+ * Parse a terminal line for the "#novi" command.
+ * Only matches lines that begin with optional whitespace then #novi (^\s*#novi).
+ * Allows leading/trailing whitespace (e.g. "   #novi   filename.md").
  */
 export function parseNoviCommand(trimmed: string): NoviCommandResult {
   const s = trimmed.trim();
-  if (s !== 'novi' && !s.startsWith('novi ')) {
+  if (s !== '#novi' && !s.startsWith('#novi ')) {
     return { handled: false };
   }
-  if (s === 'novi') {
+  if (s === '#novi') {
     return { handled: true, kind: 'none' };
   }
-  if (s === 'novi -s') {
+  if (s === '#novi -s') {
     return { handled: true, kind: 'settings' };
   }
-  if (s === 'novi -c') {
+  if (s === '#novi -c') {
     return { handled: true, kind: 'shell' };
   }
-  const arg = s.slice(4).trim();
+  const arg = s.slice(5).trim(); // '#novi'.length === 5
   if (arg && arg !== '-s' && arg !== '-c') {
     return { handled: true, kind: 'open', path: arg };
   }
