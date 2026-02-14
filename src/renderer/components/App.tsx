@@ -73,57 +73,105 @@ const AppInner: React.FC = () => {
   const [fileTabToTreeRoot, setFileTabToTreeRoot] = useState<Record<string, string>>({});
   const [fileTreeReportedRoot, setFileTreeReportedRoot] = useState<string | null>(null);
 
-  // Refs for novi command handling (Task 8) — so handleTerminalData sees latest state without changing callback identity
-  const terminalLineBufferRef = useRef<Record<string, string>>({});
+  // Refs for novi command handling (Task 8) — inspect command from PTY output after Enter, don't buffer input
   const terminalFileTreeRootsRef = useRef(terminalFileTreeRoots);
   const noviPromptTabsRef = useRef(noviPromptTabs);
   const onNoviPromptRef = useRef<(() => Promise<void>) | null>(null);
-  // When we send a non-novi line we echo it locally; filter the PTY echo so it isn't drawn twice (chunked match).
-  const ptyEchoFilterRef = useRef<{ terminalId: string; remaining: string } | null>(null);
-  // After sending Tab we add the next PTY output (completion) to the line buffer so Enter sends the completed line.
-  const afterTabRef = useRef<string | null>(null);
+  // Track current line from PTY output; when we see a newline that line is the command we inspect for "novi ..."
+  const commandLineBufferRef = useRef<Record<string, string>>({});
   useEffect(() => {
     terminalFileTreeRootsRef.current = terminalFileTreeRoots;
     noviPromptTabsRef.current = noviPromptTabs;
   }, [terminalFileTreeRoots, noviPromptTabs]);
 
-  // Set up global terminal data listener (PTY output -> display; filter our echoed line so it isn't drawn twice)
+  // Set up global terminal data listener (PTY output -> display; inspect first line after Enter for novi)
   useEffect(() => {
     if (!window.api?.terminalOnData || !window.api?.terminalRemoveDataListener) {
       console.warn('[App] Terminal API not available');
       return;
     }
 
-    console.log('[App] Setting up terminal data listener');
-    
     window.api.terminalRemoveDataListener();
-    
+
     window.api.terminalOnData((terminalId: string, data: string) => {
-      const filter = ptyEchoFilterRef.current;
-      if (filter && filter.terminalId === terminalId && filter.remaining.length > 0) {
-        if (data === filter.remaining.slice(0, data.length)) {
-          filter.remaining = filter.remaining.slice(data.length);
-          if (filter.remaining.length === 0) ptyEchoFilterRef.current = null;
-          return;
+      const buf = commandLineBufferRef.current;
+      if (!buf[terminalId]) buf[terminalId] = '';
+      buf[terminalId] += data;
+      while (/\r|\n/.test(buf[terminalId])) {
+        const firstNewline = buf[terminalId].search(/\r|\n/);
+        const newlineLen = buf[terminalId].slice(firstNewline).match(/^\r\n|\r|\n/)?.[0]?.length ?? 1;
+        let line = buf[terminalId].slice(0, firstNewline).trim().replace(/\r$/, '');
+        buf[terminalId] = buf[terminalId].slice(firstNewline + newlineLen);
+        // Line may include shell prompt (e.g. "user@host path novi README.md"); extract the novi command
+        const noviIdx = line.indexOf('novi');
+        if (noviIdx >= 0) {
+          const fromNovi = line.slice(noviIdx).trim();
+          if (fromNovi === 'novi' || fromNovi.startsWith('novi ')) line = fromNovi;
         }
-        if (data.length >= filter.remaining.length && data.startsWith(filter.remaining)) {
-          data = data.slice(filter.remaining.length);
-          ptyEchoFilterRef.current = null;
-        } else {
-          ptyEchoFilterRef.current = null;
-        }
-      }
-      if (data.length === 0) return;
-      if (afterTabRef.current === terminalId) {
-        const buf = terminalLineBufferRef.current;
-        if (!buf[terminalId]) buf[terminalId] = '';
-        buf[terminalId] += data;
-        afterTabRef.current = null;
+        const novi = parseNoviCommand(line);
+          if (novi.handled) {
+            if (novi.kind === 'settings') {
+              (async () => {
+                try {
+                  const vimode = await window.api?.getSetting<boolean>('vimode', true);
+                  const compat = await window.api?.getSetting<boolean>('compat', false);
+                  const singlefiletree = await window.api?.getSetting<boolean>('singlefiletree', false);
+                  const lines = ['\r\n\x1b[36mCurrent settings:\x1b[0m', `  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`, `  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`, `  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`, ''];
+                  const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+                  if (terminalAPI?.write) lines.forEach((l) => terminalAPI.write(l + '\r\n'));
+                } catch (_e) {
+                  const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+                  if (terminalAPI?.write) terminalAPI.write('\r\n\x1b[31mFailed to read settings\x1b[0m\r\n');
+                }
+              })();
+            } else if (novi.kind === 'shell') {
+              const prompts = noviPromptTabsRef.current;
+              if (prompts.length > 0) {
+                setActiveTab({ id: prompts[0].id, type: 'novi-prompt', filePath: prompts[0].id });
+                const tabBarAPI = (window as any).__tabBarAPI;
+                if (tabBarAPI) tabBarAPI.setActiveTab(prompts[0].id);
+                setShowWelcome(false);
+              } else {
+                void onNoviPromptRef.current?.();
+              }
+            } else if (novi.kind === 'open' && novi.path) {
+              const cwd = terminalFileTreeRootsRef.current[terminalId]?.cwd || '';
+              const sep = /\\/.test(cwd) ? '\\' : '/';
+              const normalizedCwd = cwd.replace(/[/\\]+$/, '');
+              const fullPath = /^[/\\]|^[A-Za-z]:/.test(novi.path) ? novi.path : (normalizedCwd ? normalizedCwd + sep + novi.path.replace(/^[/\\]+/, '') : novi.path);
+              if (window.api?.readFile) {
+                (async () => {
+                  try {
+                    setShowWelcome(false);
+                    if (isImageFile(fullPath)) {
+                      const tabBarAPI = (window as any).__tabBarAPI;
+                      if (tabBarAPI) {
+                        const tabId = `tab-${Date.now()}`;
+                        tabBarAPI.addTab({ id: tabId, type: 'image', filePath: fullPath, fileName: fullPath.split(/[\\/]/).pop() || 'untitled', isDirty: false, content: '' });
+                        setActiveTab({ id: tabId, type: 'image' });
+                      }
+                    } else {
+                      const fileData = await window.api.readFile(fullPath);
+                      if ((window as any).__monacoEditorAPI) (window as any).__monacoEditorAPI.loadFile(fullPath, fileData.content);
+                      const tabBarAPI = (window as any).__tabBarAPI;
+                      if (tabBarAPI) {
+                        const tabId = `tab-${Date.now()}`;
+                        tabBarAPI.addTab({ id: tabId, type: 'file', filePath: fullPath, fileName: fullPath.split(/[\\/]/).pop() || 'untitled', isDirty: false, content: fileData.content });
+                        setActiveTab({ id: tabId, type: 'file' });
+                      }
+                    }
+                    if ((window as any).__statusBarAPI) (window as any).__statusBarAPI.setStatus(`Editing: ${fullPath.split(/[\\/]/).pop()}`);
+                  } catch (err) {
+                    const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+                    if (terminalAPI?.write) terminalAPI.write(`\r\n\x1b[31mnovi: ${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n`);
+                  }
+                })();
+              }
+            }
+          }
       }
       const terminalAPI = (window as any).__terminalAPI?.[terminalId];
-      if (terminalAPI?.write) {
-        terminalAPI.write(data);
-      }
+      if (terminalAPI?.write) terminalAPI.write(data);
     });
 
     return () => {
@@ -1546,123 +1594,12 @@ const AppInner: React.FC = () => {
   // CRITICAL: These callbacks were being recreated inline on every render,
   // causing Terminal component's useEffect dependencies to change,
   // triggering refits and redraws every 5-10 seconds
-  // Task 8: Intercept "novi" commands on terminal (novi <file>, novi -s, novi -c); buffer input by line.
-  // Echo input so the user sees what they type. Filter PTY echo for the line we send to avoid double display.
-  // Tab: forward to PTY immediately so completion works; don't add to buffer so we don't send "\t" on Enter.
+  // Task 8: Forward all input to the PTY (Ctrl+C, Tab, etc. work). After Enter we inspect PTY output for "novi ...".
   const handleTerminalData = useCallback(async (terminalId: string, data: string) => {
-    if (data === '\t') {
-      afterTabRef.current = terminalId;
-      if (window.api?.terminalWrite) await window.api.terminalWrite(terminalId, '\t');
-      return;
+    if (window.api?.terminalWrite) {
+      await window.api.terminalWrite(terminalId, data);
     }
-
-    const terminalAPI = (window as any).__terminalAPI?.[terminalId];
-    if (terminalAPI?.write) terminalAPI.write(data);
-
-    const buffer = terminalLineBufferRef.current;
-    if (!buffer[terminalId]) buffer[terminalId] = '';
-    buffer[terminalId] += data;
-
-    if (!/\r|\n/.test(data)) return;
-
-    while (/\r|\n/.test(buffer[terminalId])) {
-      const lineEnd = buffer[terminalId].search(/\r|\n/);
-      const newlineMatch = buffer[terminalId].slice(lineEnd).match(/^\r\n|\r|\n/);
-      const newlineLen = newlineMatch?.[0]?.length ?? 1;
-      const line = buffer[terminalId].slice(0, lineEnd).trim();
-      const toSend = buffer[terminalId].slice(0, lineEnd + newlineLen);
-      buffer[terminalId] = buffer[terminalId].slice(lineEnd + newlineLen);
-
-      const trimmed = line.trim();
-      const novi = parseNoviCommand(trimmed);
-
-      if (novi.handled && window.api?.terminalWrite) {
-        if (novi.kind === 'none') {
-          await window.api.terminalWrite(terminalId, '\r\n');
-          continue;
-        }
-        if (novi.kind === 'settings') {
-          try {
-            const vimode = await window.api.getSetting<boolean>('vimode', true);
-            const compat = await window.api.getSetting<boolean>('compat', false);
-            const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
-            const lines = [
-              '\r\n\x1b[36mCurrent settings:\x1b[0m',
-              `  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`,
-              `  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`,
-              `  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`,
-              '',
-            ];
-            const terminalAPI = (window as any).__terminalAPI?.[terminalId];
-            if (terminalAPI?.write) {
-              lines.forEach((l) => terminalAPI.write(l + '\r\n'));
-            }
-          } catch (_e) {
-            const terminalAPI = (window as any).__terminalAPI?.[terminalId];
-            if (terminalAPI?.write) terminalAPI.write('\r\n\x1b[31mFailed to read settings\x1b[0m\r\n');
-          }
-          await window.api.terminalWrite(terminalId, '\r\n');
-          continue;
-        }
-        if (novi.kind === 'shell') {
-          const prompts = noviPromptTabsRef.current;
-          if (prompts.length > 0) {
-            setActiveTab({ id: prompts[0].id, type: 'novi-prompt', filePath: prompts[0].id });
-            const tabBarAPI = (window as any).__tabBarAPI;
-            if (tabBarAPI) tabBarAPI.setActiveTab(prompts[0].id);
-            setShowWelcome(false);
-          } else {
-            void onNoviPromptRef.current?.();
-          }
-          await window.api.terminalWrite(terminalId, '\r\n');
-          continue;
-        }
-        if (novi.kind === 'open' && novi.path) {
-          const arg = novi.path;
-          const cwd = terminalFileTreeRootsRef.current[terminalId]?.cwd || '';
-          const sep = /\\/.test(cwd) ? '\\' : '/';
-          const normalizedCwd = cwd.replace(/[/\\]+$/, '');
-          const fullPath = /^[/\\]|^[A-Za-z]:/.test(arg) ? arg : (normalizedCwd ? normalizedCwd + sep + arg.replace(/^[/\\]+/, '') : arg);
-          if (window.api?.readFile) {
-            try {
-              setShowWelcome(false);
-              if (isImageFile(fullPath)) {
-                const tabBarAPI = (window as any).__tabBarAPI;
-                if (tabBarAPI) {
-                  const fileName = fullPath.split(/[\\/]/).pop() || 'untitled';
-                  const tabId = `tab-${Date.now()}`;
-                  tabBarAPI.addTab({ id: tabId, type: 'image', filePath: fullPath, fileName, isDirty: false, content: '' });
-                  setActiveTab({ id: tabId, type: 'image' });
-                }
-                if ((window as any).__statusBarAPI) (window as any).__statusBarAPI.setStatus(`Viewing: ${fullPath.split(/[\\/]/).pop()}`);
-              } else {
-                const fileData = await window.api.readFile(fullPath);
-                if ((window as any).__monacoEditorAPI) (window as any).__monacoEditorAPI.loadFile(fullPath, fileData.content);
-                const tabBarAPI = (window as any).__tabBarAPI;
-                if (tabBarAPI) {
-                  const fileName = fullPath.split(/[\\/]/).pop() || 'untitled';
-                  const tabId = `tab-${Date.now()}`;
-                  tabBarAPI.addTab({ id: tabId, type: 'file', filePath: fullPath, fileName, isDirty: false, content: fileData.content });
-                  setActiveTab({ id: tabId, type: 'file' });
-                }
-                if ((window as any).__statusBarAPI) (window as any).__statusBarAPI.setStatus(`Editing: ${fullPath.split(/[\\/]/).pop()}`);
-              }
-            } catch (err) {
-              const terminalAPI = (window as any).__terminalAPI?.[terminalId];
-              if (terminalAPI?.write) terminalAPI.write(`\r\n\x1b[31mnovi: ${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n`);
-            }
-          }
-          await window.api.terminalWrite(terminalId, '\r\n');
-          continue;
-        }
-      }
-
-      if (window.api?.terminalWrite) {
-        ptyEchoFilterRef.current = { terminalId, remaining: toSend };
-        await window.api.terminalWrite(terminalId, toSend);
-      }
-    }
-  }, [setActiveTab, setShowWelcome]);
+  }, []);
 
   const handleTerminalResize = useCallback(async (terminalId: string, cols: number, rows: number) => {
     console.log(`[App] Terminal ${terminalId} resize: ${cols}x${rows}`);

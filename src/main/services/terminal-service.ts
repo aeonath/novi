@@ -10,7 +10,18 @@
 
 import * as pty from '@lydell/node-pty';
 import { existsSync } from 'node:fs';
+import { delimiter as pathDelimiter } from 'node:path';
 import { logInfo, logError } from '../logger';
+
+export interface CreateSessionOptions {
+  /** Prepend this directory to PATH (e.g. for novi stub) */
+  pathPrepend?: string;
+}
+
+/** Convert Windows path to Git Bash (MSYS) Unix-style so PATH is found correctly (e.g. C:\Users\... -> /c/Users/...) */
+function toMsysPath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, d) => '/' + d.toLowerCase());
+}
 
 export interface TerminalSession {
   id: string;
@@ -55,33 +66,37 @@ class TerminalService {
   /**
    * Create a new terminal session with PTY
    */
-  createSession(cwd?: string, cols = 120, rows = 30, customId?: string): string {
+  createSession(cwd?: string, cols = 120, rows = 30, customId?: string, options?: CreateSessionOptions): string {
     const id = customId || `terminal-${this.nextId++}`;
     const shellPath = this.getBashPath();
     const cwdPath = cwd || process.cwd();
 
+    const baseEnv = { ...process.env };
+    const pathPrepend = options?.pathPrepend;
+    let promptCommand = 'echo "__NOVA_PWD__:$(pwd)"';
+    if (pathPrepend) {
+      const prepend = process.platform === 'win32' ? toMsysPath(pathPrepend) : pathPrepend;
+      baseEnv.PATH = prepend + pathDelimiter + (baseEnv.PATH || '');
+      // Re-apply stub path at each prompt so it survives login profile overwriting PATH (Git Bash --login)
+      promptCommand = `export PATH="${prepend}:$PATH"; ${promptCommand}`;
+    }
+
     logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}, dimensions: ${cols}x${rows}`);
 
-    // Spawn PTY process with explicit dimensions
-    // The cols/rows parameters are what matter - they set the PTY size
-    // which the shell reads via ioctl() to determine terminal width
     const ptyProcess = pty.spawn(shellPath, ['--login', '-i'], {
       name: 'xterm-256color',
       cols,
       rows,
       cwd: cwdPath,
       env: {
-        ...process.env,
+        ...baseEnv,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
-        // Force UTF-8 for Git Bash (C.UTF-8 is more portable than en_US.UTF-8)
         LANG: 'C.UTF-8',
         LC_ALL: 'C.UTF-8',
         LC_CTYPE: 'C.UTF-8',
         LESSCHARSET: 'utf-8',
-        // Add PROMPT_COMMAND to print PWD after every command
-        // Format: __NOVA_PWD__:/path/to/dir
-        PROMPT_COMMAND: 'echo "__NOVA_PWD__:$(pwd)"',
+        PROMPT_COMMAND: promptCommand,
       },
     });
 

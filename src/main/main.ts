@@ -15,6 +15,7 @@ import { gitService } from './services/git-service';
 import { gitWatcher } from './services/git-watcher';
 import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
+import { ensureNoviStubDir } from './novi-stub';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
@@ -881,7 +882,8 @@ void app.whenReady().then(() => {
   ipcMain.handle('terminal-create', async (_e, cwd?: string, cols = 80, rows = 24, customId?: string) => {
     try {
       const cwdPath = cwd || process.cwd();
-      const terminalId = terminalService.createSession(cwd, cols, rows, customId);
+      const noviBinPath = ensureNoviStubDir(app.getPath('userData'));
+      const terminalId = terminalService.createSession(cwd, cols, rows, customId, { pathPrepend: noviBinPath });
       const session = terminalService.getSession(terminalId);
       
       if (!session || !mainWindowRef) {
