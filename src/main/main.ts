@@ -5,6 +5,7 @@
 
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join, normalize } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { readdir, stat, readFile, writeFile, mkdir, rm, rename as fsRename } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
@@ -23,6 +24,18 @@ import { commandStatsService } from './services/command-stats-service';
 import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
 
 let mainWindowRef: BrowserWindow | null = null;
+
+/** App version from this project's package.json (not Electron/parent package). */
+function getAppVersion(): string {
+  try {
+    const pkgPath = join(__dirname, '..', '..', 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: string };
+    if (typeof pkg.version === 'string') return pkg.version;
+  } catch {
+    // ignore
+  }
+  return '0.6.9';
+}
 
 // Set NODE_ENV for development (not used for branching, kept for future use)
 process.env.NODE_ENV ??= 'development';
@@ -152,8 +165,8 @@ void app.whenReady().then(() => {
   // Clean up old recovery files (older than 7 days)
   void cleanupOldRecoveryFiles();
   
-  // IPC handler for app version
-  ipcMain.handle('get-version', () => app.getVersion());
+  // IPC handler for app version (read from this app's package.json, not Electron's app.getVersion())
+  ipcMain.handle('get-version', () => getAppVersion());
 
   // IPC handler for command-line args
   ipcMain.handle('get-command-line-args', () => process.argv);

@@ -29,7 +29,7 @@ User requested: bump version to 0.6.9, commit, write changelog; ensure the versi
 - App version is 0.6.9. Help > About and Novi Shell (welcome + `version` command) all show 0.6.9 and will track future package.json version bumps.
 
 ## Git Commit Hash
-`2dffe7d` — Bump version to 0.6.9; Help and Novi Shell use getVersion() from package.json
+`3ca661c` — Bump version to 0.6.9; Help and Novi Shell use getVersion() from package.json
 
 ## Status
 ✅ Completed
