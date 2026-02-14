@@ -26,6 +26,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const handleCopyRef = useRef<() => Promise<void>>(async () => {});
   const handlePasteRef = useRef<() => Promise<void>>(async () => {});
+  const appVersionRef = useRef<string>('0.6.9');
 
   // Initialize xterm when component mounts
   useEffect(() => {
@@ -33,7 +34,13 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
       return;
     }
 
+    let cancelled = false;
     console.log(`[NoviShell] Initializing for: ${promptId}`);
+
+    (async () => {
+      const v = await window.api?.getVersion?.().catch(() => '0.6.9') ?? '0.6.9';
+      if (cancelled) return;
+      appVersionRef.current = v;
 
     const terminal = new XTerm({
       cursorBlink: true,
@@ -76,8 +83,8 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
 
-      // Display welcome message and prompt
-      terminal.writeln('Novi Shell v0.6.6-dev');
+      // Display welcome message and prompt (version from package.json via getVersion)
+      terminal.writeln(`Novi Shell v${v}`);
       terminal.writeln('Type "help" for available commands');
       terminal.writeln('');
       writePrompt(terminal);
@@ -91,6 +98,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
     } catch (error) {
       console.error('[NoviShell] Failed to initialize:', error);
     }
+    })();
 
     // Handle window resize
     const handleResize = () => {
@@ -107,6 +115,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
 
     // Cleanup
     return () => {
+      cancelled = true;
       window.removeEventListener('resize', handleResize);
       if (terminalRef.current) {
         terminalRef.current.dispose();
@@ -324,7 +333,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
   };
 
   const commandVersion = (terminal: XTerm) => {
-    terminal.writeln('Novi Editor v0.6.6-dev');
+    terminal.writeln(`Novi Editor v${appVersionRef.current}`);
     terminal.writeln('');
     terminal.writeln('© 2026 MiraNova Studios');
   };

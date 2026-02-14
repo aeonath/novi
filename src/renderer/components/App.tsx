@@ -66,6 +66,7 @@ const AppInner: React.FC = () => {
   // Help menu popups
   const [showAbout, setShowAbout] = useState(false);
   const [showCheckUpdates, setShowCheckUpdates] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>('0.6.9');
   
   // Save prompt state
   const [savePrompt, setSavePrompt] = useState<{
@@ -646,6 +647,11 @@ const AppInner: React.FC = () => {
 
     loadWorkspace();
   }, []); // Only run on mount
+
+  // Load app version from main (package.json) for About and status
+  useEffect(() => {
+    window.api?.getVersion?.().then((v) => setAppVersion(v ?? '0.6.9')).catch(() => {});
+  }, []);
 
   // Load font sizes from settings
   useEffect(() => {
@@ -2225,7 +2231,7 @@ const AppInner: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 style={{ margin: '0 0 16px 0', color: '#cccccc', fontSize: '24px' }}>Novi Editor</h2>
-              <p style={{ margin: '8px 0', color: '#cccccc', fontSize: '14px' }}>Version 0.6.6-dev</p>
+              <p style={{ margin: '8px 0', color: '#cccccc', fontSize: '14px' }}>Version {appVersion}</p>
               <p style={{ margin: '16px 0 24px 0', color: '#999', fontSize: '12px' }}>© 2026 MiraNova Studios</p>
               <button
                 style={{
