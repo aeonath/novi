@@ -20,7 +20,7 @@ User ran `novi README.md` in `miranova.studio/` and got: `Error: ENOENT: no such
 `novi README.md` (and any relative path) from Git Bash in a repo (e.g. `miranova.studio/`) now opens the correct file instead of ENOENT.
 
 ## Git Commit Hash
-`d41a318` — Ad hoc: novi open-file MSYS→Windows path fix
+`161a9cc` — Ad hoc: novi open-file MSYS→Windows path fix
 
 ## Status
 ✅ Completed
