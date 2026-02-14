@@ -24,6 +24,8 @@ export interface TabBarProps {
   onTabSwitch?: (tab: Tab) => void;
   onTabClose?: (tabId: string) => Promise<boolean>;
   onAllTabsClosed?: () => void;
+  /** When closing the active tab, prefer switching to this tab id if it still exists (e.g. return to previous tab after :q / Ctrl+W). */
+  getPreferredNextTabId?: () => string | null;
 }
 
 /** File icon by extension, consistent with FileTree */
@@ -57,7 +59,7 @@ function getFileIcon(fileName: string): string {
   }
 }
 
-export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTabsClosed }) => {
+export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTabsClosed, getPreferredNextTabId }) => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tab: Tab } | null>(null);
@@ -98,12 +100,16 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
 
       const newTabs = prevTabs.filter((t) => t.id !== tabId);
 
-      // If we closed the active tab, activate another
+      // If we closed the active tab, activate another (prefer the previous active tab when closing editor via :q / Ctrl+W)
       if (activeTabId === tabId) {
         if (newTabs.length > 0) {
-          const newActiveIndex = Math.min(tabIndex, newTabs.length - 1);
-          setActiveTabId(newTabs[newActiveIndex].id);
-          onTabSwitch?.(newTabs[newActiveIndex]);
+          const preferredId = getPreferredNextTabId?.() ?? null;
+          const nextTab =
+            preferredId && newTabs.some((t) => t.id === preferredId)
+              ? newTabs.find((t) => t.id === preferredId)!
+              : newTabs[Math.min(tabIndex, newTabs.length - 1)];
+          setActiveTabId(nextTab.id);
+          onTabSwitch?.(nextTab);
         } else {
           setActiveTabId(null);
           // Notify parent that all tabs are closed
@@ -115,7 +121,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
     });
 
     return true;
-  }, [activeTabId, onTabClose, onTabSwitch, onAllTabsClosed]);
+  }, [activeTabId, onTabClose, onTabSwitch, onAllTabsClosed, getPreferredNextTabId]);
 
   const switchTab = useCallback((tabId: string) => {
     const tab = tabs.find((t) => t.id === tabId);

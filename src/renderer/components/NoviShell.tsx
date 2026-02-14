@@ -416,6 +416,17 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
     };
   }, [isActive]);
 
+  // Expose focus so App can focus this shell when its tab becomes active
+  useEffect(() => {
+    (window as any).__noviShellAPI = (window as any).__noviShellAPI || {};
+    (window as any).__noviShellAPI[promptId] = {
+      focus: () => terminalRef.current?.focus(),
+    };
+    return () => {
+      delete (window as any).__noviShellAPI?.[promptId];
+    };
+  }, [promptId]);
+
   // Close context menu on click outside
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);

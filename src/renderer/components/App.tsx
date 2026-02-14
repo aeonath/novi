@@ -94,6 +94,8 @@ const AppInner: React.FC = () => {
   const commandLineBufferRef = useRef<Record<string, string>>({});
   // When set, onTabClose allows closing this tab without save prompt (vim :q!)
   const forceCloseTabIdRef = useRef<string | null>(null);
+  // When closing the active tab, switch back to this tab if it still exists (:q / Ctrl+W)
+  const previousActiveTabIdRef = useRef<string | null>(null);
   useEffect(() => {
     terminalFileTreeRootsRef.current = terminalFileTreeRoots;
     noviPromptTabsRef.current = noviPromptTabs;
@@ -1894,11 +1896,14 @@ const AppInner: React.FC = () => {
           
           <main style={styles.editorArea}>
             <TabBar 
+              getPreferredNextTabId={() => previousActiveTabIdRef.current ?? null}
               onAllTabsClosed={() => {
                 setShowWelcome(true);
                 setActiveTab(null);
               }}
               onTabSwitch={(tab) => {
+                // Remember tab we're leaving so :q / Ctrl+W can return to it
+                previousActiveTabIdRef.current = activeTab?.id ?? null;
                 console.log('[App] Tab switched to:', tab.fileName, 'type:', tab.type);
                 setActiveTab({ 
                   id: tab.id, 
@@ -1925,13 +1930,26 @@ const AppInner: React.FC = () => {
                     (window as any).__statusBarAPI.setStatus(`Viewing: ${tab.fileName}`);
                   }
                 } else if (tab.type === 'terminal') {
-                  // Terminal component will handle focus via isActive prop
-                  
                   // Update status bar for terminal
                   if ((window as any).__statusBarAPI) {
                     (window as any).__statusBarAPI.setStatus(`Terminal: ${tab.fileName}`);
                   }
                 }
+
+                // Focus the active pane after it's visible so typing works immediately
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    if (tab.type === 'file') {
+                      (window as any).__monacoEditorAPI?.focus?.();
+                    } else if (tab.type === 'terminal') {
+                      const term = (window as any).__terminalAPI?.[tab.id];
+                      if (term?.focus) term.focus();
+                    } else if (tab.type === 'novi-prompt') {
+                      const shell = (window as any).__noviShellAPI?.[tab.id];
+                      if (shell?.focus) shell.focus();
+                    }
+                  });
+                });
               }}
               onTabClose={async (tabId: string) => {
                 if (forceCloseTabIdRef.current === tabId) {

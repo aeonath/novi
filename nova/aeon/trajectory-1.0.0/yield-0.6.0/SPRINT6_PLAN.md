@@ -138,4 +138,14 @@ examples
 :q! exits without saving
 :wq saves and exists the tab
 
-4. 
+4. set vimode off as the default until we get the syntax highlighting issues figured out
+
+5. Add a small home button on the far right of the bottom status bar which will display the home screen when clicked.  No tabs should be closed and the current editor file tree should be displayed. 
+
+6. The right click context menu still does not display on the Novi Shell screen, see if you can fix it.
+
+7. Add column number and total lines and current line number to the status bar on the far right before the new home button
+
+8. In the :ex box that appears in vim mode, make the font bigger about the same size as the editor font.
+
+9. The application menu view -> Increase Font Size and Decrease Font size doesn't seem to do anything.  This should increase/decrease the editor font if on an editor tab, or increase/decrease the font size of the terminal if you are on a terminal tab.  On the Novi Shell tab, this options should be grayed out.
