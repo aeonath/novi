@@ -29,6 +29,13 @@ import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
 import { parseNoviCommand } from '../utils/novi-command.js';
 
+/** Convert Git Bash (MSYS) path to Windows path so Node/Electron can open the file (/c/Work/... -> C:\Work\...) */
+function toWindowsPathIfNeeded(p: string): string {
+  const m = p.match(/^\/([a-zA-Z])\/(.*)$/);
+  if (m) return m[1].toUpperCase() + ':\\' + m[2].replace(/\//g, '\\');
+  return p;
+}
+
 
 const AppInner: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -138,7 +145,8 @@ const AppInner: React.FC = () => {
               const cwd = terminalFileTreeRootsRef.current[terminalId]?.cwd || '';
               const sep = /\\/.test(cwd) ? '\\' : '/';
               const normalizedCwd = cwd.replace(/[/\\]+$/, '');
-              const fullPath = /^[/\\]|^[A-Za-z]:/.test(novi.path) ? novi.path : (normalizedCwd ? normalizedCwd + sep + novi.path.replace(/^[/\\]+/, '') : novi.path);
+              let fullPath = /^[/\\]|^[A-Za-z]:/.test(novi.path) ? novi.path : (normalizedCwd ? normalizedCwd + sep + novi.path.replace(/^[/\\]+/, '') : novi.path);
+              fullPath = toWindowsPathIfNeeded(fullPath);
               if (window.api?.readFile) {
                 (async () => {
                   try {
