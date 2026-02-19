@@ -10,17 +10,11 @@
 
 import * as pty from '@lydell/node-pty';
 import { existsSync } from 'node:fs';
-import { delimiter as pathDelimiter } from 'node:path';
 import { logInfo, logError } from '../logger';
 
 export interface CreateSessionOptions {
-  /** Prepend this directory to PATH (e.g. for novi stub) */
-  pathPrepend?: string;
-}
-
-/** Convert Windows path to Git Bash (MSYS) Unix-style so PATH is found correctly (e.g. C:\Users\... -> /c/Users/...) */
-function toMsysPath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, d) => '/' + d.toLowerCase());
+  /** Reserved for future use; we do not modify the user's PATH */
+  _reserved?: unknown;
 }
 
 export interface TerminalSession {
@@ -66,20 +60,13 @@ class TerminalService {
   /**
    * Create a new terminal session with PTY
    */
-  createSession(cwd?: string, cols = 120, rows = 30, customId?: string, options?: CreateSessionOptions): string {
+  createSession(cwd?: string, cols = 120, rows = 30, customId?: string, _options?: CreateSessionOptions): string {
     const id = customId || `terminal-${this.nextId++}`;
     const shellPath = this.getBashPath();
     const cwdPath = cwd || process.cwd();
 
     const baseEnv = { ...process.env };
-    const pathPrepend = options?.pathPrepend;
-    let promptCommand = 'echo "__NOVA_PWD__:$(pwd)"';
-    if (pathPrepend) {
-      const prepend = process.platform === 'win32' ? toMsysPath(pathPrepend) : pathPrepend;
-      baseEnv.PATH = prepend + pathDelimiter + (baseEnv.PATH || '');
-      // Re-apply stub path at each prompt so it survives login profile overwriting PATH (Git Bash --login)
-      promptCommand = `export PATH="${prepend}:$PATH"; ${promptCommand}`;
-    }
+    const promptCommand = 'echo "__NOVA_PWD__:$(pwd)"';
 
     logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}, dimensions: ${cols}x${rows}`);
 

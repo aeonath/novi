@@ -9,6 +9,7 @@
     "copy:monaco": "node scripts/copy-monaco.js",
     "copy:icon": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('build',{recursive:true});fs.copyFileSync(p.join('src','renderer','assets','novi_logo.png'),'build/icon.png');\"",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
+    "start:fast": "npm run build && electron ./dist/main/main.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -74,7 +75,7 @@
       ]
     }
   },
-  "version": "0.6.9",
+  "version": "0.7.0-dev",
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
     "@types/react": "^18.3.26",

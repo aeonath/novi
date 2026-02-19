@@ -4,7 +4,7 @@
  */
 
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
-import { join, normalize } from 'node:path';
+import { join, normalize, dirname } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { readdir, stat, readFile, writeFile, mkdir, rm, rename as fsRename } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
@@ -528,8 +528,8 @@ void app.whenReady().then(() => {
   }
 
   ipcMain.handle('read-file', async (_e, filePath: string) => {
+    const resolvedPath = normalizePathForFs(filePath);
     try {
-      const resolvedPath = normalizePathForFs(filePath);
       const content = await readFile(resolvedPath, 'utf-8');
       const stats = await stat(resolvedPath);
       return {
@@ -538,7 +538,24 @@ void app.whenReady().then(() => {
         size: stats.size,
         modified: stats.mtime,
       };
-    } catch (error) {
+    } catch (error: unknown) {
+      const isENOENT = error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT';
+      if (isENOENT) {
+        const parentDir = dirname(resolvedPath);
+        try {
+          const parentStats = await stat(parentDir);
+          if (parentStats.isDirectory()) {
+            return {
+              path: resolvedPath,
+              content: '',
+              size: 0,
+              modified: new Date(),
+            };
+          }
+        } catch {
+          // parent doesn't exist or not a directory
+        }
+      }
       logError(`Failed to read file: ${filePath}`, error);
       throw error;
     }
@@ -546,6 +563,8 @@ void app.whenReady().then(() => {
 
   ipcMain.handle('save-file', async (_e, filePath: string, content: string) => {
     try {
+      const parentDir = dirname(filePath);
+      await mkdir(parentDir, { recursive: true });
       await writeFile(filePath, content, 'utf-8');
       const stats = await stat(filePath);
       return {
@@ -905,8 +924,8 @@ void app.whenReady().then(() => {
   ipcMain.handle('terminal-create', async (_e, cwd?: string, cols = 80, rows = 24, customId?: string) => {
     try {
       const cwdPath = cwd || process.cwd();
-      const noviBinPath = ensureNoviStubDir(app.getPath('userData'));
-      const terminalId = terminalService.createSession(cwd, cols, rows, customId, { pathPrepend: noviBinPath });
+      ensureNoviStubDir(app.getPath('userData')); // stub on disk for optional manual PATH; we never modify user PATH
+      const terminalId = terminalService.createSession(cwd, cols, rows, customId);
       const session = terminalService.getSession(terminalId);
       
       if (!session || !mainWindowRef) {
