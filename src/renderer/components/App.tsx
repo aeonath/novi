@@ -103,6 +103,9 @@ const AppInner: React.FC = () => {
   }, [terminalFileTreeRoots, noviPromptTabs]);
 
   // Set up global terminal data listener (PTY output -> display; inspect first line after Enter for novi)
+  // Novi command from terminal disabled: was spawning multiple tabs (re-enable when fixed)
+  const NOVI_COMMAND_FROM_TERMINAL_ENABLED = false;
+
   useEffect(() => {
     if (!window.api?.terminalOnData || !window.api?.terminalRemoveDataListener) {
       console.warn('[App] Terminal API not available');
@@ -112,6 +115,11 @@ const AppInner: React.FC = () => {
     window.api.terminalRemoveDataListener();
 
     window.api.terminalOnData((terminalId: string, data: string) => {
+      if (!NOVI_COMMAND_FROM_TERMINAL_ENABLED) {
+        const terminalAPI = (window as any).__terminalAPI?.[terminalId];
+        if (terminalAPI?.write) terminalAPI.write(data);
+        return;
+      }
       const buf = commandLineBufferRef.current;
       if (!buf[terminalId]) buf[terminalId] = '';
       buf[terminalId] += data;
