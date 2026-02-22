@@ -1,18 +1,51 @@
 
 ## TODO LIST ##
 
-1. Implement the TODO List and Quick Notes
+1. Implement the TODO List and Quick Notes (on the home screen?) 
 
+2. Follow terminal file tree no open folder icon if empty directory
 
+3. If direcotry empty just say No contents or something.
+
+4. Fix syntax highlighting in vim mode
+
+5. Remove the action bar and settings
+
+6. Redo the application menu items 
+
+7. Command pallate should be active not in vim mode
+
+8. Home button on terminal splits screen for some reason
+
+9. Enable/disable developer tools in Help menu and Novi Shell
+
+10. Enable native spell checking with Cspell
+
+11. Fix the terminal when vim is exited not going to last line
+
+12. Fix the #novi command somehow
+
+13. Disable open folder button if file tree on terminal
+
+14. Disable git button if .git folder does not exist
+
+15. Fix vi opening a separate tab
+
+16. Fix right click context menu, left outside should close, another right click should close?
 
 ## BACKLOG ##
 
-1. Themes support , why syntax highlighting different in vimode
+1. Themes support 
 
 2. Windows Installer
 
-3. Bundle git.exe and bash.exe and coreutils in the codebase
+3. Bundle git.exe and bash.exe and coreutils in the codebase (Also mingw optionally?)
 
 4. Use VSCode icons for the file tree
+
+5. Decide on extension framework
+
+6. Nova Agile Page on own tab
+
 
 

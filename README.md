@@ -1,51 +1,74 @@
-# Nova IDE
+# Novi
 
-Nova is a modern development environment built with Electron and TypeScript.
-It sits comfortably between simplicity and power — more expressive than a text editor, 
-
+Novi is a modern Terminal Development Environment built with Electron, React, and TypeScript.
+It sits comfortably between simplicity and power — more expressive than a text editor,
 yet free from the excess of a traditional IDE.
-Nova focuses on clarity, performance, and a workspace that feels effortless to use.
 
-**Version:** 0.3.5 (Sprint 3 - Editing Core)  
+Novi focuses on clarity, performance, and a workspace that feels effortless to use.
+At its core is a Monaco editor with vim mode, an integrated terminal, and the Novi Shell —
+a command interface for controlling the environment.
+
+**Version:** 0.7.0-dev (Sprint 7)
 **Status:** Active Development
 
 ## Project Structure
 
 ```
 src/
+├── core/                   # Core application modules
+│   ├── extension-loader.ts # Syntax extension loader (TextMate grammars)
+│   └── image/              # Image editor utilities
 ├── main/                   # Main process (Electron)
 │   ├── main.ts             # Application entry point, IPC handlers
 │   ├── logger.ts           # Logging system with date-based files
 │   ├── settings.ts         # Persistent settings storage
-│   └── crash-reporter.ts   # Error reporting and diagnostics
+│   ├── crash-reporter.ts   # Error reporting and diagnostics
+│   ├── recovery.ts         # File recovery management
+│   ├── menu.ts             # Application menu
+│   ├── novi-stub.ts        # #novi terminal command interception
+│   ├── orchestration/      # Agent and workflow management
+│   └── services/           # Main process services
+│       ├── git-service.ts  # Git operations
+│       ├── terminal-service.ts # Terminal management
+│       ├── workspace-service.ts # Workspace state
+│       └── ...             # File tree watcher, git watcher, etc.
 ├── preload/                # Preload scripts (secure bridge)
 │   └── preload.ts          # IPC bridge exposing window.api
-├── renderer/               # Renderer process (UI)
+├── renderer/               # Renderer process (React/UI)
 │   ├── index.html          # Main HTML structure
-│   ├── index.ts            # Renderer entry point and initialization
-│   ├── theme.ts            # Theme system (Light/Dark themes)
+│   ├── index.tsx           # Renderer entry point (React)
+│   ├── App.tsx             # Top-level React component and layout
+│   ├── theme.ts            # Theme system (CSS variables)
 │   ├── assets/             # Static assets (images, icons)
 │   ├── components/         # UI components
-│   │   ├── action-hud.ts   # Contextual action interface (Ctrl/Cmd+K or Space)
-│   │   ├── actions.ts      # Action definitions and handlers
-│   │   ├── file-tree.ts    # File system browser
-│   │   ├── file-viewer.ts  # Read-only file viewer with line numbers
-│   │   ├── settings-panel.ts # Visual settings UI (no JSON editing)
-│   │   ├── title-bar.ts    # Custom window chrome
-│   │   ├── status-bar.ts   # Bottom status bar
-│   │   ├── tab-bar.ts      # Multi-document tab management
-│   │   ├── recovery-dialog.ts # Auto-save recovery UI
-│   │   └── diagnostics-panel.ts # System diagnostics viewer
+│   │   ├── ActionHUD.tsx   # Contextual action interface
+│   │   ├── FileTree.tsx    # File system browser
+│   │   ├── GitPanel.tsx    # Git status and operations
+│   │   ├── ImageEditor.tsx # In-editor image viewer/editor
+│   │   ├── MonacoEditor.tsx # Monaco Editor wrapper
+│   │   ├── NoviShell.tsx   # Novi Shell tab
+│   │   ├── RecoveryDialog.tsx # Auto-save recovery UI
+│   │   ├── SavePrompt.tsx  # Unsaved changes dialog
+│   │   ├── SettingsPanel.tsx # Visual settings UI
+│   │   ├── StatusBar.tsx   # Bottom status bar
+│   │   ├── TabBar.tsx      # Multi-document tab management
+│   │   ├── Terminal.tsx    # Integrated terminal (xterm.js)
+│   │   └── TitleBar.tsx    # Custom window chrome
+│   ├── contexts/           # React contexts (shared state)
 │   ├── editor/             # Monaco Editor integration
-│   │   ├── index.ts        # Editor module exports
-│   │   └── monaco-editor.ts # Monaco Editor wrapper and configuration
-│   └── services/           # Application services
-│       └── auto-save.ts    # Auto-save and recovery service
-├── tests/                  # Unit tests (362 tests)
+│   ├── grammars/           # TextMate grammar files
+│   ├── services/           # Renderer-side services
+│   ├── utils/              # Utility functions
+│   └── vim/                # Vim mode integration
+├── tests/                  # Unit tests
 │   ├── setup.ts            # Jest test setup and configuration
+│   ├── __mocks__/          # Test mocks
 │   ├── core-0.1.0/         # Sprint 1 tests (foundation)
 │   ├── core-0.2.0/         # Sprint 2 tests (interaction layer)
-│   └── core-0.3.0/         # Sprint 3 tests (editing core)
+│   ├── core-0.3.0/         # Sprint 3 tests (editing core)
+│   ├── core-0.4.0/         # Sprint 4 tests (integration layer)
+│   ├── core-0.5.0/         # Sprint 5 tests (extensions, image editor)
+│   └── core-0.6.0/         # Sprint 6 tests (vim, terminal, Novi Shell)
 └── types/                  # TypeScript type definitions
     └── global.d.ts         # Global API types and interfaces
 ```
@@ -61,7 +84,7 @@ src/
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd nova
+   cd novi
    ```
 
 2. Install dependencies:
@@ -85,8 +108,13 @@ npm start
 
 This command:
 1. Cleans previous build artifacts
-2. Compiles TypeScript to `dist/`
+2. Compiles TypeScript and bundles the renderer
 3. Launches Electron with the compiled application
+
+**Skip clean (faster restart):**
+```bash
+npm run start:fast
+```
 
 **Note:** There is no dev server or hot reload. To see changes, stop the app (Ctrl+C) and run `npm start` again.
 
@@ -96,12 +124,12 @@ This command:
 npm run build
 ```
 
-Compiles TypeScript to `dist/` directory. Output structure:
+Compiles TypeScript and bundles to `dist/` directory. Output structure:
 ```
 dist/
 ├── main/          # Compiled main process files
 ├── preload/       # Compiled preload scripts
-└── renderer/      # Renderer files (HTML, JS, assets)
+└── renderer/      # Renderer files (HTML, JS, assets, Monaco)
 ```
 
 ### Clean Build Artifacts
@@ -111,6 +139,15 @@ npm run clean
 ```
 
 Removes the `dist/` directory and all build artifacts.
+
+### Linting and Formatting
+
+```bash
+npm run lint          # Check for lint errors
+npm run lint:fix      # Auto-fix lint errors
+npm run fmt           # Format source files with Prettier
+npm run fmt:check     # Check formatting without writing
+```
 
 ## Testing
 
@@ -137,10 +174,7 @@ npm run test:coverage
 - **Jest** with **ts-jest** for TypeScript support
 - **jsdom** environment for DOM testing
 - Tests organized by sprint version in `src/tests/`
-- **Current test coverage: 362 tests (17 test suites)**
-  - Sprint 1 (core-0.1.0): Settings, Logger, Crash Reporter, Packaging
-  - Sprint 2 (core-0.2.0): UI Components, Actions, Theme System, File Operations
-  - Sprint 3 (core-0.3.0): Monaco Editor, Tab Bar, Auto-Save, Recovery Dialog
+- Test suites: core-0.1.0 through core-0.6.0
 
 ## Windows Packaging
 
@@ -161,7 +195,7 @@ Or using PowerShell script:
 powershell.exe -File pack.ps1
 ```
 
-**Output:** `dist/Nova 0.0.1.exe` (or similar, based on version)
+**Output:** `dist/Novi <version>.exe`
 
 ### Build NSIS Installer
 
@@ -174,7 +208,7 @@ Or using PowerShell script:
 powershell.exe -File pack.ps1 exe
 ```
 
-**Output:** `dist/Nova Setup 0.0.1.exe`
+**Output:** `dist/Novi Setup <version>.exe`
 
 ### Packaging Notes
 
@@ -201,7 +235,7 @@ If packaging hangs or fails:
 
 3. **Close File Explorer windows** viewing the `dist/` folder
 
-4. **Check for locked files** - make sure no Nova.exe processes are running
+4. **Check for locked files** - make sure no Novi.exe processes are running
 
 ## Architecture
 
@@ -211,6 +245,11 @@ If packaging hangs or fails:
 - **logger.ts**: Logging system with date-based log files (`userData/logs/YYYY-MM-DD.log`)
 - **settings.ts**: Persistent settings storage (`userData/settings.json`)
 - **crash-reporter.ts**: Error reporting, diagnostics collection, crash dumps
+- **recovery.ts**: Auto-save recovery file management
+- **menu.ts**: Electron application menu (File, Edit, View, Novi, Help)
+- **novi-stub.ts**: Intercepts `#novi` commands typed in the integrated terminal
+- **orchestration/**: Agent and workflow management for background operations
+- **services/**: Git service, terminal service, workspace service, file tree watcher, git watcher
 
 ### Preload (`src/preload/`)
 
@@ -224,10 +263,18 @@ If packaging hangs or fails:
 
 ### Renderer (`src/renderer/`)
 
-- **index.html**: Main application structure with custom title bar and status bar
-- **index.ts**: Application initialization, component integration, action handlers
-- **theme.ts**: Theme management (Light/Dark themes with CSS variables)
-- **components/**: Modular UI components (Action HUD, File Viewer, Settings Panel, etc.)
+- **index.tsx**: React application entry point
+- **App.tsx**: Top-level layout component (file tree, editor area, status bar)
+- **theme.ts**: Theme management (CSS variables)
+- **components/**: Modular React components (Terminal, MonacoEditor, NoviShell, FileTree, etc.)
+- **vim/**: Vim mode integration for Monaco Editor
+- **editor/**: Monaco editor configuration and services
+- **grammars/**: TextMate grammar files for syntax highlighting
+
+### Core (`src/core/`)
+
+- **extension-loader.ts**: Loads TextMate syntax extensions from `~/.novi/extensions/`
+- **image/**: Image detection, viewing, and editing utilities
 
 ### Security
 
@@ -238,216 +285,214 @@ If packaging hangs or fails:
 
 ## Features
 
+### Sprint 6 (v0.6.0) - Terminal & Vim ✅
+
+**Vim Mode:**
+- ✅ **Vim editing** - Full vim keybindings via monaco-vim
+  - Toggle on/off: `novi> set vimode on` / `set vimode off` in Novi Shell
+  - `:q`, `:q!`, `:wq` to close/exit tabs
+  - `:ex` box styled to match the editor theme
+  - Dirty file indicator displayed correctly in vim mode
+- ✅ **Compat mode** - Extensible command mapping layer (`set compat on/off`)
+
+**Integrated Terminal:**
+- ✅ **Terminal tabs** - Full terminal via xterm.js and node-pty
+  - Auto-copy highlighted text to clipboard
+  - Per-terminal file tree tracking (CWD follows terminal)
+- ✅ **`#novi` command interception** - Open files from the terminal
+  - `#novi myfile.py` — opens file in editor tab
+  - `#novi -s` — shows current Novi Shell settings
+  - `#novi -c` — opens/focuses the Novi Shell tab
+  - Commands like `echo #novi` are NOT intercepted (must start with `#novi`)
+
+**Novi Shell:**
+- ✅ Renamed from "Nova Prompt" — type `novi>` to control the environment
+- ✅ `set vimode on/off` — toggle vim mode
+- ✅ `set compat on/off` — toggle compat command mapping
+- ✅ `set singlefiletree true/false` — use one shared file tree vs per-tab tracking
+- ✅ `set` with no args — display all current settings
+- ✅ `exit` — close the Novi Shell tab
+- ✅ Only one Novi Shell tab allowed at a time
+
+**File Tree:**
+- ✅ Per-terminal CWD tracking (switches with tab focus)
+- ✅ `..` navigation entry for moving up the tree
+- ✅ Resizable pane (drag the divider between file tree and editor)
+- ✅ File icon shown in editor tab (consistent with terminal/shell tabs)
+
+**Editor Improvements:**
+- ✅ Syntax highlighting auto-detected by file extension (Python, PHP, C, Bash, etc.)
+- ✅ Column number, current line, and total lines in status bar
+- ✅ Font size increase/decrease from View menu (editor) or terminal
+- ✅ Right-click context menu on editor
+
+**UI & UX:**
+- ✅ About dialog (Help → About Novi) with version and copyright
+- ✅ Resizable file tree pane
+- ✅ Home button in status bar returns to home screen
+- ✅ Status bar uses dark blue color scheme
+
+### Sprint 5 (v0.5.0) - Extensions & Image Editor ✅
+
+- ✅ **Syntax extension loader** — loads TextMate grammars from `~/.novi/extensions/`
+  - Scans all folders, reads `package.json`, registers grammars dynamically
+  - Lyric language syntax support
+- ✅ **Image editor** — opens image files (PNG, JPG, JPEG, GIF, WEBP, AVIF) in a dedicated tab
+  - Resize and proportional scaling
+  - Available via command palette
+
+### Sprint 4 (v0.4.0) - Integration Layer ✅
+
+- ✅ **React framework** — renderer rebuilt on React 18 with component architecture
+- ✅ **Enhanced Monaco** — language auto-detection by file extension, improved diagnostics
+- ✅ **Git panel** — Git status, diff, and basic operations
+- ✅ **Novi Shell** (formerly Nova Prompt) — command interface for environment control
+- ✅ **Terminal** — integrated terminal tab via xterm.js
+
 ### Sprint 3 (v0.3.0) - Editing Core ✅
 
-**Monaco Editor Integration:**
-- ✅ **Text Editing** - Full-featured code editor powered by Monaco
-  - Syntax highlighting for 30+ languages (JS/TS, HTML, CSS, Python, etc.)
-  - IntelliSense for JavaScript/TypeScript
-  - Multi-cursor editing (Alt+Click)
-  - Find/Replace with regex support (Ctrl+F / Ctrl+H)
-  - Code folding and bracket matching
-  - Auto-indentation and formatting
-- ✅ **Tabbed Document System** - Multi-file editing
-  - Multiple files open simultaneously
-  - Visual tabs with close buttons
-  - Dirty state indicators (*) for unsaved changes
-  - Seamless tab switching
-- ✅ **File Operations** - Complete I/O layer
-  - Open files (various text formats)
-  - Save and Save As functionality
-  - Unsaved changes confirmation
-  - Auto-save with recovery
-- ✅ **Theme Synchronization** - Unified appearance
-  - Nova Dark/Light themes apply to Monaco
-  - Custom syntax highlighting colors
-  - Seamless theme switching
-- ✅ **Editor Settings** - Persistent preferences
-  - Font size control (10-24px)
-  - Word wrap toggle
-  - Minimap disabled for clean interface
-  - Settings persist between sessions
-- ✅ **Auto-Save & Recovery** - Never lose work
-  - Automatic backup every 30 seconds
-  - Recovery dialog on startup
-  - Restore or discard unsaved work
-  - 7-day retention with automatic cleanup
-- ✅ **Performance** - Fast and responsive
-  - Startup time tracking
-  - Monaco loads in < 500ms
-  - Total startup < 1 second
-  - Non-blocking operations
-
-**Testing:**
-- ✅ **362 unit tests** passing (100% pass rate)
-- ✅ **91 new tests** for Sprint 3 features
-- ✅ Comprehensive coverage:
-  - Monaco editor integration
-  - Tab bar management
-  - Auto-save service
-  - Recovery dialog
-  - File save operations
+- ✅ **Monaco Editor** — full-featured code editor (syntax highlighting, IntelliSense, multi-cursor, Find/Replace)
+- ✅ **Tabbed document system** — multiple files, dirty state indicators, seamless tab switching
+- ✅ **File I/O** — open, save, save as, unsaved changes confirmation
+- ✅ **Auto-save & recovery** — 30-second backup, recovery dialog on restart, 7-day retention
+- ✅ **Theme synchronization** — Monaco respects Light/Dark theme
 
 ### Sprint 2 (v0.2.0) - Interaction Layer ✅
 
-**Visual Interface:**
-- ✅ **Action HUD** - Contextual action menu (Ctrl/Cmd + Space)
-  - Keyboard-driven, discoverable actions
-  - No command palette bloat - only relevant actions shown
-  - Fuzzy search filtering
-- ✅ **Custom Title Bar** - Frameless window with native-feeling controls
-  - Minimize, maximize, restore, close buttons
-  - Draggable region for window movement
-- ✅ **Status Bar** - Bottom info bar with left/center/right sections
-  - File operation status
-  - Priority-based item management
-- ✅ **Theme System** - Instant Light/Dark theme switching
-  - CSS variable-based theming
-  - Persists between sessions
-  - Integrated with settings panel
-
-**File Operations:**
-- ✅ **File Viewer** - Read-only text file viewer
-  - Line numbers with synchronized scrolling
-  - Open, reload, and close via Action HUD
-  - Status bar integration
-- ✅ **File Tree** - File system browser
-  - Directory selection and navigation
-  - Expand/collapse folders
-  - File and directory listing
-
-**Settings & Configuration:**
-- ✅ **Visual Settings Panel** - UI-based configuration (no JSON editing!)
-  - Theme selection (Light/Dark)
-  - Font size adjustment
-  - Tab size configuration
-  - Real-time preview and application
-  - Persistent storage
-
-**Developer Tools:**
-- ✅ **System Diagnostics Panel** - Environment information viewer
-  - Application version
-  - Electron & Node.js versions
-  - Platform and architecture
-  - One-click copy for bug reports
+- ✅ **Action HUD** — keyboard-driven contextual actions (`Ctrl+K` or `Ctrl+Space`)
+- ✅ **Custom title bar** — frameless window with minimize/maximize/close
+- ✅ **Status bar** — file info, priority-based items
+- ✅ **Theme system** — instant Light/Dark switching, persisted between sessions
+- ✅ **File viewer** — read-only viewer with line numbers
+- ✅ **File tree** — directory browser with expand/collapse
+- ✅ **Settings panel** — visual settings UI (no JSON editing)
+- ✅ **Diagnostics panel** — Electron/Node version info, one-click copy
 
 ### Sprint 1 (v0.1.0) - Foundation ✅
 
-**Core Infrastructure:**
 - ✅ Secure IPC bridge (context isolation, sandbox enabled)
 - ✅ Persistent settings storage
 - ✅ Date-based logging system
 - ✅ Crash reporting and error handling
 - ✅ Window state persistence
-- ✅ Comprehensive unit test coverage (362 tests)
+- ✅ Comprehensive unit tests
 - ✅ Windows packaging (portable EXE and NSIS installer)
 
-### Logging
+## Using Novi
+
+### Quick Start
+
+1. **Open Novi** — Launch the application
+2. **Action HUD** — Press `Ctrl+K` or `Ctrl+Space` to access actions
+3. **Open a terminal** — Use the Novi menu or Action HUD
+4. **Open files** — Use the Action HUD, File menu, or `#novi myfile` from the terminal
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+K` / `Ctrl+Space` | Open Action HUD |
+| `Ctrl+F` | Find in file |
+| `Ctrl+H` | Find and replace |
+| Arrow Keys | Navigate Action HUD |
+| `Enter` | Execute selected action |
+| `Esc` | Close Action HUD or modals |
+
+**Vim mode** (when `vimode` is on):
+- Standard vim navigation and editing keys
+- `:w` save, `:q` close tab, `:wq` save and close, `:q!` close without saving
+
+### Terminal (`#novi` Command)
+
+From any terminal tab, use `#novi` to interact with the editor:
+
+```bash
+#novi myfile.py       # Open file in editor
+#novi -s              # Show current Novi Shell settings
+#novi -c              # Focus (or open) the Novi Shell tab
+```
+
+The command must begin with `#novi` (optional leading whitespace is allowed). Commands like `echo #novi` are not intercepted.
+
+### Novi Shell
+
+The Novi Shell controls the environment. Open it from the Novi menu or with `#novi -c`.
+
+```
+novi> set vimode on          # Enable vim mode
+novi> set vimode off         # Disable vim mode
+novi> set compat on          # Enable compat command mappings
+novi> set singlefiletree true # Use a single shared file tree
+novi> set                    # Show all current settings
+novi> exit                   # Close the Novi Shell tab
+novi> help                   # Show available commands
+```
+
+### File Operations
+
+1. **Open a File:**
+   - Press `Ctrl+K` → "Open File"
+   - Or `#novi myfile.py` from the terminal
+   - File opens in a new tab with syntax highlighting auto-detected
+
+2. **Edit and Save:**
+   - Type to edit (or use vim commands if vimode is on)
+   - Auto-saved every 30 seconds
+   - `Ctrl+K` → "Save File" to save manually
+   - In vim mode: `:w` to save, `:wq` to save and close
+
+3. **Multiple Files:**
+   - Each file gets its own tab
+   - Unsaved changes marked with a dot indicator
+   - Close tabs with the X button or `:q` in vim mode
+
+### Customization
+
+**Settings Panel** (`Ctrl+K` → Settings):
+- Theme selection (Light/Dark)
+- Font size, word wrap, auto-save, tab size
+
+**Novi Shell** (`#novi -c` or Novi menu):
+- `set vimode on/off` — toggle vim editing mode
+- `set compat on/off` — toggle compat command mappings
+- `set singlefiletree true/false` — file tree behavior
+
+**View Menu:**
+- Increase/Decrease Font Size — adjusts editor font or terminal font depending on active tab
+
+## Logging
 
 Logs are written to:
 - **Console**: All log entries printed to console
-- **File**: `%APPDATA%\Nova\logs\YYYY-MM-DD.log` (date-based)
+- **File**: `%APPDATA%\Novi\logs\YYYY-MM-DD.log` (date-based)
 
 Log levels:
 - `INFO`: General information
 - `ERROR`: Errors with optional stack traces
 
-### Settings
+## Settings
 
 Settings are stored in:
-- **Location**: `%APPDATA%\Nova\settings.json` (Windows)
-- **Persisted**: Window bounds, theme preference, font settings, tab size
-- **Access**: Visual Settings Panel (no JSON editing required) or `window.api.getSetting()`/`setSetting()`
+- **Location**: `%APPDATA%\Novi\settings.json` (Windows)
+- **Persisted**: Window bounds, theme, font settings, tab size, vim mode, compat mode
+- **Access**: Settings Panel, Novi Shell `set` command, or `window.api.getSetting()`/`setSetting()`
 
 **Available Settings:**
 - `theme`: "light" or "dark"
 - `fontSize`: 10-24px (applies to editor)
 - `tabSize`: 2-8 spaces
 - `autoSave`: true/false (default: true)
-- `wordWrap`: true/false (editor word wrap)
+- `wordWrap`: true/false
+- `vimode`: true/false (default: false)
+- `compat`: true/false (default: false)
+- `singlefiletree`: true/false (default: false)
 - Window bounds and position
-
-### Theme System
-
-Nova includes a comprehensive theme system:
-- **Light Theme**: Clean, bright interface for daytime use
-- **Dark Theme**: Easy on the eyes for extended coding sessions
-- **Switch Instantly**: Ctrl/Cmd + Space → Toggle Theme
-- **Persistent**: Theme preference saved between sessions
-- **CSS Variables**: All components respect theme colors
-
-## Using Nova
-
-### Quick Start
-
-1. **Open Nova** - Launch the application
-2. **Action HUD** - Press `Ctrl+K` or `Ctrl+Space` (Windows/Linux) or `Cmd+K`/`Cmd+Space` (macOS)
-3. **Available Actions:**
-   - **Open File** - Browse and open files for editing
-   - **Save File** - Save current file
-   - **Save File As...** - Save with new name/location
-   - **Reload File** - Refresh current file from disk
-   - **Close File** - Close the file viewer
-   - **Toggle Theme** - Switch between Light and Dark themes
-   - **Settings** - Open the settings panel
-   - **System Diagnostics** - View environment information
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + Space` | Open Action HUD |
-| Arrow Keys | Navigate actions |
-| `Enter` | Execute selected action |
-| `Esc` | Close Action HUD or modals |
-
-### File Operations
-
-1. **Open a File:**
-   - Press `Ctrl/Cmd + K`
-   - Select "Open File"
-   - Choose a file from the dialog
-   - File opens in a new tab with syntax highlighting
-
-2. **Edit and Save:**
-   - Type to edit the file
-   - File is auto-saved every 30 seconds
-   - Press `Ctrl/Cmd + K` → "Save File" to save manually
-   - Or use "Save File As..." for new location
-
-3. **Multiple Files:**
-   - Open additional files to create tabs
-   - Click tabs to switch between files
-   - Close tabs with the X button
-   - Unsaved changes marked with *
-
-4. **Search in File:**
-   - Press `Ctrl/Cmd + F` to find
-   - Press `Ctrl/Cmd + H` to find and replace
-   - Use regex, case-sensitive, or whole word options
-
-### Customization
-
-1. **Change Theme:**
-   - Press `Ctrl/Cmd + K` → Settings
-   - Select theme from dropdown
-   - Or use "Toggle Theme" action for quick switching
-
-2. **Adjust Editor Settings:**
-   - Press `Ctrl/Cmd + K` → Settings
-   - Adjust font size, word wrap, auto-save, tab size
-   - Changes apply immediately to all open files
-
-3. **Auto-Save:**
-   - Enabled by default (30-second interval)
-   - Toggle in Settings Panel
-   - Recovery dialog appears on crash/restart with unsaved work
 
 ## Development Workflow
 
 1. **Make changes** to source files in `src/`
-2. **Run tests** to verify: `npm test` (362 tests should pass)
-3. **Build and run**: `npm start`
+2. **Run tests** to verify: `npm test`
+3. **Build and run**: `npm start` (or `npm run start:fast` to skip clean)
 4. **Test features** manually in the application
 5. **Package** (when ready): `npm run pack:win`
 
@@ -463,8 +508,8 @@ Nova includes a comprehensive theme system:
 ### Electron Builder
 
 - **Config**: `package.json` → `build` section
-- **Product Name**: "Nova"
-- **App ID**: "studio.miranova.nova"
+- **Product Name**: "Novi"
+- **App ID**: "studio.miranova.novi"
 - **Compression**: Disabled (faster builds)
 
 ## Scripts Reference
@@ -472,11 +517,16 @@ Nova includes a comprehensive theme system:
 | Command | Description |
 |---------|-------------|
 | `npm start` | Clean, build, and run application |
-| `npm run build` | Compile TypeScript |
+| `npm run start:fast` | Build and run (skip clean) |
+| `npm run build` | Compile TypeScript and bundle renderer |
 | `npm run clean` | Remove build artifacts |
 | `npm test` | Run all tests |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Generate coverage report |
+| `npm run lint` | Check for lint errors |
+| `npm run lint:fix` | Auto-fix lint errors |
+| `npm run fmt` | Format source files |
+| `npm run fmt:check` | Check formatting |
 | `npm run pack:win` | Build portable Windows EXE |
 | `npm run pack:win:exe` | Build NSIS installer |
 
@@ -486,10 +536,10 @@ Nova includes a comprehensive theme system:
 
 - TypeScript strict mode enabled
 - ESLint and Prettier for code formatting
-- Component-based architecture for UI
+- React component architecture for UI
 - Comprehensive unit tests required for all features
 
-### Development Principles (Nova Philosophy)
+### Development Principles (Novi Philosophy)
 
 1. **Clarity over Complexity** - Simple, discoverable interfaces
 2. **Visual over Textual** - UI-based configuration, no JSON editing
@@ -500,23 +550,19 @@ Nova includes a comprehensive theme system:
 
 1. Create feature branch from `dev-core`
 2. Write unit tests first (TDD approach)
-3. Implement feature following Nova's design principles
-4. Ensure **all 362+ tests pass** (100% pass rate required)
+3. Implement feature following Novi's design principles
+4. Ensure all tests pass (100% pass rate required)
 5. Update README if user-facing changes
-6. Create detailed changelog entry with:
-   - Technical changes
-   - User-facing impact
-   - Test results
-7. Create sprint task summary
-8. Commit with descriptive message (< 80 characters)
+6. Create detailed changelog entry
+7. Commit with descriptive message (< 80 characters)
 
 ### Adding New Components
 
-1. Create component in `src/renderer/components/`
-2. Follow existing patterns (see `action-hud.ts`, `file-viewer.ts`)
+1. Create component in `src/renderer/components/` as a `.tsx` file
+2. Follow existing React patterns (see `Terminal.tsx`, `MonacoEditor.tsx`)
 3. Use CSS variables for theming
 4. Create comprehensive test suite in `src/tests/core-0.X.0/`
-5. Integrate with Action HUD if user-facing
+5. Wire into `App.tsx` and the Action HUD if user-facing
 6. Update types in `src/types/global.d.ts` if needed
 
 ## License
@@ -531,33 +577,32 @@ For issues and questions:
 
 ## Roadmap
 
-### Sprint 4 (v0.4.0) - Intelligence Layer (Next)
-- Code completion
-- IntelliSense
-- Linting integration
-- Error diagnostics
+### Sprint 7 (v0.7.0) - In Progress
+- `#novi` command prefix update (leading `#` to avoid shell conflicts)
 
-### Future Sprints
-- Terminal integration
-- Git integration
-- Extension system
-- Collaborative features
+### Backlog
+- Themes support
+- Windows Installer
+- Bundle git.exe, bash.exe, coreutils
+- VSCode icons for file tree
+- Extension framework
+- Native spell checking
 
 ---
 
 ## Philosophy
 
-Nova is built on the principle that modern IDEs have become bloated and complex. We believe:
+Novi is built on the principle that modern IDEs have become bloated and complex. We believe:
 
 - **Actions should be discoverable**, not memorized from documentation
-- **Settings should be visual**, not buried in JSON files
+- **Settings should be visual** (or typed in the Novi Shell), not buried in JSON files
 - **The interface should be elegant**, not cluttered with buttons
 - **Features should be contextual**, shown when relevant
 
-Nova is the IDE reimagined for 2025 and beyond.
+Novi is the Terminal Development Environment reimagined for 2026 and beyond.
 
 ---
 
-**Nova** - Build. Learn. Iterate.
+**Novi** - Build. Learn. Iterate.
 
-MiraNova Studios © 2025
+MiraNova Studios © 2026
