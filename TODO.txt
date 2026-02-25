@@ -33,6 +33,8 @@
 
 16. Fix right click context menu, left outside should close, another right click should close?
 
+17. Edited file on disk when open in the editor does not refresh the contents
+
 ## BACKLOG ##
 
 1. Themes support 
