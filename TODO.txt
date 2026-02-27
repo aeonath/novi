@@ -35,6 +35,13 @@
 
 17. Edited file on disk when open in the editor does not refresh the contents
 
+18. New folder doesn't work in the file tree
+
+19. CTRL + TAB doesn't cycle tabs
+
+20. Terminal file tree doesn't match after opening a file in the editor while in the terminal
+then closing that file (goes back to terminal tab but wrong directory in file tree)
+
 ## BACKLOG ##
 
 1. Themes support 
@@ -50,4 +57,6 @@
 6. Nova Agile Page on own tab
 
 
+## PULSE NOTES ##
 
+“We realized Novi’s shell was becoming a design liability. Power was increasing, but clarity was decreasing. Rather than double down on discoverability hacks, we chose to move configuration into a visible, guided settings surface and demote the shell to an advanced tool.”
