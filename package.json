@@ -75,7 +75,7 @@
       ]
     }
   },
-  "version": "0.7.0-dev",
+  "version": "0.7.1",
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
     "@types/react": "^18.3.26",
