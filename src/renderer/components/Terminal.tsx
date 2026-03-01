@@ -79,8 +79,7 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
 
       // Create a temporary xterm just to measure dimensions
       // IMPORTANT: Create without padding to get raw dimensions
-      const tempTerminal = new XTerm({ 
-        convertEol: true,
+      const tempTerminal = new XTerm({
         fontSize: fontSizeProp,
         fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
         lineHeight: 1.2,
@@ -176,8 +175,10 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
       // Critical: windowsMode MUST be false for vim and other TUI apps
       // to work correctly. This ensures proper handling of control sequences.
       windowsMode: false,
-      // Enable proper handling of line endings (converts \r\n to \n)
-      convertEol: true,
+      // NOTE: convertEol must NOT be set — the PTY (conpty) already provides
+      // proper \r\n line endings.  Setting convertEol: true injects extra \r
+      // into TUI output (vim, less, man), corrupting cursor positioning and
+      // preventing alternate-screen-buffer restoration on exit.
     });
 
     // Create fit addon
