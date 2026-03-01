@@ -938,23 +938,18 @@ void app.whenReady().then(() => {
       }
 
       // Forward PTY output to renderer
+      // OSC 7 CWD notification: ESC ] 7 ; file://hostname/path BEL-or-ST
+      const OSC7_RE = /\x1b\]7;file:\/\/[^/]*\/([^\x07\x1b]*)(?:\x07|\x1b\\)/;
       session.pty.onData((data: string) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          // Check for PWD marker before sending to renderer
-          const pwdMatch = data.match(/__NOVA_PWD__:([^\r\n]+)/);
-          if (pwdMatch) {
-            const pwd = pwdMatch[1].trim();
-            // Send full path to renderer (for file tree CWD and tab title)
-            mainWindowRef.webContents.send('terminal-pwd', terminalId, pwd);
-            
-            // Remove the PWD marker from output so it doesn't display in terminal
-            data = data.replace(/__NOVA_PWD__:[^\r\n]+\r?\n?/g, '');
+          // Parse OSC 7 to extract CWD (invisible to xterm.js — no stripping needed)
+          const osc7Match = OSC7_RE.exec(data);
+          if (osc7Match) {
+            const rawPath = decodeURIComponent(osc7Match[1]);
+            mainWindowRef.webContents.send('terminal-pwd', terminalId, rawPath);
           }
-          
-          // Only send data if there's something left after removing PWD marker
-          if (data) {
-            mainWindowRef.webContents.send('terminal-data', terminalId, data);
-          }
+          // Pass ALL data to renderer unchanged — OSC 7 is silently consumed by xterm.js
+          mainWindowRef.webContents.send('terminal-data', terminalId, data);
         }
       });
 

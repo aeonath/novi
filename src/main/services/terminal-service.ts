@@ -66,7 +66,11 @@ class TerminalService {
     const cwdPath = cwd || process.cwd();
 
     const baseEnv = { ...process.env };
-    const promptCommand = 'echo "__NOVA_PWD__:$(pwd)"';
+    // Use OSC 7 to report CWD — an invisible escape sequence that xterm.js
+    // silently consumes, unlike the old 'echo' approach which produced visible
+    // text that had to be regex-stripped and left orphaned ConPTY cursor
+    // sequences that corrupted vim/TUI screen restoration.
+    const promptCommand = 'printf "\\033]7;file://localhost%s\\007" "$PWD"';
 
     logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}, dimensions: ${cols}x${rows}`);
 
