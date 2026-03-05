@@ -939,7 +939,7 @@ void app.whenReady().then(() => {
 
       // Forward PTY output to renderer
       // OSC 7 CWD notification: ESC ] 7 ; file://hostname/path BEL-or-ST
-      const OSC7_RE = /\x1b\]7;file:\/\/[^/]*\/([^\x07\x1b]*)(?:\x07|\x1b\\)/;
+      const OSC7_RE = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*)(?:\x07|\x1b\\)/;
       session.pty.onData((data: string) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
           // Parse OSC 7 to extract CWD (invisible to xterm.js — no stripping needed)

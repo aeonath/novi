@@ -18,7 +18,7 @@ $env:ELECTRON_BUILDER_NSIS_SKIP_SIGNING = "true"
 
 # Ensure Windows app icon exists (electron-builder uses build/icon.png or build/icon.ico)
 $buildDir = Join-Path $PSScriptRoot "build"
-$iconSrc = Join-Path $PSScriptRoot "src\renderer\assets\novi_logo.png"
+$iconSrc = Join-Path $PSScriptRoot "src\renderer\assets\icon.png"
 $iconDst = Join-Path $buildDir "icon.png"
 if (-not (Test-Path $buildDir)) { New-Item -ItemType Directory -Path $buildDir | Out-Null }
 if (Test-Path $iconSrc) {

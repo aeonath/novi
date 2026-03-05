@@ -54,49 +54,96 @@ describe('TerminalService', () => {
     terminalService.cleanup();
   });
 
-  describe('getBashPath', () => {
-    it('should return Git bash path if found', () => {
-      (existsSync as jest.Mock).mockImplementation((path: string) => {
-        return path === 'C:\\Program Files\\Git\\bin\\bash.exe';
+  describe('getShellPath', () => {
+    const isWindows = process.platform === 'win32';
+
+    if (isWindows) {
+      it('should return Git bash path if found on Windows', () => {
+        (existsSync as jest.Mock).mockImplementation((path: string) => {
+          return path === 'C:\\Program Files\\Git\\bin\\bash.exe';
+        });
+
+        terminalService.createSession();
+        expect(pty.spawn).toHaveBeenCalledWith(
+          'C:\\Program Files\\Git\\bin\\bash.exe',
+          ['--login', '-i'],
+          expect.objectContaining({ name: 'xterm-256color' })
+        );
       });
 
-      terminalService.createSession();
-      expect(pty.spawn).toHaveBeenCalledWith(
-        'C:\\Program Files\\Git\\bin\\bash.exe',
-        ['--login', '-i'],
-        expect.objectContaining({
-          name: 'xterm-256color',
-        })
-      );
-    });
+      it('should fallback to system bash if Git bash not found on Windows', () => {
+        (existsSync as jest.Mock).mockImplementation((path: string) => {
+          return path === 'C:\\Windows\\System32\\bash.exe';
+        });
 
-    it('should fallback to system bash if Git bash not found', () => {
-      (existsSync as jest.Mock).mockImplementation((path: string) => {
-        return path === 'C:\\Windows\\System32\\bash.exe';
+        terminalService.createSession();
+        expect(pty.spawn).toHaveBeenCalledWith(
+          'C:\\Windows\\System32\\bash.exe',
+          ['--login', '-i'],
+          expect.objectContaining({ name: 'xterm-256color' })
+        );
       });
 
-      terminalService.createSession();
-      expect(pty.spawn).toHaveBeenCalledWith(
-        'C:\\Windows\\System32\\bash.exe',
-        ['--login', '-i'],
-        expect.objectContaining({
-          name: 'xterm-256color',
-        })
-      );
-    });
+      it('should fallback to cmd.exe if no bash found on Windows', () => {
+        (existsSync as jest.Mock).mockReturnValue(false);
 
-    it('should fallback to cmd.exe if no bash found', () => {
-      (existsSync as jest.Mock).mockReturnValue(false);
+        terminalService.createSession();
+        expect(pty.spawn).toHaveBeenCalledWith(
+          'C:\\Windows\\System32\\cmd.exe',
+          ['--login', '-i'],
+          expect.objectContaining({ name: 'xterm-256color' })
+        );
+      });
+    } else {
+      it('should use $SHELL on Linux/macOS', () => {
+        const originalShell = process.env.SHELL;
+        process.env.SHELL = '/bin/bash';
+        (existsSync as jest.Mock).mockImplementation((path: string) => {
+          return path === '/bin/bash';
+        });
 
-      terminalService.createSession();
-      expect(pty.spawn).toHaveBeenCalledWith(
-        'C:\\Windows\\System32\\cmd.exe',
-        ['--login', '-i'],
-        expect.objectContaining({
-          name: 'xterm-256color',
-        })
-      );
-    });
+        terminalService.createSession();
+        expect(pty.spawn).toHaveBeenCalledWith(
+          '/bin/bash',
+          ['--login', '-i'],
+          expect.objectContaining({ name: 'xterm-256color' })
+        );
+
+        process.env.SHELL = originalShell;
+      });
+
+      it('should fallback to /bin/bash if $SHELL is unset on Linux', () => {
+        const originalShell = process.env.SHELL;
+        delete process.env.SHELL;
+        (existsSync as jest.Mock).mockImplementation((path: string) => {
+          return path === '/bin/bash';
+        });
+
+        terminalService.createSession();
+        expect(pty.spawn).toHaveBeenCalledWith(
+          '/bin/bash',
+          ['--login', '-i'],
+          expect.objectContaining({ name: 'xterm-256color' })
+        );
+
+        process.env.SHELL = originalShell;
+      });
+
+      it('should fallback to /bin/sh if no bash found on Linux', () => {
+        const originalShell = process.env.SHELL;
+        delete process.env.SHELL;
+        (existsSync as jest.Mock).mockReturnValue(false);
+
+        terminalService.createSession();
+        expect(pty.spawn).toHaveBeenCalledWith(
+          '/bin/sh',
+          ['--login', '-i'],
+          expect.objectContaining({ name: 'xterm-256color' })
+        );
+
+        process.env.SHELL = originalShell;
+      });
+    }
   });
 
   describe('createSession', () => {

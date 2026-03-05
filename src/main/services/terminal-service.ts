@@ -30,10 +30,27 @@ class TerminalService {
   private nextId = 1;
 
   /**
-   * Get bash.exe path - try Git for Windows first, then fallback to system bash
+   * Get shell path - platform-aware detection
    */
-  private getBashPath(): string {
-    // Try Git for Windows bash first (as per task requirements)
+  private getShellPath(): string {
+    if (process.platform !== 'win32') {
+      // Linux / macOS: prefer $SHELL, then common paths
+      const userShell = process.env.SHELL;
+      if (userShell && existsSync(userShell)) {
+        logInfo(`[TerminalService] Using user shell: ${userShell}`);
+        return userShell;
+      }
+      for (const sh of ['/bin/bash', '/usr/bin/bash', '/bin/sh']) {
+        if (existsSync(sh)) {
+          logInfo(`[TerminalService] Using fallback shell: ${sh}`);
+          return sh;
+        }
+      }
+      logInfo('[TerminalService] Using /bin/sh as last resort');
+      return '/bin/sh';
+    }
+
+    // Windows: try Git for Windows bash first
     const gitBashPaths = [
       'C:\\Program Files\\Git\\bin\\bash.exe',
       'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
@@ -46,13 +63,11 @@ class TerminalService {
       }
     }
 
-    // Fallback to system bash or cmd.exe
     if (existsSync('C:\\Windows\\System32\\bash.exe')) {
       logInfo('[TerminalService] Using system bash');
       return 'C:\\Windows\\System32\\bash.exe';
     }
 
-    // Last resort: use cmd.exe
     logInfo('[TerminalService] Using cmd.exe as fallback');
     return 'C:\\Windows\\System32\\cmd.exe';
   }
@@ -62,7 +77,7 @@ class TerminalService {
    */
   createSession(cwd?: string, cols = 120, rows = 30, customId?: string, _options?: CreateSessionOptions): string {
     const id = customId || `terminal-${this.nextId++}`;
-    const shellPath = this.getBashPath();
+    const shellPath = this.getShellPath();
     const cwdPath = cwd || process.cwd();
 
     const baseEnv = { ...process.env };
