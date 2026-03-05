@@ -4,7 +4,11 @@
       "Bash(git:*)",
       "Bash(npm test)",
       "Bash(chmod +x:*)",
-      "Bash(identify:*)"
+      "Bash(identify:*)",
+      "Read(//usr/share/applications/**)",
+      "Bash(dpkg -L novi)",
+      "Bash(cp:*)",
+      "Bash(convert:*)"
     ]
   }
 }
