@@ -1643,12 +1643,12 @@ const AppInner: React.FC = () => {
 
   // File tree root to display. When a terminal tab is active, always show that terminal's CWD so file tree stays in sync.
   const currentFileTreeDisplayRoot = useMemo(() => {
+    if (singleFileTree || !workspaceRoot) return workspaceRoot;
     if (activeTab?.type === 'terminal') {
       const t = terminalFileTreeRoots[activeTab.id];
       const cwd = (t?.overriddenRoot ?? t?.cwd) ?? workspaceRoot ?? '';
       return cwd || workspaceRoot;
     }
-    if (singleFileTree || !workspaceRoot) return workspaceRoot;
     if (activeTab?.type === 'file' || activeTab?.type === 'image') {
       return fileTabToTreeRoot[activeTab.id] || workspaceRoot;
     }
