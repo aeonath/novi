@@ -224,8 +224,8 @@ export class MonacoEditorView {
   }
 
   private getWelcomeContent(): string {
-    return `// Welcome to Novi Editor
-// Press Ctrl+K to open the Action HUD
+    return `// Welcome to Novi Terminal Environment
+// Open a file from the sidebar to start editing
 
 // This is the Monaco Editor - a powerful code editor
 // Features available:

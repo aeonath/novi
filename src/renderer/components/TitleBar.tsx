@@ -25,7 +25,7 @@ export interface TitleBarProps {
   activeTabType?: string | null;
 }
 
-export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCommand, activeTabType }) => {
+export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Terminal Environment', onCommand, activeTabType }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [activeButton, setActiveButton] = useState<string | null>(null);
@@ -108,8 +108,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCom
       { label: 'Increase Font Size', command: 'increase-font-size', shortcut: 'Ctrl+Plus' },
       { label: 'Decrease Font Size', command: 'decrease-font-size', shortcut: 'Ctrl+-' },
       { label: 'Reset Font Size', command: 'reset-font-size', shortcut: 'Ctrl+0' },
-      { separator: true },
-      { label: 'Action HUD', command: 'action-hud', shortcut: 'Ctrl+K' },
+      // Action HUD disabled — not part of TDE initial feature set. Code preserved for future use.
+      // { separator: true },
+      // { label: 'Action HUD', command: 'action-hud', shortcut: 'Ctrl+K' },
     ],
     Novi: [
       { label: 'New Terminal', command: 'new-terminal', shortcut: 'Ctrl+T' },
@@ -225,7 +226,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Editor', onCom
     <div style={styles.container}>
       <div style={styles.leftSection}>
         <div style={styles.logoContainer}>
-          <img src="assets/novi_logo.png" alt="Novi Editor" style={styles.logo} />
+          <img src="assets/novi_logo.png" alt="Novi Terminal Environment" style={styles.logo} />
         </div>
         <div style={styles.menuBar}>
           {Object.keys(menus).map((menuName) => (

@@ -333,7 +333,7 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
   };
 
   const commandVersion = (terminal: XTerm) => {
-    terminal.writeln(`Novi Editor v${appVersionRef.current}`);
+    terminal.writeln(`Novi Terminal Environment v${appVersionRef.current}`);
     terminal.writeln('');
     terminal.writeln('© 2026 MiraNova Studios');
   };

@@ -551,7 +551,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
             <div style={styles.headerButtons}>
               {showGitToggle && rootPath && onToggleGit && tree.some(n => n.name === '.git' && n.isDirectory) && (
                 <button style={styles.button} onClick={onToggleGit} title="Toggle Git View">
-                  ⎇
+                  ✚
                 </button>
               )}
               {showOpenFolder && rootPath && (

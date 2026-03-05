@@ -5,7 +5,7 @@
 
 /**
  * App - Root React component
- * Main layout structure for Novi Editor
+ * Main layout structure for Novi Terminal Environment
  */
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -19,12 +19,13 @@ import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
 import { NoviShell } from './NoviShell.js';
-import { ActionHUD } from './ActionHUD.js';
+// Action HUD disabled — not part of TDE initial feature set. Code preserved for future use.
+// import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
 import { SavePrompt } from './SavePrompt.js';
-import { createDefaultActions, ActionContext } from './actions.js';
+import { /* createDefaultActions, */ ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
 import { parseNoviCommand } from '../utils/novi-command.js';
@@ -1288,8 +1289,8 @@ const AppInner: React.FC = () => {
     },
   }), [workspaceRoot]);
 
-  // Create actions
-  const actions = useMemo(() => createDefaultActions(actionContext), [actionContext]);
+  // Action HUD disabled — not part of TDE initial feature set. Code preserved for future use.
+  // const actions = useMemo(() => createDefaultActions(actionContext), [actionContext]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -1492,9 +1493,10 @@ const AppInner: React.FC = () => {
         // TODO: Implement theme switching
         console.log('[App] Theme switching not yet implemented');
         break;
-      case 'action-hud':
-        (window as any).__actionHUDAPI?.toggle();
-        break;
+      // Action HUD disabled — not part of TDE initial feature set. Code preserved for future use.
+      // case 'action-hud':
+      //   (window as any).__actionHUDAPI?.toggle();
+      //   break;
       case 'new-terminal':
         await actionContext.onNewTerminal?.();
         break;
@@ -2243,7 +2245,8 @@ const AppInner: React.FC = () => {
         }} />
         
         {/* Modal components */}
-        <ActionHUD actions={actions} />
+        {/* Action HUD disabled — not part of TDE initial feature set. Code preserved for future use. */}
+        {/* <ActionHUD actions={actions} /> */}
         <SettingsPanel />
         <DiagnosticsPanel />
         <RecoveryDialog />
@@ -2327,7 +2330,7 @@ const AppInner: React.FC = () => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 style={{ margin: '0 0 16px 0', color: '#cccccc', fontSize: '24px' }}>Novi Editor</h2>
+              <h2 style={{ margin: '0 0 16px 0', color: '#cccccc', fontSize: '24px' }}>Novi Terminal Environment</h2>
               <p style={{ margin: '8px 0', color: '#cccccc', fontSize: '14px' }}>Version {appVersion}</p>
               <p style={{ margin: '16px 0 24px 0', color: '#999', fontSize: '12px' }}>© 2026 MiraNova Studios</p>
               <button

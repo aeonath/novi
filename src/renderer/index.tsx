@@ -4,14 +4,14 @@
  */
 
 /**
- * Novi Editor - Main Renderer Entry (React)
+ * Novi Terminal Environment - Main Renderer Entry (React)
  */
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './components/App.js';
 
-console.log('[Novi] Initializing Novi Editor v0.4.0 with React...');
+console.log('[Novi] Initializing Novi Terminal Environment v0.4.0 with React...');
 
 // Wait for Monaco to load before initializing
 const waitForMonaco = async (): Promise<boolean> => {
