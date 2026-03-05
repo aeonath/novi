@@ -59,9 +59,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       console.log('[GitPanel] Starting event-driven Git monitoring for:', workspaceRoot);
     }
     
-    // Clear explicitly unstaged files when workspace changes
-    setExplicitlyUnstagedFiles(new Set());
-    
     // Defer git watcher initialization slightly to avoid flash on startup
     // This ensures all components are fully mounted before we start watching
     const initTimer = setTimeout(() => {
@@ -213,8 +210,6 @@ export const GitPanel: React.FC<GitPanelProps> = ({ workspaceRoot, onRefreshStat
       if (result.success) {
         setSuccess('Committed successfully');
         setCommitMessage('');
-        // Clear explicitly unstaged files after commit (they're no longer in the changeset)
-        setExplicitlyUnstagedFiles(new Set());
         await refreshStatus();
         setTimeout(() => setSuccess(null), 3000);
       } else {
