@@ -95,7 +95,7 @@ function getAppVersion(): string {
   } catch {
     // ignore
   }
-  return '0.7.7';
+  return '0.7.8';
 }
 
 // Set NODE_ENV for development (not used for branching, kept for future use)
