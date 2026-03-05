@@ -230,9 +230,10 @@ const AppInner: React.FC = () => {
     window.api.terminalOnExit((terminalId: string, exitCode: number) => {
       console.log('[App] Terminal', terminalId, 'exited with code', exitCode);
 
-      // Home terminal: keep the tab, just log it (Terminal component will re-create PTY when active)
+      // Home terminal exit = close the app
       if (terminalId === HOME_TERMINAL_ID) {
-        console.log('[App] Home terminal exited — tab stays open');
+        console.log('[App] Home terminal exited — closing app');
+        window.api?.quit?.();
         return;
       }
 
