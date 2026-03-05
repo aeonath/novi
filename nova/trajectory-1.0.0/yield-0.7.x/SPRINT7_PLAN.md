@@ -43,3 +43,32 @@ current terminal tab was on.  it again should not have the open folder button.  
 
 
 also if the directory is empty, then it should display a message stating no files are in directory.  If the .. folder is ever present in any filetree view on or off remove it we will not support the .. folder any more.
+
+
+## Task 4 - The Git button
+
+- The Git button should not be available if .git doesn't exist in the directory
+Edit
+
+Additional Notes:
+
+Don't have the button if it is not a repository.
+
+Currently it appears to exist on all directories but it doesn't make sense.
+
+Also if there is any code which auto-stages the files remove it completely.
+
+
+## Task 5 - We don't need the action bar
+
+
+-- The Action Bar is no longer maintained and should be removed
+Edit
+
+Additional Notes:
+
+This is not an initial feature.
+
+Disable this code but leave it in place in case we want to implement
+the action bar in the future.  Make sure you put a comment that it 
+was diabled where appropriate.
