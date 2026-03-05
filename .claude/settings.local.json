@@ -8,7 +8,17 @@
       "Read(//usr/share/applications/**)",
       "Bash(dpkg -L novi)",
       "Bash(cp:*)",
-      "Bash(convert:*)"
+      "Bash(convert:*)",
+      "Bash(npx --yes png-to-ico --help)",
+      "Bash(npx --yes png-to-ico src/renderer/assets/icon.png)",
+      "Bash(xxd \"c:/Work/novi/src/renderer/assets/icon.png\")",
+      "Bash(npx --yes png-to-ico \"c:/Work/novi/src/renderer/assets/icon.png\")",
+      "Bash(npx --yes png-to-ico \"c:/Work/novi/src/renderer/assets/miranova_icon.png\")",
+      "Bash(node -e \"const fs=require\\(''fs''\\);const buf=fs.readFileSync\\(''c:/Work/novi/src/renderer/assets/miranova_icon.png''\\);const w=buf.readUInt32BE\\(16\\);const h=buf.readUInt32BE\\(20\\);console.log\\(w+''x''+h\\)\")",
+      "Bash(node -e \":*)",
+      "Bash(npx --yes jimp-cli --help)",
+      "Bash(xxd c:/Work/novi/build/installer-icon.ico)",
+      "Bash(node -e \"console.log\\(process.platform\\)\")"
     ]
   }
 }

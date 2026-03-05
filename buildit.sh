@@ -1,14 +1,23 @@
 #!/bin/bash
 # Cross-platform build script for Novi
-# Usage:
-#   ./buildit.sh          - build for current platform (deb on Linux, portable on Windows)
+# Usage: ./buildit.sh <target>
 #   ./buildit.sh deb      - build Debian package (Linux)
-#   ./buildit.sh win      - build Windows portable (requires Windows/WSL with PowerShell)
-#   ./buildit.sh exe      - build Windows NSIS installer (requires Windows/WSL with PowerShell)
+#   ./buildit.sh win      - build Windows portable EXE
+#   ./buildit.sh installer - build Windows NSIS installer
 
 set -e
 
-TARGET="${1:-auto}"
+if [ -z "$1" ]; then
+    echo "Usage: ./buildit.sh <target>"
+    echo ""
+    echo "Targets:"
+    echo "  deb       - Build Debian package (Linux)"
+    echo "  win       - Build Windows portable EXE"
+    echo "  installer - Build Windows NSIS installer"
+    exit 0
+fi
+
+TARGET="$1"
 
 echo "Cleaning previous builds..."
 npm run clean
@@ -18,17 +27,6 @@ npm run build
 
 # Copy icon into build/ for electron-builder
 npm run copy:icon
-
-if [ "$TARGET" = "auto" ]; then
-    case "$(uname -s)" in
-        Linux*)  TARGET="deb" ;;
-        MINGW*|MSYS*|CYGWIN*) TARGET="win" ;;
-        *)
-            echo "Unknown platform: $(uname -s). Specify target: deb, win, or exe"
-            exit 1
-            ;;
-    esac
-fi
 
 export CSC_IDENTITY_AUTO_DISCOVERY=false
 
@@ -42,14 +40,14 @@ case "$TARGET" in
         export ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true
         npx electron-builder --win portable
         ;;
-    exe)
+    installer)
         echo "Building Windows NSIS installer..."
         export ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true
         npx electron-builder --win nsis
         ;;
     *)
         echo "Unknown target: $TARGET"
-        echo "Usage: ./buildit.sh [deb|win|exe]"
+        echo "Usage: ./buildit.sh [deb|win|installer]"
         exit 1
         ;;
 esac

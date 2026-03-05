@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json && node scripts/build-renderer.js && npm run copy:renderer && npm run copy:monaco",
     "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/assets/novi_logo.png','dist/renderer/assets/novi_logo.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
     "copy:monaco": "node scripts/copy-monaco.js",
-    "copy:icon": "node -e \"const fs=require('fs');const p=require('path');const{execSync}=require('child_process');fs.mkdirSync('build/icons',{recursive:true});const src=p.join('src','renderer','assets','icon.png');fs.copyFileSync(src,'build/icon.png');try{for(const s of[16,32,48,64,128,256,512])execSync('convert '+src+' -resize '+s+'x'+s+' build/icons/'+s+'x'+s+'.png')}catch(e){console.log('ImageMagick not found, skipping icon sizes')}\"",
+    "copy:icon": "node scripts/copy-icons.js",
     "start": "npm run clean && npm run build && electron ./dist/main/main.js",
     "start:fast": "npm run build && electron ./dist/main/main.js",
     "test": "jest",
@@ -19,7 +19,7 @@
     "fmt:check": "prettier --check \"src/**/*.{ts,html,css}\"",
     "pack:deb": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux deb",
     "pack:win": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
-    "pack:win:exe": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
+    "pack:win:installer": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
   },
   "repository": {
     "type": "git",
@@ -49,6 +49,7 @@
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "prettier": "^3.6.2",
+    "rcedit": "^5.0.2",
     "ts-jest": "^29.4.5",
     "typescript": "^5.9.3"
   },
@@ -75,7 +76,7 @@
       ]
     },
     "win": {
-      "icon": "src/renderer/assets/icon.png",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false,
       "compression": "store",
       "target": [
@@ -86,6 +87,19 @@
           ]
         }
       ]
+    },
+    "afterPack": "./scripts/after-pack.js",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "shortcutName": "Novi",
+      "uninstallDisplayName": "Novi",
+      "allowElevation": true
     }
   },
   "version": "0.7.1",

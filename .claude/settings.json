@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm ls rcedit)",
+      "Bash(npx --yes rcedit --help)",
+      "Bash(\"c:/Work/novi/node_modules/app-builder-bin/win/x64/app-builder.exe\" rcedit --help)",
+      "Bash(npm install --save-dev rcedit)",
+      "WebFetch(domain:github.com)",
+      "Bash(node -e \"console.log\\(require.resolve\\(''rcedit''\\)\\)\")",
+      "Bash(node -e \"const rcedit = require\\(''rcedit''\\); console.log\\(''rcedit loaded:'', typeof rcedit\\)\")",
+      "Bash(node -e \"const rcedit = require\\(''rcedit''\\); console.log\\(Object.keys\\(rcedit\\)\\)\")",
+      "Read(//c/Work/**)"
+    ]
+  }
+}
