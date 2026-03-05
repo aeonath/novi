@@ -30,4 +30,16 @@ When single terminal is on will be addressed in the next task
 
 
 
-## Task 3
+## Task 3 - Update the single file tree
+
+If single file tree setting is on, then the file tree will always display a
+constant directory regardless of what terminals are open.  The open folder button would be present then.  If singlefiletree is off then the open folder
+button should not be present on the file tree pane. 
+
+The Novi Shell should never show the file tree regardless of either mode. For now just make the file tree area gray and we will reserve it for future use.
+
+When you are following the terminal, ie.e singlefiletree is off, if you open a file in the editor then the editor will have the same folder tree view the
+current terminal tab was on.  it again should not have the open folder button.  if you switch terminals and have a different file tree, then the file opened in the editor from this file tree will show that file tree.
+
+
+also if the directory is empty, then it should display a message stating no files are in directory.  If the .. folder is ever present in any filetree view on or off remove it we will not support the .. folder any more.

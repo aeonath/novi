@@ -1811,13 +1811,18 @@ const AppInner: React.FC = () => {
         <div style={styles.mainContent}>
           <aside style={{ ...styles.sidebar, width: `${sidebarWidth}px`, flexShrink: 0 }}>
             {/* Always render both components, but hide with CSS to preserve state */}
-            <div style={{ display: showGitPanel ? 'none' : 'flex', flexDirection: 'column', height: '100%' }}>
+            {/* Gray placeholder when Novi Shell is active */}
+            {activeTab?.type === 'novi-prompt' && !showGitPanel && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#252526' }} />
+            )}
+            <div style={{ display: (showGitPanel || activeTab?.type === 'novi-prompt') ? 'none' : 'flex', flexDirection: 'column', height: '100%' }}>
               <FileTree
                 onToggleGit={() => setShowGitPanel(!showGitPanel)}
                 onNewTerminal={actionContext.onNewTerminal}
                 onNoviPrompt={actionContext.onNoviPrompt}
                 displayRoot={currentFileTreeDisplayRoot}
                 isTerminalTree={!singleFileTree && activeTab?.type === 'terminal'}
+                showOpenFolder={singleFileTree}
                 onRootChange={setFileTreeReportedRoot}
                 onDirectoryOpen={async (dirPath: string) => {
                   console.log('[App] Directory opened:', dirPath);

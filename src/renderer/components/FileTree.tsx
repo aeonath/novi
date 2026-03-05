@@ -29,6 +29,8 @@ export interface FileTreeProps {
   hideHeader?: boolean; // Hide the header (for use in split view)
   /** If true (default), this tree drives the global file watcher. Set false for split-view trees to avoid flicker. */
   driveFileWatcher?: boolean;
+  /** Whether to show the Open Folder button. Defaults to true. */
+  showOpenFolder?: boolean;
 }
 
 interface FileNode {
@@ -54,7 +56,7 @@ interface FileTreeContextValue {
 
 const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, initialPath, displayRoot, isTerminalTree = false, onRootChange, hideHeader = false, driveFileWatcher = true }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, showGitToggle = true, onDirectoryOpen, onNewTerminal, onNoviPrompt, initialPath, displayRoot, isTerminalTree = false, onRootChange, hideHeader = false, driveFileWatcher = true, showOpenFolder = true }) => {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const onRootChangeRef = React.useRef(onRootChange);
   onRootChangeRef.current = onRootChange;
@@ -554,7 +556,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
                   ⎇
                 </button>
               )}
-              {rootPath && (
+              {showOpenFolder && rootPath && (
                 <button style={styles.button} onClick={() => openDirectory()} title="Open Folder">
                   📂
                 </button>
@@ -563,55 +565,22 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
           </div>
         )}
 
-        {tree.length === 0 ? (
+        {tree.length === 0 && !rootPath ? (
           <div className="file-tree-scroll" style={styles.emptyState}>
             <p>No folder open</p>
-            <button style={styles.openButton} onClick={() => openDirectory()}>
-              Open Folder
-            </button>
+            {showOpenFolder && (
+              <button style={styles.openButton} onClick={() => openDirectory()}>
+                Open Folder
+              </button>
+            )}
+          </div>
+        ) : tree.length === 0 && rootPath ? (
+          <div className="file-tree-scroll" style={styles.emptyState}>
+            <p>Directory is empty</p>
           </div>
         ) : (
           <div className="file-tree-scroll" style={styles.tree}>
-            {/* Show ".." parent directory entry if not at root; hide when tree is tied to terminal */}
-            {(() => {
-              if (!rootPath) return null;
-              if (isTerminalTree) return null;
-              const normalizedPath = rootPath.replace(/\\/g, '/');
-              const isAtRoot = /^([A-Z]:\/?)$|^\/$/.test(normalizedPath);
-              if (isAtRoot) return null;
-              
-              return (
-                <div
-                  style={{
-                    ...styles.node,
-                    paddingLeft: '8px',
-                    cursor: 'pointer',
-                    backgroundColor: 'transparent',
-                  }}
-                  onClick={async () => {
-                    let parentPath = rootPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/') || (rootPath[1] === ':' ? rootPath[0] + ':/' : '/');
-                    // On Windows, "C:" means current dir on drive; use "C:\" or "C:/" for drive root
-                    if (/^[A-Za-z]:$/.test(parentPath)) {
-                      parentPath = parentPath + (rootPath.includes('\\') ? '\\' : '/');
-                    }
-                    console.log('[FileTree] Navigating to parent:', parentPath);
-                    // Full reinit like "Open Folder": clear state then load so we never show stale content
-                    setExpandedDirs(new Set());
-                    setTree([]);
-                    setRootPath(parentPath);
-                    await loadDirectory(parentPath);
-                    if (onDirectoryOpen) {
-                      onDirectoryOpen(parentPath);
-                    }
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2a2d2e'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <span style={{ marginRight: '4px' }}>📁</span>
-                  <span>..</span>
-                </div>
-              );
-            })()}
+            {/* ".." parent directory entry removed — no longer supported */}
             
             {/* Show inline input at root level if creating new file at root */}
             {newFileInput && newFileInput.parentPath === rootPath && !newFileInput.parentNode && (
