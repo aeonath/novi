@@ -411,11 +411,11 @@ const AppInner: React.FC = () => {
         return;
       }
 
-      // Check for --clean flag or savestate=off to skip workspace restoration
+      // Check for --clean flag or keeptabs=off to skip workspace restoration
       const args = await window.api.getCommandLineArgs();
-      const savestate = await window.api.getSetting<boolean>('savestate', true);
-      if (args.includes('--clean') || !savestate) {
-        console.log('[App] Skipping workspace restoration', args.includes('--clean') ? '(--clean flag)' : '(savestate off)');
+      const keeptabs = await window.api.getSetting<boolean>('keeptabs', true);
+      if (args.includes('--clean') || !keeptabs) {
+        console.log('[App] Skipping workspace restoration', args.includes('--clean') ? '(--clean flag)' : '(keeptabs off)');
         // Still create Home terminal
         ensureReady('tabbar-ready').then(() => {
           const tabBarAPI = (window as any).__tabBarAPI;
@@ -780,9 +780,9 @@ const AppInner: React.FC = () => {
         return;
       }
 
-      // Skip saving if savestate is off
-      const savestate = await window.api.getSetting<boolean>('savestate', true);
-      if (!savestate) return;
+      // Skip saving if keeptabs is off
+      const keeptabs = await window.api.getSetting<boolean>('keeptabs', true);
+      if (!keeptabs) return;
 
       try {
         const tabBarAPI = (window as any).__tabBarAPI;
@@ -1209,9 +1209,16 @@ const AppInner: React.FC = () => {
             language: 'terminal',
           });
           
-          // Add to terminal tabs state and initial file tree root (CWD will update on first PWD)
-          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 bash', workspaceRoot }]);
-          setTerminalFileTreeRoots(prev => ({ ...prev, [terminalId]: { cwd: workspaceRoot || '', overriddenRoot: undefined } }));
+          // Start new terminal in the active terminal's CWD (or workspaceRoot as fallback)
+          const tabBar = (window as any).__tabBarAPI;
+          const currentTab = tabBar?.getActiveTab?.();
+          const activeRoots = terminalFileTreeRootsRef.current;
+          const activeCwd = currentTab?.type === 'terminal' && currentTab.id
+            ? (activeRoots[currentTab.id]?.overriddenRoot ?? activeRoots[currentTab.id]?.cwd)
+            : null;
+          const startCwd = activeCwd || workspaceRoot;
+          setTerminalTabs(prev => [...prev, { id: terminalId, fileName: '💻 bash', workspaceRoot: startCwd }]);
+          setTerminalFileTreeRoots(prev => ({ ...prev, [terminalId]: { cwd: startCwd || '', overriddenRoot: undefined } }));
           console.log('[App] Added terminal to state:', terminalId);
           
           // Switch to terminal tab
@@ -1657,9 +1664,12 @@ const AppInner: React.FC = () => {
     };
   }, [actionContext]);
 
+  // Track the last file tree root from a non-novi-prompt tab so novi-prompt tabs can reuse it
+  const lastFileTreeRootRef = useRef<string | null>(null);
+
   // File tree root to display. When a terminal tab is active, always show that terminal's CWD so file tree stays in sync.
   const currentFileTreeDisplayRoot = useMemo(() => {
-    if (singleFileTree || !workspaceRoot) return workspaceRoot;
+    if (singleFileTree) return workspaceRoot;
     if (activeTab?.type === 'terminal') {
       const t = terminalFileTreeRoots[activeTab.id];
       const cwd = t?.overriddenRoot ?? t?.cwd;
@@ -1669,8 +1679,18 @@ const AppInner: React.FC = () => {
     if (activeTab?.type === 'file' || activeTab?.type === 'image') {
       return fileTabToTreeRoot[activeTab.id] || workspaceRoot;
     }
+    if (activeTab?.type === 'novi-prompt') {
+      return lastFileTreeRootRef.current || workspaceRoot;
+    }
     return workspaceRoot;
   }, [singleFileTree, workspaceRoot, activeTab, terminalFileTreeRoots, fileTabToTreeRoot]);
+
+  // Update last file tree root whenever a non-novi-prompt tab produces a valid root
+  useEffect(() => {
+    if (activeTab?.type !== 'novi-prompt' && currentFileTreeDisplayRoot) {
+      lastFileTreeRootRef.current = currentFileTreeDisplayRoot;
+    }
+  }, [activeTab, currentFileTreeDisplayRoot]);
 
   // Ctrl+Tab keybinding to cycle through tabs
   useEffect(() => {
@@ -1964,12 +1984,13 @@ const AppInner: React.FC = () => {
             
             <div style={{ display: showGitPanel ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
               <GitPanel
-                workspaceRoot={workspaceRoot}
+                workspaceRoot={currentFileTreeDisplayRoot || workspaceRoot}
                 onToggleFiles={() => setShowGitPanel(false)}
                 onRefreshStatus={async () => {
-                  if (!workspaceRoot || !window.api?.gitGetStatus) return;
+                  const gitRoot = currentFileTreeDisplayRoot || workspaceRoot;
+                  if (!gitRoot || !window.api?.gitGetStatus) return;
                   try {
-                    const status = await window.api.gitGetStatus(workspaceRoot);
+                    const status = await window.api.gitGetStatus(gitRoot);
                     if (status.isRepo) {
                       setGitStatus(status);
                     }
