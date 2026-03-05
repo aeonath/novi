@@ -108,7 +108,7 @@
       "allowElevation": true
     }
   },
-  "version": "0.7.1",
+  "version": "0.7.7",
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
     "@types/react": "^18.3.26",

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Novi** — a Terminal Development Environment (TDE) built with Electron, React, and TypeScript. Current version: `0.7.0-dev`. Formerly called "Nova IDE"; the `nova/` directory is intentionally kept as-is.
+**Novi** — a Terminal Development Environment (TDE) built with Electron, React, and TypeScript. Formerly called "Nova IDE"; the `nova/` directory is intentionally kept as-is.
 
 ## Commands
 

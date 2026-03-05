@@ -290,7 +290,7 @@ const AppInner: React.FC = () => {
       const dirName = segments[segments.length - 1] || pwd;
       const tabBarAPI = (window as any).__tabBarAPI;
       if (tabBarAPI) {
-        const icon = terminalId === HOME_TERMINAL_ID ? '🏠' : '💻';
+        const icon = terminalId === HOME_TERMINAL_ID ? '🖥️' : '💻';
         tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
       }
       // Refresh git status for the new directory
@@ -378,7 +378,7 @@ const AppInner: React.FC = () => {
         id: HOME_TERMINAL_ID,
         type: 'terminal',
         filePath: HOME_TERMINAL_ID,
-        fileName: '🏠 ~',
+        fileName: '🖥️ ~',
         isDirty: false,
         content: '',
         language: 'terminal',
@@ -386,7 +386,7 @@ const AppInner: React.FC = () => {
 
       setTerminalTabs(prev => {
         if (prev.some(t => t.id === HOME_TERMINAL_ID)) return prev;
-        return [{ id: HOME_TERMINAL_ID, fileName: '🏠 ~', workspaceRoot: savedCwd || null }, ...prev];
+        return [{ id: HOME_TERMINAL_ID, fileName: '🖥️ ~', workspaceRoot: savedCwd || null }, ...prev];
       });
       setTerminalFileTreeRoots(prev => ({
         ...prev,
