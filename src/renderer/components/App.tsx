@@ -293,6 +293,15 @@ const AppInner: React.FC = () => {
         const icon = terminalId === HOME_TERMINAL_ID ? '🏠' : '💻';
         tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
       }
+      // Refresh git status for the new directory
+      if (window.api?.gitGetStatus) {
+        window.api.gitGetStatus(pwd).then((status: any) => {
+          if (status.isRepo) setGitStatus(status);
+          else setGitStatus(null);
+        }).catch(() => {
+          setGitStatus(null);
+        });
+      }
     });
 
     return () => {
