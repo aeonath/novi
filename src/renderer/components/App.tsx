@@ -411,10 +411,11 @@ const AppInner: React.FC = () => {
         return;
       }
 
-      // Check for --clean flag to skip workspace restoration
+      // Check for --clean flag or savestate=off to skip workspace restoration
       const args = await window.api.getCommandLineArgs();
-      if (args.includes('--clean')) {
-        console.log('[App] --clean flag detected, skipping workspace restoration');
+      const savestate = await window.api.getSetting<boolean>('savestate', true);
+      if (args.includes('--clean') || !savestate) {
+        console.log('[App] Skipping workspace restoration', args.includes('--clean') ? '(--clean flag)' : '(savestate off)');
         // Still create Home terminal
         ensureReady('tabbar-ready').then(() => {
           const tabBarAPI = (window as any).__tabBarAPI;
@@ -778,6 +779,10 @@ const AppInner: React.FC = () => {
       if (!window.api?.workspaceSave) {
         return;
       }
+
+      // Skip saving if savestate is off
+      const savestate = await window.api.getSetting<boolean>('savestate', true);
+      if (!savestate) return;
 
       try {
         const tabBarAPI = (window as any).__tabBarAPI;
@@ -1657,8 +1662,9 @@ const AppInner: React.FC = () => {
     if (singleFileTree || !workspaceRoot) return workspaceRoot;
     if (activeTab?.type === 'terminal') {
       const t = terminalFileTreeRoots[activeTab.id];
-      const cwd = (t?.overriddenRoot ?? t?.cwd) ?? workspaceRoot ?? '';
-      return cwd || workspaceRoot;
+      const cwd = t?.overriddenRoot ?? t?.cwd;
+      // Don't fall back to workspaceRoot — wait for the terminal to report its CWD
+      return cwd || null;
     }
     if (activeTab?.type === 'file' || activeTab?.type === 'image') {
       return fileTabToTreeRoot[activeTab.id] || workspaceRoot;

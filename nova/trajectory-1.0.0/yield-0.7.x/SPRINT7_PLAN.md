@@ -90,4 +90,9 @@ We need to enhance the debug flag we added for set debug on/off to
 apply to our log messages if the novi is run from a terminal.
 
 
-## Task 8 - 
+## Task 8 - add savestate on/off
+
+We need to make it configurable to save the state of the environment. add 
+the novi shell command set savestate on/off which will toggle the behavior
+if on it will behave as it does currently where it remembers the environment state. if off it will always start with the home terminal in whatever directory the user would normally start with (or in the directory that
+cd to in the bashrc) where the terminal would be.

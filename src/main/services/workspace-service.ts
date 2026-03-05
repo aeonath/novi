@@ -35,6 +35,7 @@ export interface WorkspaceState {
     gitPanelCollapsed?: boolean;
   };
   gitBranch?: string;
+  homeTerminalCwd?: string;
   lastSaved: string;
 }
 
@@ -90,6 +91,9 @@ export class WorkspaceManager {
       // Novi Prompt IDs
       const promptIds = state.openNoviPrompts.map(p => p.id).join('|');
       lines.push(`openNoviPrompts=${promptIds}`);
+
+      // Home terminal CWD
+      lines.push(`homeTerminalCwd=${state.homeTerminalCwd || ''}`);
       
       const content = lines.join('\n');
       await writeFile(this.workspaceFile, content, 'utf-8');
@@ -158,6 +162,7 @@ export class WorkspaceManager {
         openFiles,
         openTerminals,
         openNoviPrompts,
+        homeTerminalCwd: config.homeTerminalCwd || undefined,
         activeTabId: config.activeTabId || null,
         activeTabType: (config.activeTabType as any) || null,
         layout: {

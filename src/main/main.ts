@@ -1009,6 +1009,9 @@ void app.whenReady().then(() => {
       // Forward PTY output to renderer
       // OSC 7 CWD notification: ESC ] 7 ; file://hostname/path BEL-or-ST
       const OSC7_RE = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*)(?:\x07|\x1b\\)/;
+      // Track whether we still need to inject a cd for workspace restore.
+      // The first OSC 7 proves bash has fully initialized (PROMPT_COMMAND fired).
+      let pendingCdRestore = cwd ? cwd : null;
       session.pty.onData((data: string) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
           // Parse OSC 7 to extract CWD (invisible to xterm.js — no stripping needed)
@@ -1016,7 +1019,19 @@ void app.whenReady().then(() => {
           if (osc7Match) {
             const rawPath = decodeURIComponent(osc7Match[1]);
             const resolvedPath = process.platform === 'win32' ? msysToWindows(rawPath) : rawPath;
-            mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedPath);
+
+            // If we have a pending cd restore and bash is now ready, inject it
+            if (pendingCdRestore) {
+              const targetPath = pendingCdRestore;
+              pendingCdRestore = null; // Only inject once
+              // Normalize for comparison: both to forward-slash lowercase
+              const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+              if (norm(resolvedPath) !== norm(targetPath)) {
+                session.pty.write(`cd "${targetPath.replace(/\\/g, '/')}" && clear\r`);
+              }
+            } else {
+              mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedPath);
+            }
           }
           // Pass ALL data to renderer unchanged — OSC 7 is silently consumed by xterm.js
           mainWindowRef.webContents.send('terminal-data', terminalId, data);
