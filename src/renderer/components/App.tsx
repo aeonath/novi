@@ -29,6 +29,11 @@ import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
 import { parseNoviCommand } from '../utils/novi-command.js';
 
+/** The Home terminal tab ID — always present, always first, cannot be closed. */
+const HOME_TERMINAL_ID = 'terminal-home';
+/** Set of pinned (unclosable) tab IDs passed to TabBar. */
+const homeTerminalPinnedSet = new Set([HOME_TERMINAL_ID]);
+
 /** Convert Git Bash (MSYS) path to Windows path so Node/Electron can open the file (/c/Work/... -> C:\Work\...) */
 function toWindowsPathIfNeeded(p: string): string {
   const m = p.match(/^\/([a-zA-Z])\/(.*)$/);
@@ -223,17 +228,23 @@ const AppInner: React.FC = () => {
     window.api.terminalRemoveExitListener();
     
     window.api.terminalOnExit((terminalId: string, exitCode: number) => {
-      console.log('[App] Terminal', terminalId, 'exited with code', exitCode, '- closing tab');
-      
+      console.log('[App] Terminal', terminalId, 'exited with code', exitCode);
+
+      // Home terminal: keep the tab, just log it (Terminal component will re-create PTY when active)
+      if (terminalId === HOME_TERMINAL_ID) {
+        console.log('[App] Home terminal exited — tab stays open');
+        return;
+      }
+
       // Find and close the terminal tab
       const tabBarAPI = (window as any).__tabBarAPI;
       if (tabBarAPI) {
         // Close the tab - this will trigger the normal cleanup
         tabBarAPI.closeTab(terminalId);
-        
+
         // Also remove from terminalTabs state
         setTerminalTabs((prev) => prev.filter((tab) => tab.id !== terminalId));
-        
+
         // If this was the active tab, activate another tab
         const tabs = tabBarAPI.getTabs();
         if (tabs.length > 0 && activeTab?.id === terminalId) {
@@ -277,7 +288,8 @@ const AppInner: React.FC = () => {
       const dirName = segments[segments.length - 1] || pwd;
       const tabBarAPI = (window as any).__tabBarAPI;
       if (tabBarAPI) {
-        tabBarAPI.updateTabFileName(terminalId, `💻 ${dirName}/`);
+        const icon = terminalId === HOME_TERMINAL_ID ? '🏠' : '💻';
+        tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
       }
     });
 
@@ -346,9 +358,45 @@ const AppInner: React.FC = () => {
 
   // Load workspace on startup
   useEffect(() => {
+    /** Create the Home terminal tab — must be added first so it's always in position 0. */
+    const createHomeTerminal = (tabBarAPI: any) => {
+      const existingTabs = tabBarAPI.getTabs();
+      if (existingTabs.some((t: any) => t.id === HOME_TERMINAL_ID)) return;
+
+      tabBarAPI.addTab({
+        id: HOME_TERMINAL_ID,
+        type: 'terminal',
+        filePath: HOME_TERMINAL_ID,
+        fileName: '🏠 ~',
+        isDirty: false,
+        content: '',
+        language: 'terminal',
+      });
+
+      setTerminalTabs(prev => {
+        if (prev.some(t => t.id === HOME_TERMINAL_ID)) return prev;
+        return [{ id: HOME_TERMINAL_ID, fileName: '🏠 ~', workspaceRoot: null }, ...prev];
+      });
+      setTerminalFileTreeRoots(prev => ({
+        ...prev,
+        [HOME_TERMINAL_ID]: { cwd: '', overriddenRoot: undefined },
+      }));
+
+      // Make the home terminal active (don't show welcome screen)
+      setShowWelcome(false);
+      setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+
+      console.log('[App] Home terminal tab created');
+    };
+
     const loadWorkspace = async () => {
       if (!window.api?.workspaceLoad || !window.api?.getCommandLineArgs) {
         console.warn('[App] Workspace API not available');
+        // Still create Home terminal even without workspace API
+        ensureReady('tabbar-ready').then(() => {
+          const tabBarAPI = (window as any).__tabBarAPI;
+          if (tabBarAPI) createHomeTerminal(tabBarAPI);
+        }).catch(() => {});
         return;
       }
 
@@ -356,15 +404,25 @@ const AppInner: React.FC = () => {
       const args = await window.api.getCommandLineArgs();
       if (args.includes('--clean')) {
         console.log('[App] --clean flag detected, skipping workspace restoration');
+        // Still create Home terminal
+        ensureReady('tabbar-ready').then(() => {
+          const tabBarAPI = (window as any).__tabBarAPI;
+          if (tabBarAPI) createHomeTerminal(tabBarAPI);
+        }).catch(() => {});
         return;
       }
 
       try {
         console.log('[App] Loading workspace...');
         const workspace = await window.api.workspaceLoad();
-        
+
         if (!workspace) {
           console.log('[App] No saved workspace found');
+          // Still create Home terminal
+          ensureReady('tabbar-ready').then(() => {
+            const tabBarAPI = (window as any).__tabBarAPI;
+            if (tabBarAPI) createHomeTerminal(tabBarAPI);
+          }).catch(() => {});
           return;
         }
 
@@ -394,6 +452,11 @@ const AppInner: React.FC = () => {
         if (workspace.layout) {
           setShowGitPanel(workspace.layout.showGitPanel);
         }
+
+        // Create Home terminal first (always position 0) before restoring other tabs
+        await ensureReady('tabbar-ready');
+        const homeTabBarAPI = (window as any).__tabBarAPI;
+        if (homeTabBarAPI) createHomeTerminal(homeTabBarAPI);
 
         // Restore open files
         if (workspace.openFiles && workspace.openFiles.length > 0) {
@@ -460,8 +523,7 @@ const AppInner: React.FC = () => {
                   console.log('[App] Restored active file tab:', activeTabInfo.fileName);
                 }
               } else {
-                setShowWelcome(true);
-                setActiveTab(null);
+                // No active file tab — home terminal is already active from createHomeTerminal()
               }
               console.log('[App] Restored', successfullyLoadedCount, 'file tabs');
             } catch (error) {
@@ -724,10 +786,12 @@ const AppInner: React.FC = () => {
             fileName: t.fileName,
           }));
 
-        const openTerminals = terminalTabs.map(t => ({
-          id: t.id,
-          name: t.fileName,
-        }));
+        const openTerminals = terminalTabs
+          .filter(t => t.id !== HOME_TERMINAL_ID)
+          .map(t => ({
+            id: t.id,
+            name: t.fileName,
+          }));
 
         const openNoviPrompts = noviPromptTabs.map(t => ({
           id: t.id,
@@ -1909,11 +1973,15 @@ const AppInner: React.FC = () => {
           />
           
           <main style={styles.editorArea}>
-            <TabBar 
+            <TabBar
+              pinnedTabIds={homeTerminalPinnedSet}
               getPreferredNextTabId={() => previousActiveTabIdRef.current ?? null}
               onAllTabsClosed={() => {
-                setShowWelcome(true);
-                setActiveTab(null);
+                // Home terminal is always present, switch to it
+                setShowWelcome(false);
+                setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+                const tabBarAPI = (window as any).__tabBarAPI;
+                if (tabBarAPI) tabBarAPI.switchTab(HOME_TERMINAL_ID);
               }}
               onTabSwitch={(tab) => {
                 // Remember tab we're leaving so :q / Ctrl+W can return to it
@@ -1966,6 +2034,8 @@ const AppInner: React.FC = () => {
                 });
               }}
               onTabClose={async (tabId: string) => {
+                // Home terminal cannot be closed
+                if (tabId === HOME_TERMINAL_ID) return false;
                 if (forceCloseTabIdRef.current === tabId) {
                   forceCloseTabIdRef.current = null;
                   return true;
@@ -2151,7 +2221,14 @@ const AppInner: React.FC = () => {
           </main>
         </div>
         
-        <StatusBar fileTreePath={fileTreeReportedRoot} onHomeClick={() => setShowWelcome(true)} />
+        <StatusBar fileTreePath={fileTreeReportedRoot} onHomeClick={() => {
+          const tabBarAPI = (window as any).__tabBarAPI;
+          if (tabBarAPI) {
+            tabBarAPI.switchTab(HOME_TERMINAL_ID);
+          }
+          setShowWelcome(false);
+          setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+        }} />
         
         {/* Modal components */}
         <ActionHUD actions={actions} />

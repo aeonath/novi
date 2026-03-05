@@ -26,6 +26,8 @@ export interface TabBarProps {
   onAllTabsClosed?: () => void;
   /** When closing the active tab, prefer switching to this tab id if it still exists (e.g. return to previous tab after :q / Ctrl+W). */
   getPreferredNextTabId?: () => string | null;
+  /** Set of tab IDs that cannot be closed (no close button shown). */
+  pinnedTabIds?: Set<string>;
 }
 
 /** File icon by extension, consistent with FileTree */
@@ -59,10 +61,12 @@ function getFileIcon(fileName: string): string {
   }
 }
 
-export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTabsClosed, getPreferredNextTabId }) => {
+export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTabsClosed, getPreferredNextTabId, pinnedTabIds }) => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tab: Tab } | null>(null);
+  const pinnedTabIdsRef = React.useRef(pinnedTabIds);
+  pinnedTabIdsRef.current = pinnedTabIds;
 
   const addTab = useCallback((tab: Tab) => {
     setTabs((prevTabs) => {
@@ -88,6 +92,8 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
   }, [onTabSwitch]);
 
   const removeTab = useCallback(async (tabId: string) => {
+    // Pinned tabs cannot be closed
+    if (pinnedTabIdsRef.current?.has(tabId)) return false;
     // Ask if we can close (handles unsaved changes)
     if (onTabClose) {
       const canClose = await onTabClose(tabId);
@@ -205,6 +211,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
           key={tab.id}
           tab={tab}
           isActive={tab.id === activeTabId}
+          isPinned={pinnedTabIds?.has(tab.id) ?? false}
           onSelect={() => switchTab(tab.id)}
           onClose={() => void removeTab(tab.id)}
           onContextMenu={(e) => {
@@ -268,12 +275,13 @@ export const TabBar: React.FC<TabBarProps> = ({ onTabSwitch, onTabClose, onAllTa
 interface TabItemProps {
   tab: Tab;
   isActive: boolean;
+  isPinned?: boolean;
   onSelect: () => void;
   onClose: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }
 
-const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose, onContextMenu }) => {
+const TabItem: React.FC<TabItemProps> = ({ tab, isActive, isPinned, onSelect, onClose, onContextMenu }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -295,19 +303,21 @@ const TabItem: React.FC<TabItemProps> = ({ tab, isActive, onSelect, onClose, onC
         {tab.type === 'file' ? `${getFileIcon(tab.fileName)} ${tab.fileName}` : tab.fileName}
         {tab.type === 'file' && tab.isDirty && <span style={styles.dirtyIndicator}> ●</span>}
       </span>
-      <button
-        style={{
-          ...styles.closeButton,
-          ...(isHovered ? styles.closeButtonVisible : {}),
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        aria-label="Close tab"
-      >
-        ×
-      </button>
+      {!isPinned && (
+        <button
+          style={{
+            ...styles.closeButton,
+            ...(isHovered ? styles.closeButtonVisible : {}),
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          aria-label="Close tab"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 };

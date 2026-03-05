@@ -10,6 +10,7 @@
 
 import * as pty from '@lydell/node-pty';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { logInfo, logError } from '../logger';
 
 export interface CreateSessionOptions {
@@ -78,7 +79,7 @@ class TerminalService {
   createSession(cwd?: string, cols = 120, rows = 30, customId?: string, _options?: CreateSessionOptions): string {
     const id = customId || `terminal-${this.nextId++}`;
     const shellPath = this.getShellPath();
-    const cwdPath = cwd || process.cwd();
+    const cwdPath = cwd || homedir();
 
     const baseEnv = { ...process.env };
     // Use OSC 7 to report CWD — an invisible escape sequence that xterm.js

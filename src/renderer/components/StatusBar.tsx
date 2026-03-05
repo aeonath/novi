@@ -112,7 +112,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({ fileTreePath, onHomeClick 
           <button
             type="button"
             onClick={onHomeClick}
-            title="Show home screen"
+            title="Go to Home terminal"
             style={styles.homeButton}
             aria-label="Home"
           >
