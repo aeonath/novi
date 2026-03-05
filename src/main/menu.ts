@@ -196,7 +196,7 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         },
         { type: 'separator' },
         {
-          label: 'Reset Workspace',
+          label: 'Clear Workspace',
           click: () => executeCommand('reset-workspace', mainWindow),
         },
       ],

@@ -118,7 +118,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'Novi Terminal Envir
       { separator: true },
       { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P', disabled: true },
       { separator: true },
-      { label: 'Reset Workspace', command: 'reset-workspace' },
+      { label: 'Clear Workspace', command: 'reset-workspace' },
     ],
     Help: [
       { label: 'About Novi', command: 'about' },

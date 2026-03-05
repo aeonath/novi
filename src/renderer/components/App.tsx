@@ -1570,44 +1570,27 @@ const AppInner: React.FC = () => {
             }
           }
           
-          // Stop Git watching if active
-          if (window.api?.gitStopWatching) {
-            await window.api.gitStopWatching();
-          }
-          
-          // Hide Git panel and close file tree
-          setShowGitPanel(false);
-          setWorkspaceRoot(null);
-          
-          // Reset FileTree internal state
-          const fileTreeAPI = (window as any).__fileTreeAPI;
-          if (fileTreeAPI?.reset) {
-            fileTreeAPI.reset();
-            console.log('[App] FileTree reset');
-          }
-          
-          // Close all tabs
+          // Kill non-home terminal PTYs
           for (const tab of allTabs) {
-            tabBarAPI.removeTab(tab.id);
+            if (tab.type === 'terminal' && tab.id !== HOME_TERMINAL_ID) {
+              try { await window.api?.terminalKill?.(tab.id); } catch { /* ignore */ }
+            }
           }
-          
-          // Clear terminal and novi prompt tabs state
-          setTerminalTabs([]);
+
+          // Remove all tabs except the home terminal
+          for (const tab of allTabs) {
+            if (tab.id !== HOME_TERMINAL_ID) {
+              tabBarAPI.removeTab(tab.id);
+            }
+          }
+
+          // Clear state for non-home tabs, switch to home terminal
+          setTerminalTabs(prev => prev.filter(t => t.id === HOME_TERMINAL_ID));
           setNoviPromptTabs([]);
-          setActiveTab(null);
-          
-          // Clear Git status
-          setGitStatus(null);
-          
-          // Show welcome screen and clear status bar path
-          setShowWelcome(true);
-          setFileTreeReportedRoot(null);
-          
-          if ((window as any).__statusBarAPI) {
-            (window as any).__statusBarAPI.setStatus('Ready');
-          }
-          
-          console.log('[App] Workspace reset complete');
+          setShowGitPanel(false);
+          setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+
+          console.log('[App] Workspace cleared');
         }
         break;
       case 'find':
