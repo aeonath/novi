@@ -360,7 +360,7 @@ const AppInner: React.FC = () => {
   // Load workspace on startup
   useEffect(() => {
     /** Create the Home terminal tab — must be added first so it's always in position 0. */
-    const createHomeTerminal = (tabBarAPI: any) => {
+    const createHomeTerminal = (tabBarAPI: any, savedCwd?: string) => {
       const existingTabs = tabBarAPI.getTabs();
       if (existingTabs.some((t: any) => t.id === HOME_TERMINAL_ID)) return;
 
@@ -376,18 +376,18 @@ const AppInner: React.FC = () => {
 
       setTerminalTabs(prev => {
         if (prev.some(t => t.id === HOME_TERMINAL_ID)) return prev;
-        return [{ id: HOME_TERMINAL_ID, fileName: '🏠 ~', workspaceRoot: null }, ...prev];
+        return [{ id: HOME_TERMINAL_ID, fileName: '🏠 ~', workspaceRoot: savedCwd || null }, ...prev];
       });
       setTerminalFileTreeRoots(prev => ({
         ...prev,
-        [HOME_TERMINAL_ID]: { cwd: '', overriddenRoot: undefined },
+        [HOME_TERMINAL_ID]: { cwd: savedCwd || '', overriddenRoot: undefined },
       }));
 
       // Make the home terminal active (don't show welcome screen)
       setShowWelcome(false);
       setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
 
-      console.log('[App] Home terminal tab created');
+      console.log('[App] Home terminal tab created', savedCwd ? `with CWD: ${savedCwd}` : '(default home)');
     };
 
     const loadWorkspace = async () => {
@@ -457,7 +457,7 @@ const AppInner: React.FC = () => {
         // Create Home terminal first (always position 0) before restoring other tabs
         await ensureReady('tabbar-ready');
         const homeTabBarAPI = (window as any).__tabBarAPI;
-        if (homeTabBarAPI) createHomeTerminal(homeTabBarAPI);
+        if (homeTabBarAPI) createHomeTerminal(homeTabBarAPI, workspace.homeTerminalCwd);
 
         // Restore open files
         if (workspace.openFiles && workspace.openFiles.length > 0) {
@@ -599,9 +599,10 @@ const AppInner: React.FC = () => {
                   language: 'terminal',
                 });
                 
-                // Add to terminal tabs state and initial file tree root (CWD will update on first PWD)
-                setTerminalTabs(prev => [...prev, { id: terminalId, fileName: terminalInfo.name || 'bash', workspaceRoot }]);
-                setTerminalFileTreeRoots(prev => ({ ...prev, [terminalId]: { cwd: workspace.workspaceRoot || '', overriddenRoot: undefined } }));
+                // Add to terminal tabs state with saved CWD (falls back to workspace root)
+                const termCwd = terminalInfo.cwd || workspace.workspaceRoot || '';
+                setTerminalTabs(prev => [...prev, { id: terminalId, fileName: terminalInfo.name || 'bash', workspaceRoot: termCwd || workspaceRoot }]);
+                setTerminalFileTreeRoots(prev => ({ ...prev, [terminalId]: { cwd: termCwd, overriddenRoot: undefined } }));
                 console.log('[App] Restored terminal tab:', terminalId);
               }
               
@@ -792,7 +793,11 @@ const AppInner: React.FC = () => {
           .map(t => ({
             id: t.id,
             name: t.fileName,
+            cwd: terminalFileTreeRoots[t.id]?.cwd || '',
           }));
+
+        // Save home terminal CWD separately so it restores to the right directory
+        const homeTerminalCwd = terminalFileTreeRoots[HOME_TERMINAL_ID]?.cwd || '';
 
         const openNoviPrompts = noviPromptTabs.map(t => ({
           id: t.id,
@@ -805,6 +810,7 @@ const AppInner: React.FC = () => {
           openImages,
           openTerminals,
           openNoviPrompts,
+          homeTerminalCwd,
           activeTabId: activeTab?.id || null,
           activeTabType: activeTab?.type || null,
           activeFileIndex,
