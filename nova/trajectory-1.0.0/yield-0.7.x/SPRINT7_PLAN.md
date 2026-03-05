@@ -74,4 +74,14 @@ the action bar in the future.  Make sure you put a comment that it
 was diabled where appropriate.
 
 
-## Task 6 - 
+## Task 6 - Add novi> debug on/off
+
+
+WE need to not have very verbose output when we ship novi claude.  So we need a DEBUG_FLAG for all of our log messages.  Start with the log messages 
+going to the Javascript console.  When debug on we will have verbose logging
+messages.  When debug off we should have sparse to no messages going to the console.  We will tackle log messages going to the console in the next task.
+
+The setting should persistent between app loads like the other settings.
+
+
+

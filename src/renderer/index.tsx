@@ -11,7 +11,34 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './components/App.js';
 
-console.log('[Novi] Initializing Novi Terminal Environment v0.4.0 with React...');
+// Debug logging gate — when debug is off, console.log and console.info become no-ops.
+// console.warn and console.error are always active.
+const _origLog = console.log.bind(console);
+const _origInfo = console.info.bind(console);
+const _noop = () => {};
+
+function applyDebugMode(enabled: boolean) {
+  console.log = enabled ? _origLog : _noop;
+  console.info = enabled ? _origInfo : _noop;
+}
+
+// Load debug setting immediately (before React renders)
+(async () => {
+  try {
+    const debug = await window.api.getSetting<boolean>('debug', false);
+    applyDebugMode(!!debug);
+  } catch {
+    // Default: debug off in production
+    applyDebugMode(false);
+  }
+})();
+
+// React to runtime changes from `set debug on/off`
+window.addEventListener('novi-debug-changed', ((e: CustomEvent) => {
+  applyDebugMode(!!e.detail?.enabled);
+}) as EventListener);
+
+_origLog('[Novi] Initializing Novi Terminal Environment v0.7.0...');
 
 // Wait for Monaco to load before initializing
 const waitForMonaco = async (): Promise<boolean> => {

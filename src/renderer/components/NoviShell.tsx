@@ -244,10 +244,12 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
         const vimode = await window.api.getSetting<boolean>('vimode', false);
         const compat = await window.api.getSetting<boolean>('compat', false);
         const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
+        const debug = await window.api.getSetting<boolean>('debug', false);
         terminal.writeln('\x1b[36mCurrent settings:\x1b[0m');
         terminal.writeln(`  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         terminal.writeln(`  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         terminal.writeln(`  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
+        terminal.writeln(`  debug          ${debug ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
       } catch (e) {
         terminal.writeln('\x1b[31mFailed to read settings\x1b[0m');
       }
@@ -256,9 +258,9 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
     const option = args[0].toLowerCase();
     const value = args[1]?.toLowerCase();
 
-    if (option !== 'vimode' && option !== 'compat' && option !== 'singlefiletree') {
+    if (option !== 'vimode' && option !== 'compat' && option !== 'singlefiletree' && option !== 'debug') {
       terminal.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
-      terminal.writeln('Supported: vimode, compat, singlefiletree');
+      terminal.writeln('Supported: vimode, compat, singlefiletree, debug');
       return;
     }
 
@@ -270,9 +272,12 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
         } else if (option === 'compat') {
           const on = await window.api.getSetting<boolean>('compat', false);
           terminal.writeln(on ? '\x1b[32mcompat is on\x1b[0m' : '\x1b[33mcompat is off\x1b[0m');
-        } else {
+        } else if (option === 'singlefiletree') {
           const on = await window.api.getSetting<boolean>('singlefiletree', false);
           terminal.writeln(on ? '\x1b[32msinglefiletree is on\x1b[0m' : '\x1b[33msinglefiletree is off\x1b[0m');
+        } else {
+          const on = await window.api.getSetting<boolean>('debug', false);
+          terminal.writeln(on ? '\x1b[32mdebug is on\x1b[0m' : '\x1b[33mdebug is off\x1b[0m');
         }
       } catch (e) {
         terminal.writeln('\x1b[31mFailed to read setting\x1b[0m');
@@ -313,6 +318,17 @@ export const NoviShell: React.FC<NoviShellProps> = ({ promptId, isActive, onClos
         terminal.writeln(value === 'on' ? '\x1b[32msinglefiletree on\x1b[0m' : '\x1b[33msinglefiletree off\x1b[0m');
       } catch (e) {
         terminal.writeln('\x1b[31mFailed to set singlefiletree\x1b[0m');
+      }
+      return;
+    }
+
+    if (option === 'debug') {
+      try {
+        await window.api.setSetting('debug', value === 'on');
+        window.dispatchEvent(new CustomEvent('novi-debug-changed', { detail: { enabled: value === 'on' } }));
+        terminal.writeln(value === 'on' ? '\x1b[32mdebug on\x1b[0m' : '\x1b[33mdebug off\x1b[0m');
+      } catch (e) {
+        terminal.writeln('\x1b[31mFailed to set debug\x1b[0m');
       }
     }
   };
