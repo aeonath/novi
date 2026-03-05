@@ -25,6 +25,21 @@ import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader'
 
 let mainWindowRef: BrowserWindow | null = null;
 
+// --- Debug logging gate (main process) ---
+// When debug is off, console.log and console.info become no-ops.
+// console.warn and console.error are always active.
+const _origLog = console.log.bind(console);
+const _origInfo = console.info.bind(console);
+const _noop = () => {};
+
+function applyDebugMode(enabled: boolean) {
+  console.log = enabled ? _origLog : _noop;
+  console.info = enabled ? _origInfo : _noop;
+}
+
+// Load debug setting synchronously at startup
+applyDebugMode(!!getSetting<boolean>('debug', false));
+
 // --- MSYS / Git-bash path conversion ---
 // Git-bash reports POSIX paths via $PWD: /c/Work → C:\Work, / → Git root, /usr → Git root\usr
 // We detect the Git install root once and convert all incoming PWD paths.
@@ -219,7 +234,10 @@ void app.whenReady().then(() => {
 
   // Generic settings IPC
   ipcMain.handle('get-setting', (_e, key: string, defaults?: unknown) => getSetting(key, defaults));
-  ipcMain.handle('set-setting', (_e, key: string, value: unknown) => setSetting(key, value));
+  ipcMain.handle('set-setting', (_e, key: string, value: unknown) => {
+    setSetting(key, value);
+    if (key === 'debug') applyDebugMode(!!value);
+  });
   ipcMain.on('renderer-error', (_e, payload: { message: string; stack?: string }) => {
     logError(`Renderer error: ${payload.message}`, payload.stack);
     saveCrashReport('rendererError', new Error(payload.message), payload.stack);

@@ -84,4 +84,10 @@ messages.  When debug off we should have sparse to no messages going to the cons
 The setting should persistent between app loads like the other settings.
 
 
+## Task 7 - apply the debug flag to terminal log messages
 
+We need to enhance the debug flag we added for set debug on/off to
+apply to our log messages if the novi is run from a terminal.
+
+
+## Task 8 - 
