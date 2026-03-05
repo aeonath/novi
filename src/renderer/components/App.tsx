@@ -45,7 +45,7 @@ function toWindowsPathIfNeeded(p: string): string {
 
 
 const AppInner: React.FC = () => {
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [monacoReady, setMonacoReady] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
