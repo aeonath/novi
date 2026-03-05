@@ -5,7 +5,7 @@
 
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join, normalize, dirname } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { readdir, stat, readFile, writeFile, mkdir, rm, rename as fsRename } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
@@ -24,6 +24,52 @@ import { commandStatsService } from './services/command-stats-service';
 import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
 
 let mainWindowRef: BrowserWindow | null = null;
+
+// --- MSYS / Git-bash path conversion ---
+// Git-bash reports POSIX paths via $PWD: /c/Work → C:\Work, / → Git root, /usr → Git root\usr
+// We detect the Git install root once and convert all incoming PWD paths.
+let cachedGitRoot: string | null | undefined; // undefined = not yet detected
+
+function getGitRoot(): string | null {
+  if (cachedGitRoot !== undefined) return cachedGitRoot;
+  const candidates = [
+    'C:\\Program Files\\Git',
+    'C:\\Program Files (x86)\\Git',
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      cachedGitRoot = p;
+      return p;
+    }
+  }
+  cachedGitRoot = null;
+  return null;
+}
+
+function msysToWindows(posixPath: string): string {
+  // Already a Windows path (PowerShell, cmd)
+  if (/^[A-Za-z]:/.test(posixPath)) return posixPath;
+  // Not a POSIX path
+  if (!posixPath.startsWith('/')) return posixPath;
+
+  // Drive letter: /c/Work → C:\Work, /d/ → D:\
+  const driveMatch = posixPath.match(/^\/([a-zA-Z])(\/.*)?$/);
+  if (driveMatch) {
+    const drive = driveMatch[1].toUpperCase();
+    const rest = (driveMatch[2] || '\\').replace(/\//g, '\\');
+    return `${drive}:${rest}`;
+  }
+
+  // MSYS root paths: /, /usr, /etc, /tmp → Git install dir + path
+  const gitRoot = getGitRoot();
+  if (gitRoot) {
+    if (posixPath === '/') return gitRoot;
+    return gitRoot + posixPath.replace(/\//g, '\\');
+  }
+
+  // Fallback: return as-is
+  return posixPath;
+}
 
 /** App version from this project's package.json (not Electron/parent package). */
 function getAppVersion(): string {
@@ -951,7 +997,8 @@ void app.whenReady().then(() => {
           const osc7Match = OSC7_RE.exec(data);
           if (osc7Match) {
             const rawPath = decodeURIComponent(osc7Match[1]);
-            mainWindowRef.webContents.send('terminal-pwd', terminalId, rawPath);
+            const resolvedPath = process.platform === 'win32' ? msysToWindows(rawPath) : rawPath;
+            mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedPath);
           }
           // Pass ALL data to renderer unchanged — OSC 7 is silently consumed by xterm.js
           mainWindowRef.webContents.send('terminal-data', terminalId, data);
