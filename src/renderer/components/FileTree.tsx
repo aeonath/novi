@@ -62,6 +62,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [newFileInput, setNewFileInput] = useState<{ parentPath: string; parentNode: FileNode | null } | null>(null);
+  const [newFolderInput, setNewFolderInput] = useState<{ parentPath: string; parentNode: FileNode | null } | null>(null);
   const { gitStatus } = useAppContext();
   
   // Use a ref to track expandedDirs so the file watcher event handler always has the current value
@@ -267,37 +268,64 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     }
   }, [newFileInput, onFileOpen, loadDirectory]);
 
-  const createNewFolder = useCallback(async (parentNode: FileNode | null) => {
-    if (!window.api?.createDirectory) return;
+  const createNewFolder = useCallback((parentNode: FileNode | null) => {
     closeContextMenu();
 
-    const parentPath = parentNode ? parentNode.path : rootPath;
+    let parentPath: string | null;
+    let effectiveParentNode: FileNode | null = null;
+
+    if (!parentNode) {
+      parentPath = rootPath;
+    } else if (parentNode.isDirectory) {
+      parentPath = parentNode.path;
+      effectiveParentNode = parentNode;
+    } else {
+      const lastSlash = Math.max(parentNode.path.lastIndexOf('/'), parentNode.path.lastIndexOf('\\'));
+      parentPath = parentNode.path.substring(0, lastSlash);
+    }
+
     if (!parentPath) {
       alert('Please open a directory first (📂 Open Folder)');
       return;
     }
 
-    const folderName = prompt('Enter folder name:');
-    if (!folderName) return;
+    setNewFolderInput({ parentPath, parentNode: effectiveParentNode });
+
+    if (effectiveParentNode && effectiveParentNode.isDirectory) {
+      setExpandedDirs((prev) => {
+        const next = new Set(prev);
+        next.add(parentPath);
+        return next;
+      });
+    }
+  }, [rootPath, closeContextMenu]);
+
+  const handleNewFolderSubmit = useCallback(async (folderName: string) => {
+    if (!newFolderInput || !window.api?.createDirectory) return;
+
+    if (!folderName.trim()) {
+      setNewFolderInput(null);
+      return;
+    }
 
     try {
-      // Use path separator that matches the parent path
-      const separator = parentPath.includes('\\') ? '\\' : '/';
-      const folderPath = `${parentPath}${parentPath.endsWith('/') || parentPath.endsWith('\\') ? '' : separator}${folderName}`;
+      const separator = newFolderInput.parentPath.includes('\\') ? '\\' : '/';
+      const folderPath = `${newFolderInput.parentPath}${newFolderInput.parentPath.endsWith('/') || newFolderInput.parentPath.endsWith('\\') ? '' : separator}${folderName}`;
       await window.api.createDirectory(folderPath);
-      
-      // Reload parent directory
-      await loadDirectory(parentPath, parentNode ? parentPath : undefined);
-      
-      // Expand parent if it's a directory
-      if (parentNode && !expandedDirs.has(parentPath)) {
-        setExpandedDirs((prev) => new Set(prev).add(parentPath));
+
+      await loadDirectory(newFolderInput.parentPath, newFolderInput.parentNode ? newFolderInput.parentPath : undefined);
+
+      if (!expandedDirs.has(newFolderInput.parentPath)) {
+        setExpandedDirs((prev) => new Set(prev).add(newFolderInput.parentPath));
       }
+
+      setNewFolderInput(null);
     } catch (error) {
       console.error('[FileTree] Failed to create folder:', error);
       alert(`Failed to create folder: ${(error as Error).message}`);
+      setNewFolderInput(null);
     }
-  }, [rootPath, expandedDirs, closeContextMenu, loadDirectory]);
+  }, [newFolderInput, expandedDirs, loadDirectory]);
 
   const renameNode = useCallback(async (node: FileNode) => {
     if (!window.api?.renameFile) return;
@@ -403,6 +431,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
     setExpandedDirs(new Set());
     setContextMenu(null);
     setNewFileInput(null);
+    setNewFolderInput(null);
     onRootChangeRef.current?.(null);
   }, []);
 
@@ -586,15 +615,24 @@ export const FileTree: React.FC<FileTreeProps> = ({ onFileOpen, onToggleGit, sho
             
             {/* Show inline input at root level if creating new file at root */}
             {newFileInput && newFileInput.parentPath === rootPath && !newFileInput.parentNode && (
-              <NewFileInput 
+              <NewFileInput
                 level={0}
                 onSubmit={handleNewFileSubmit}
                 onCancel={() => setNewFileInput(null)}
               />
             )}
+            {newFolderInput && newFolderInput.parentPath === rootPath && !newFolderInput.parentNode && (
+              <NewFileInput
+                level={0}
+                onSubmit={handleNewFolderSubmit}
+                onCancel={() => setNewFolderInput(null)}
+                icon="📁"
+                placeholder="folder-name"
+              />
+            )}
             
             {tree.map((node) => (
-              <FileTreeNode key={node.path} node={node} level={0} newFileInput={newFileInput} onNewFileSubmit={handleNewFileSubmit} onNewFileCancel={() => setNewFileInput(null)} />
+              <FileTreeNode key={node.path} node={node} level={0} newFileInput={newFileInput} onNewFileSubmit={handleNewFileSubmit} onNewFileCancel={() => setNewFileInput(null)} newFolderInput={newFolderInput} onNewFolderSubmit={handleNewFolderSubmit} onNewFolderCancel={() => setNewFolderInput(null)} />
             ))}
           </div>
         )}
@@ -649,9 +687,11 @@ interface NewFileInputProps {
   level: number;
   onSubmit: (fileName: string) => void;
   onCancel: () => void;
+  icon?: string;
+  placeholder?: string;
 }
 
-const NewFileInput: React.FC<NewFileInputProps> = ({ level, onSubmit, onCancel }) => {
+const NewFileInput: React.FC<NewFileInputProps> = ({ level, onSubmit, onCancel, icon = '📄', placeholder = 'filename.txt' }) => {
   const [fileName, setFileName] = useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -678,7 +718,7 @@ const NewFileInput: React.FC<NewFileInputProps> = ({ level, onSubmit, onCancel }
         backgroundColor: '#2a2d2e',
       }}
     >
-      <span style={styles.icon}>📄</span>
+      <span style={styles.icon}>{icon}</span>
       <input
         ref={inputRef}
         type="text"
@@ -686,7 +726,7 @@ const NewFileInput: React.FC<NewFileInputProps> = ({ level, onSubmit, onCancel }
         onChange={(e) => setFileName(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={() => fileName.trim() ? onSubmit(fileName) : onCancel()}
-        placeholder="filename.txt"
+        placeholder={placeholder}
         style={{
           ...styles.name,
           backgroundColor: '#1e1e1e',
@@ -709,9 +749,12 @@ interface FileTreeNodeProps {
   newFileInput: { parentPath: string; parentNode: FileNode | null } | null;
   onNewFileSubmit: (fileName: string) => void;
   onNewFileCancel: () => void;
+  newFolderInput: { parentPath: string; parentNode: FileNode | null } | null;
+  onNewFolderSubmit: (folderName: string) => void;
+  onNewFolderCancel: () => void;
 }
 
-const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, newFileInput, onNewFileSubmit, onNewFileCancel }) => {
+const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, newFileInput, onNewFileSubmit, onNewFileCancel, newFolderInput, onNewFolderSubmit, onNewFolderCancel }) => {
   const [isHovered, setIsHovered] = useState(false);
   const context = useContext(FileTreeContext);
   
@@ -746,16 +789,25 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, newFileInput, 
         <div>
           {/* Show inline input for new file if this is the parent */}
           {newFileInput && newFileInput.parentPath === node.path && (
-            <NewFileInput 
+            <NewFileInput
               level={level + 1}
               onSubmit={onNewFileSubmit}
               onCancel={onNewFileCancel}
             />
           )}
-          
+          {newFolderInput && newFolderInput.parentPath === node.path && (
+            <NewFileInput
+              level={level + 1}
+              onSubmit={onNewFolderSubmit}
+              onCancel={onNewFolderCancel}
+              icon="📁"
+              placeholder="folder-name"
+            />
+          )}
+
           {/* Render children */}
           {node.children && node.children.map((child) => (
-            <FileTreeNode key={child.path} node={child} level={level + 1} newFileInput={newFileInput} onNewFileSubmit={onNewFileSubmit} onNewFileCancel={onNewFileCancel} />
+            <FileTreeNode key={child.path} node={child} level={level + 1} newFileInput={newFileInput} onNewFileSubmit={onNewFileSubmit} onNewFileCancel={onNewFileCancel} newFolderInput={newFolderInput} onNewFolderSubmit={onNewFolderSubmit} onNewFolderCancel={onNewFolderCancel} />
           ))}
         </div>
       )}

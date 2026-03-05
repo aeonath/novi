@@ -9,7 +9,17 @@
       "Bash(node -e \"console.log\\(require.resolve\\(''rcedit''\\)\\)\")",
       "Bash(node -e \"const rcedit = require\\(''rcedit''\\); console.log\\(''rcedit loaded:'', typeof rcedit\\)\")",
       "Bash(node -e \"const rcedit = require\\(''rcedit''\\); console.log\\(Object.keys\\(rcedit\\)\\)\")",
-      "Read(//c/Work/**)"
+      "Read(//c/Work/**)",
+      "Bash(npx jest src/tests/core-0.7.0/installer.test.ts)",
+      "Bash(npx jest src/tests/core-0.1.0/settings.test.ts --verbose)",
+      "Bash(node -e \"const e = require\\(''electron''\\); console.log\\(''keys:'', Object.keys\\(e\\)\\); console.log\\(''app:'', typeof e.app\\)\")",
+      "Bash(node -e \"console.log\\(require\\(''electron''\\)\\)\")",
+      "Bash(node -e \"const e = require\\(''electron''\\); const cp = require\\(''child_process''\\); const r = cp.spawnSync\\(e, [''--version'']\\); console.log\\(r.stdout?.toString\\(\\).trim\\(\\)\\)\")",
+      "Bash(npx electron --version)",
+      "Bash(/c/Work/novi/node_modules/electron/dist/electron.exe --version)",
+      "Bash(/c/Work/novi/node_modules/electron/dist/electron.exe -e \"console.log\\(process.versions\\)\")",
+      "Bash(/c/Work/novi/node_modules/electron/dist/electron.exe -e \"console.log\\(''ELECTRON_RUN_AS_NODE:'', process.env.ELECTRON_RUN_AS_NODE\\)\")",
+      "Bash(npm run compile)"
     ]
   }
 }

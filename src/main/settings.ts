@@ -9,14 +9,17 @@ import { join, dirname } from 'node:path';
 
 export type Settings = Record<string, unknown>;
 
-const settingsPath = join(app.getPath('userData'), 'settings.json');
+function getSettingsPath(): string {
+  return join(app.getPath('userData'), 'settings.json');
+}
 
 export function loadSettings(): Settings {
   try {
-    if (!existsSync(settingsPath)) {
+    const p = getSettingsPath();
+    if (!existsSync(p)) {
       return {};
     }
-    const raw = readFileSync(settingsPath, 'utf-8');
+    const raw = readFileSync(p, 'utf-8');
     return JSON.parse(raw) as Settings;
   } catch {
     return {};
@@ -24,10 +27,11 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(settings: Settings): void {
-  const dir = dirname(settingsPath);
+  const p = getSettingsPath();
+  const dir = dirname(p);
   try {
     mkdirSync(dir, { recursive: true });
-    writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+    writeFileSync(p, JSON.stringify(settings, null, 2), 'utf-8');
   } catch {
     // Silently ignore write errors for now
   }
@@ -54,5 +58,5 @@ export function setSetting(key: string, value: unknown): void {
 }
 
 export function getSettingsFilePath(): string {
-  return settingsPath;
+  return getSettingsPath();
 }

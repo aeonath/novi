@@ -8,8 +8,8 @@
     "copy:renderer": "node -e \"const fs=require('fs');const p=require('path');fs.mkdirSync('dist/renderer/assets',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');fs.copyFileSync('src/renderer/assets/miranova_studios.png','dist/renderer/assets/miranova_studios.png');fs.copyFileSync('src/renderer/assets/novi_logo.png','dist/renderer/assets/novi_logo.png');fs.copyFileSync('src/renderer/monaco-loader.js','dist/renderer/monaco-loader.js');fs.copyFileSync('src/renderer/monaco-init.js','dist/renderer/monaco-init.js');\"",
     "copy:monaco": "node scripts/copy-monaco.js",
     "copy:icon": "node scripts/copy-icons.js",
-    "start": "npm run clean && npm run build && electron ./dist/main/main.js",
-    "start:fast": "npm run build && electron ./dist/main/main.js",
+    "start": "npm run clean && npm run build && node scripts/launch-electron.js",
+    "start:fast": "npm run build && node scripts/launch-electron.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -26,7 +26,7 @@
     "url": "git+https://github.com/aeonath/novi.git"
   },
   "keywords": [],
-  "author": "Aeonath <aeonath@miranova.studio>",
+  "author": "MiraNova Studios <aeonath@miranova.studio>",
   "license": "ISC",
   "bugs": {
     "url": "https://miranova.studio/contact.html"
@@ -62,6 +62,12 @@
     "files": [
       "dist/**",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "LICENSE",
+        "to": "."
+      }
     ],
     "linux": {
       "icon": "build/icons",

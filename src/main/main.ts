@@ -646,49 +646,54 @@ void app.whenReady().then(() => {
 
   // File system operation IPC handlers with logging
   ipcMain.handle('create-file', async (_e, filePath: string) => {
+    const resolvedPath = normalizePathForFs(filePath);
     try {
-      await writeFile(filePath, '', 'utf-8');
-      await logSuccess('create-file', filePath);
-      return { success: true, path: filePath };
+      await writeFile(resolvedPath, '', 'utf-8');
+      await logSuccess('create-file', resolvedPath);
+      return { success: true, path: resolvedPath };
     } catch (error) {
-      await logFSError('create-file', filePath, error as Error);
+      await logFSError('create-file', resolvedPath, error as Error);
       throw error;
     }
   });
 
   ipcMain.handle('create-directory', async (_e, dirPath: string) => {
+    const resolvedPath = normalizePathForFs(dirPath);
     try {
-      await mkdir(dirPath, { recursive: false });
-      await logSuccess('create-directory', dirPath);
-      return { success: true, path: dirPath };
+      await mkdir(resolvedPath, { recursive: false });
+      await logSuccess('create-directory', resolvedPath);
+      return { success: true, path: resolvedPath };
     } catch (error) {
-      await logFSError('create-directory', dirPath, error as Error);
+      await logFSError('create-directory', resolvedPath, error as Error);
       throw error;
     }
   });
 
   ipcMain.handle('rename-file', async (_e, oldPath: string, newPath: string) => {
+    const resolvedOld = normalizePathForFs(oldPath);
+    const resolvedNew = normalizePathForFs(newPath);
     try {
-      await fsRename(oldPath, newPath);
-      await logSuccess('rename-file', oldPath, `-> ${newPath}`);
-      return { success: true, oldPath, newPath };
+      await fsRename(resolvedOld, resolvedNew);
+      await logSuccess('rename-file', resolvedOld, `-> ${resolvedNew}`);
+      return { success: true, oldPath: resolvedOld, newPath: resolvedNew };
     } catch (error) {
-      await logFSError('rename-file', oldPath, error as Error);
+      await logFSError('rename-file', resolvedOld, error as Error);
       throw error;
     }
   });
 
   ipcMain.handle('delete-file', async (_e, filePath: string, isDirectory: boolean) => {
+    const resolvedPath = normalizePathForFs(filePath);
     try {
       if (isDirectory) {
-        await rm(filePath, { recursive: true, force: false });
+        await rm(resolvedPath, { recursive: true, force: false });
       } else {
-        await rm(filePath, { force: false });
+        await rm(resolvedPath, { force: false });
       }
-      await logSuccess('delete-file', filePath, isDirectory ? '(directory)' : '(file)');
-      return { success: true, path: filePath };
+      await logSuccess('delete-file', resolvedPath, isDirectory ? '(directory)' : '(file)');
+      return { success: true, path: resolvedPath };
     } catch (error) {
-      await logFSError('delete-file', filePath, error as Error);
+      await logFSError('delete-file', resolvedPath, error as Error);
       throw error;
     }
   });

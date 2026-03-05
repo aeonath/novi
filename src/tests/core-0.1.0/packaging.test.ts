@@ -92,15 +92,15 @@ describe('Windows Packaging Configuration', () => {
       expect(packageJson.scripts?.['pack:win']).toContain('--win portable');
     });
 
-    it('should have pack:win:exe script for NSIS installer', () => {
-      expect(packageJson.scripts?.['pack:win:exe']).toBeDefined();
-      expect(packageJson.scripts?.['pack:win:exe']).toContain('electron-builder');
-      expect(packageJson.scripts?.['pack:win:exe']).toContain('--win nsis');
+    it('should have pack:win:installer script for NSIS installer', () => {
+      expect(packageJson.scripts?.['pack:win:installer']).toBeDefined();
+      expect(packageJson.scripts?.['pack:win:installer']).toContain('electron-builder');
+      expect(packageJson.scripts?.['pack:win:installer']).toContain('--win nsis');
     });
 
     it('should build before packaging in pack scripts', () => {
       expect(packageJson.scripts?.['pack:win']).toContain('npm run build');
-      expect(packageJson.scripts?.['pack:win:exe']).toContain('npm run build');
+      expect(packageJson.scripts?.['pack:win:installer']).toContain('npm run build');
     });
 
     it('should disable code signing in pack scripts', () => {
@@ -108,8 +108,8 @@ describe('Windows Packaging Configuration', () => {
       expect(packageJson.scripts?.['pack:win']).toContain(
         'ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true'
       );
-      expect(packageJson.scripts?.['pack:win:exe']).toContain('CSC_IDENTITY_AUTO_DISCOVERY=false');
-      expect(packageJson.scripts?.['pack:win:exe']).toContain(
+      expect(packageJson.scripts?.['pack:win:installer']).toContain('CSC_IDENTITY_AUTO_DISCOVERY=false');
+      expect(packageJson.scripts?.['pack:win:installer']).toContain(
         'ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true'
       );
     });

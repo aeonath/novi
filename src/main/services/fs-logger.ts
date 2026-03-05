@@ -12,7 +12,13 @@ import { appendFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { app } from 'electron';
 
-const FS_LOG_PATH = join(app.getPath('userData'), 'logs', 'fs.log');
+let fsLogPath: string | undefined;
+function getFSLogPath(): string {
+  if (!fsLogPath) {
+    fsLogPath = join(app.getPath('userData'), 'logs', 'fs.log');
+  }
+  return fsLogPath;
+}
 
 /**
  * Ensure logs directory exists
@@ -43,7 +49,7 @@ export async function logFSOperation(
       details ? ` | ${details}` : ''
     }\n`;
     
-    await appendFile(FS_LOG_PATH, logEntry, 'utf-8');
+    await appendFile(getFSLogPath(), logEntry, 'utf-8');
     
     // Also log to console for development
     if (status === 'error') {
