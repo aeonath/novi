@@ -1,0 +1,22 @@
+# Changelog — 2026-03-05 02:03
+
+## Ad hoc: Enable file watcher for terminal-driven file trees
+
+### Summary
+The file tree watcher was completely disabled when `isTerminalTree` was true, meaning new files created in the terminal wouldn't appear in the file tree until a tab switch or directory change. Removed the blanket skip so the watcher runs for all file tree views. Drive root protection (C:\, D:\) was already handled separately.
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `src/renderer/components/FileTree.tsx` | Removed `if (isTerminalTree) return` guard from file watcher useEffect; removed `isTerminalTree` from dependency array |
+
+### Rationale
+Users expect to see new files appear in the file tree immediately after creating them in the terminal. The watcher already had safeguards against watching drive roots and system directories.
+
+### Test Results
+- **605 tests passed**, 0 failed
+- Build compiles successfully
+
+### Commit Hash
+TBD
