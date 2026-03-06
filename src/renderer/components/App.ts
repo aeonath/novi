@@ -96,6 +96,7 @@ export class App extends Component {
   private noviShellInstances = new Map<string, { instance: NoviShell; container: HTMLElement }>();
   private imageEditorInstance: { instance: ImageEditor; filePath: string } | null = null;
   private actionContext: ActionContext = {};
+  private pendingReloadBanners = new Set<string>(); // file paths with active reload prompts
 
   constructor() {
     super('div', 'novi-layout');
@@ -419,6 +420,15 @@ export class App extends Component {
     };
     window.addEventListener('novi-gitenabled-changed', geHandler);
     this.addCleanup(() => window.removeEventListener('novi-gitenabled-changed', geHandler));
+
+    // External file change detection — prompt to reload open files changed on disk
+    if (window.api?.fileTreeOnChange) {
+      window.api.fileTreeOnChange((event: { type: string; path: string }) => {
+        if (event.type === 'change') {
+          this.handleExternalFileChange(event.path);
+        }
+      });
+    }
   }
 
   // ============================================================
@@ -1404,6 +1414,84 @@ export class App extends Component {
     }).catch(() => {
       (window as any).__statusBarAPI?.setStatus('Reload failed');
     });
+  }
+
+  private handleExternalFileChange(changedPath: string): void {
+    const normalized = changedPath.replace(/\\/g, '/');
+    // Already showing a banner for this file
+    if (this.pendingReloadBanners.has(normalized)) return;
+
+    const tabBarAPI = (window as any).__tabBarAPI;
+    if (!tabBarAPI) return;
+    const tabs = tabBarAPI.getTabs();
+    const match = tabs?.find((t: any) =>
+      t.type === 'file' && t.filePath && t.filePath.replace(/\\/g, '/') === normalized
+    );
+    if (!match) return;
+
+    // Don't prompt if the change came from our own save
+    const monacoAPI = (window as any).__monacoEditorAPI;
+    if (monacoAPI?.getFilePath?.()?.replace(/\\/g, '/') === normalized && !monacoAPI.isDirty()) return;
+
+    this.pendingReloadBanners.add(normalized);
+    const fileName = normalized.split('/').pop() || 'file';
+
+    // Show a banner at the top of the monaco container
+    const banner = document.createElement('div');
+    Object.assign(banner.style, {
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '6px 12px', backgroundColor: '#063b49', color: '#cccccc',
+      fontSize: '13px', fontFamily: "'Segoe UI', sans-serif",
+      borderBottom: '1px solid #007acc', zIndex: '100',
+    });
+    banner.textContent = `${fileName} has been changed on disk.`;
+
+    const btnContainer = document.createElement('div');
+    Object.assign(btnContainer.style, { display: 'flex', gap: '8px', marginLeft: '12px' });
+
+    const reloadBtn = document.createElement('button');
+    reloadBtn.textContent = 'Reload';
+    Object.assign(reloadBtn.style, {
+      padding: '3px 10px', fontSize: '12px', cursor: 'pointer',
+      backgroundColor: '#0e639c', color: '#ffffff', border: 'none', borderRadius: '2px',
+    });
+
+    const dismissBtn = document.createElement('button');
+    dismissBtn.textContent = 'Ignore';
+    Object.assign(dismissBtn.style, {
+      padding: '3px 10px', fontSize: '12px', cursor: 'pointer',
+      backgroundColor: '#3e3e42', color: '#cccccc', border: 'none', borderRadius: '2px',
+    });
+
+    const removeBanner = () => {
+      banner.remove();
+      this.pendingReloadBanners.delete(normalized);
+    };
+
+    reloadBtn.addEventListener('click', () => {
+      removeBanner();
+      if (!window.api?.readFile) return;
+      window.api.readFile(changedPath).then((fileData) => {
+        const api = (window as any).__monacoEditorAPI;
+        if (api?.getFilePath?.()?.replace(/\\/g, '/') === normalized) {
+          api.loadFile(changedPath, fileData.content);
+          api.markAsSaved();
+        }
+        tabBarAPI.updateTabContent(match.id, fileData.content);
+        tabBarAPI.updateTabDirty(match.id, false);
+        (window as any).__statusBarAPI?.setStatus('File reloaded from disk');
+        setTimeout(() => (window as any).__statusBarAPI?.setStatus(`Editing: ${fileName}`), 2000);
+      }).catch(() => {
+        (window as any).__statusBarAPI?.setStatus('Reload failed');
+      });
+    });
+
+    dismissBtn.addEventListener('click', removeBanner);
+
+    btnContainer.appendChild(reloadBtn);
+    btnContainer.appendChild(dismissBtn);
+    banner.appendChild(btnContainer);
+    this.monacoContainerEl.prepend(banner);
   }
 
   private checkMonaco(): void {

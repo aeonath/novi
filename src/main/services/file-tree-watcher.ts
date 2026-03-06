@@ -86,9 +86,9 @@ export class FileTreeWatcher extends EventEmitter {
         this.emit('change', { type: 'unlinkDir', path });
       });
 
-      this.watcher.on('change', () => {
-        // We don't need to refresh tree on file content changes
-        // Only on add/remove operations
+      this.watcher.on('change', (path: string) => {
+        // Forward file content changes so the editor can prompt to reload
+        this.emit('change', { type: 'change', path });
       });
 
       this.watcher.on('error', (error: unknown) => {
