@@ -1,6 +1,6 @@
 /**
  * Build script for renderer process using esbuild
- * Bundles React + TypeScript for browser consumption
+ * Bundles TypeScript for browser consumption
  */
 
 const esbuild = require('esbuild');
@@ -9,11 +9,11 @@ const path = require('path');
 async function build() {
   try {
     console.log('[build-renderer] Starting renderer build...');
-    
+
     const fs = require('fs');
-    
+
     await esbuild.build({
-      entryPoints: ['src/renderer/index.tsx'],
+      entryPoints: ['src/renderer/index.ts'],
       bundle: true,
       outfile: 'dist/renderer/index.js',
       platform: 'browser',
@@ -29,8 +29,6 @@ async function build() {
         '.ts': 'ts',
         '.css': 'css',
       },
-      jsx: 'automatic',
-      jsxImportSource: 'react',
     });
     
     // Copy xterm.css to dist

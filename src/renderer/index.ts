@@ -1,14 +1,11 @@
 /**
- * © 2025 MiraNova Studios. All rights reserved.
- * See the LICENSE file in the project root for full license text.
+ * © 2025-2026 MiraNova Studios. All rights reserved.
  */
 
 /**
- * Novi Terminal Environment - Main Renderer Entry (React)
+ * Novi Terminal Environment - Main Renderer Entry
  */
 
-import React from 'react';
-import ReactDOM from 'react-dom/client';
 import { App } from './components/App.js';
 
 // Debug logging gate — when debug is off, console.log and console.info become no-ops.
@@ -22,7 +19,7 @@ function applyDebugMode(enabled: boolean) {
   console.info = enabled ? _origInfo : _noop;
 }
 
-// Load debug setting immediately (before React renders)
+// Load debug setting immediately (before app renders)
 (async () => {
   try {
     const debug = await window.api.getSetting<boolean>('debug', false);
@@ -89,43 +86,40 @@ async function initializeApp() {
       throw new Error('[Novi] Root element not found');
     }
 
-    // Render React app
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(
-      <App />
-    );
+    // Mount vanilla App
+    const app = new App();
+    app.mount(rootElement);
 
-    console.log('[Novi] React app rendered successfully');
+    console.log('[Novi] App mounted successfully');
 
     // Track last focus time to debounce rapid focus events
     let lastFocusTime = 0;
-    
+
     // Ensure document is always focusable and receives keyboard events
     const ensureFocus = () => {
       const now = Date.now();
       const timeSinceLastFocus = now - lastFocusTime;
-      
+
       // Debounce: Don't process focus events more than once every 200ms
       if (timeSinceLastFocus < 200) {
         console.log('[Renderer] Focus event debounced (too soon)');
         return;
       }
-      
+
       lastFocusTime = now;
       console.log('[Renderer] Window gained focus, focusing active tab');
-      
+
       // Try to focus the active tab (Monaco editor or terminal)
       const tabBarAPI = (window as any).__tabBarAPI;
       const monacoAPI = (window as any).__monacoEditorAPI;
       const terminalAPI = (window as any).__terminalAPI;
-      
+
       if (tabBarAPI) {
         const activeTab = tabBarAPI.getActiveTab();
         if (activeTab) {
           // If it's a terminal tab, focus the terminal
           if (activeTab.type === 'terminal' && terminalAPI && terminalAPI[activeTab.id]) {
             console.log('[Renderer] Focusing terminal:', activeTab.id);
-            // Use requestAnimationFrame instead of setTimeout for smoother focus
             requestAnimationFrame(() => {
               if (terminalAPI[activeTab.id]) {
                 terminalAPI[activeTab.id].focus();
@@ -136,7 +130,6 @@ async function initializeApp() {
           // If it's a file tab, focus Monaco editor
           else if (activeTab.type === 'file' && monacoAPI && monacoAPI.focus) {
             console.log('[Renderer] Focusing Monaco editor');
-            // Use requestAnimationFrame instead of setTimeout for smoother focus
             requestAnimationFrame(() => {
               if (monacoAPI && monacoAPI.focus) {
                 monacoAPI.focus();
@@ -144,10 +137,9 @@ async function initializeApp() {
             });
             return;
           }
-          // For image and nova-prompt tabs, try to focus Monaco or body as fallback
+          // For image and novi-prompt tabs, try to focus Monaco or body as fallback
           else if (activeTab.type === 'image' || activeTab.type === 'novi-prompt') {
             console.log('[Renderer] Active tab is', activeTab.type, '- focusing Monaco or body');
-            // Try Monaco first as it may still be visible
             if (monacoAPI && monacoAPI.focus) {
               requestAnimationFrame(() => {
                 if (monacoAPI && monacoAPI.focus) {
@@ -159,7 +151,7 @@ async function initializeApp() {
           }
         }
       }
-      
+
       // Fallback: focus body if no active tab
       console.log('[Renderer] No active tab, focusing body');
       if (!document.body.hasAttribute('tabindex')) {
@@ -167,10 +159,10 @@ async function initializeApp() {
       }
       document.body.focus();
     };
-    
+
     // Focus on window gaining focus (Alt+Tab back)
     window.addEventListener('focus', ensureFocus);
-    
+
     // Focus on window becoming visible (after minimize/restore)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
@@ -196,7 +188,7 @@ async function initializeApp() {
     });
 
     window.addEventListener('unhandledrejection', (ev) => {
-      // Ignore Monaco-related rejections (including \"Model not found\" from internal worker logic)
+      // Ignore Monaco-related rejections (including "Model not found" from internal worker logic)
       const msg = ev.reason?.message || String(ev.reason || '');
       if (
         msg.includes('monaco') ||
@@ -223,4 +215,3 @@ if (document.readyState === 'loading') {
 } else {
   void initializeApp();
 }
-
