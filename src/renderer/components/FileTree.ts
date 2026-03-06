@@ -371,24 +371,30 @@ export class FileTree extends Component {
     if (this._loading) {
       const loader = el('div');
       setStyles(loader, {
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', padding: '32px 16px', textAlign: 'center',
-        color: '#858585', fontSize: '13px', gap: '12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100%', color: '#858585', fontSize: '16px', letterSpacing: '2px',
       });
-      const spinner = el('div');
-      setStyles(spinner, {
-        width: '24px', height: '24px', border: '2px solid #3e3e42',
-        borderTopColor: '#858585', borderRadius: '50%',
-      });
-      spinner.style.animation = 'novi-spin 0.8s linear infinite';
-      if (!document.getElementById('novi-spin-keyframes')) {
+      const dots = el('span', {}, '...');
+      if (!document.getElementById('novi-dots-keyframes')) {
         const style = document.createElement('style');
-        style.id = 'novi-spin-keyframes';
-        style.textContent = '@keyframes novi-spin { to { transform: rotate(360deg); } }';
+        style.id = 'novi-dots-keyframes';
+        style.textContent = [
+          '@keyframes novi-dots {',
+          '  0% { content: ""; }',
+          '  25% { content: "."; }',
+          '  50% { content: ".."; }',
+          '  75% { content: "..."; }',
+          '}',
+          '.novi-loading-dots::after {',
+          '  content: "";',
+          '  animation: novi-dots 1.2s steps(1) infinite;',
+          '}',
+        ].join('\n');
         document.head.appendChild(style);
       }
-      loader.appendChild(spinner);
-      loader.appendChild(el('span', {}, 'Loading...'));
+      dots.textContent = '';
+      dots.className = 'novi-loading-dots';
+      loader.appendChild(dots);
       this.contentEl.appendChild(loader);
       return;
     }
