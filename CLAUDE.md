@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Novi** — a Terminal Development Environment (TDE) built with Electron, React, and TypeScript. Formerly called "Nova IDE"; the `nova/` directory is intentionally kept as-is.
+**Novi** — a Terminal Development Environment (TDE) built with Electron and TypeScript. No framework — vanilla TypeScript with direct DOM manipulation. Formerly called "Nova IDE"; the `nova/` directory is intentionally kept as-is.
 
 ## Commands
 
@@ -35,8 +35,8 @@ The build is two-stage:
    - `src/renderer/` is **excluded** from this tsconfig
 
 2. **Renderer** — `node scripts/build-renderer.js` (esbuild)
-   - Bundles `src/renderer/index.tsx` → `dist/renderer/index.js` (IIFE, browser target)
-   - Handles `.tsx`, React JSX, and CSS imports
+   - Bundles `src/renderer/index.ts` → `dist/renderer/index.js` (IIFE, browser target)
+   - Handles `.ts` and CSS imports
    - `tsconfig.renderer.json` exists for editor tooling but esbuild drives the actual build
 
 After compilation, `copy:renderer` and `copy:monaco` scripts copy static assets (HTML, images, Monaco worker files, xterm.css) into `dist/renderer/`.
@@ -46,29 +46,33 @@ After compilation, `copy:renderer` and `copy:monaco` scripts copy static assets 
 ### Process Model (Electron)
 
 ```
-Main Process (Node.js)              Renderer Process (Browser/React)
+Main Process (Node.js)              Renderer Process (Browser)
 src/main/                           src/renderer/
-  main.ts       ←── IPC ──────────→   components/App.tsx  (root)
-  menu.ts                               components/*.tsx
-  services/                             contexts/AppContext.tsx
+  main.ts       ←── IPC ──────────→   components/App.ts   (root)
+  menu.ts                               components/*.ts
+  services/                             core/app-state.ts
   novi-stub.ts                          vim/
 ```
 
 All renderer↔main communication goes through `window.api` (exposed via `contextBridge` in `src/preload/preload.ts`). The renderer **never** calls Node/Electron APIs directly.
 
+### Component System
+
+All renderer components are vanilla TypeScript classes extending `Component` (`src/renderer/core/component.ts`). Components own their DOM element, support `mount(parent)` / `unmount()` / `destroy()` lifecycle, and auto-cleanup event listeners via `listen()`. DOM creation uses the `el()` helper from `src/renderer/core/dom.ts`.
+
 ### IPC Flow
 
 - **Renderer → Main**: `window.api.someMethod()` → `ipcRenderer.invoke(channel)` → `ipcMain.handle(channel)`
-- **Menu commands**: Electron menu → `main.ts handleMenuCommand()` → either handled in main (e.g. `toggle-devtools`) or forwarded to renderer via `webContents.send('menu-command', command)` → `App.tsx` listens on `'menu-command'`
+- **Menu commands**: Electron menu → `main.ts handleMenuCommand()` → either handled in main (e.g. `toggle-devtools`) or forwarded to renderer via `webContents.send('menu-command', command)` → `App.ts` listens on `'menu-command'`
 
-### React State
+### App State
 
-- **`AppContext`** (`src/renderer/contexts/AppContext.tsx`): global shared state — theme, activeFilePath, gitStatus, agentMode, workspaceRoot
-- **`App.tsx`** (`src/renderer/components/App.tsx`): owns most UI state — open tabs, terminal/shell tab lists, sidebar width, font sizes, file tree roots, save prompts
+- **`appState`** (`src/renderer/core/app-state.ts`): singleton store — theme, activeFilePath, gitStatus, agentMode, workspaceRoot. Emits events via event bus on changes.
+- **`App.ts`** (`src/renderer/components/App.ts`): owns all UI state as class properties — open tabs, terminal/shell tab lists, sidebar width, font sizes, file tree roots, save prompts.
 
 ### Tab System
 
-Tabs are typed: `'file' | 'image' | 'terminal' | 'novi-prompt'`. Each has a unique string ID. `App.tsx` maintains the tab list and routes rendering to `MonacoEditor`, `ImageEditor`, `Terminal`, or `NoviShell` based on tab type.
+Tabs are typed: `'file' | 'image' | 'terminal' | 'novi-prompt'`. Each has a unique string ID. `App.ts` maintains the tab list and routes rendering to `MonacoEditor`, `ImageEditor`, `Terminal`, or `NoviShell` based on tab type.
 
 ### File Tree
 
@@ -78,11 +82,11 @@ Two modes controlled by the `singlefiletree` setting:
 
 ### `#novi` Command Interception
 
-`novi-stub.ts` places a no-op `novi` shell script on `PATH` so the shell doesn't error. `App.tsx` monitors PTY output line-by-line; lines matching `^\s*#novi` are intercepted before reaching the terminal and dispatched as editor commands (`#novi file.py` opens a file, `#novi -s` shows settings, `#novi -c` opens Novi Shell).
+`novi-stub.ts` places a no-op `novi` shell script on `PATH` so the shell doesn't error. `App.ts` monitors PTY output line-by-line; lines matching `^\s*#novi` are intercepted before reaching the terminal and dispatched as editor commands (`#novi file.py` opens a file, `#novi -s` shows settings, `#novi -c` opens Novi Shell).
 
 ### Novi Shell
 
-`NoviShell.tsx` is an xterm.js terminal running a REPL (no PTY). It handles `set <key> <value>` commands (`vimode`, `compat`, `singlefiletree`) by calling `window.api.setSetting()`. Settings take effect immediately and persist.
+`NoviShell.ts` is an xterm.js terminal running a REPL (no PTY). It handles `set <key> <value>` commands (`vimode`, `compat`, `singlefiletree`) by calling `window.api.setSetting()`. Settings take effect immediately and persist.
 
 ### Services (Main Process)
 
@@ -100,16 +104,16 @@ Two modes controlled by the `singlefiletree` setting:
 ## Testing
 
 - Jest + ts-jest, jsdom environment
-- Tests cover `.ts` files only — React components (`.tsx`) are **not** unit tested
+- Tests cover `.ts` files only
 - `src/tests/setup.ts` mocks `electron` (app.getPath) and suppresses console.log/info/warn
 - Monaco Editor is mocked via `__mocks__/monaco-editor.ts` (root level, not in `src/`)
-- Test suites: `core-0.1.0` through `core-0.6.0` (one directory per sprint)
+- Test suites: `core-0.1.0` through `core-0.7.0` (one directory per sprint)
 
 ## Renderer Import Conventions
 
 Renderer TypeScript files import other local modules with `.js` extensions (not `.ts`):
 ```ts
-import { AppProvider } from '../contexts/AppContext.js';
+import { Component } from '../core/component.js';
 ```
 This is required because esbuild resolves `.js` → `.ts` at build time.
 
@@ -161,7 +165,7 @@ Use commit messages like `Ad hoc: <short description>`.
 
 ### Copyright Header
 
-All new `.ts`, `.tsx`, and `.js` source files **must** begin with:
+All new `.ts` and `.js` source files **must** begin with:
 
 ```typescript
 /**
