@@ -19,12 +19,10 @@ import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
 import { NoviShell } from './NoviShell.js';
-// Action HUD disabled — not part of TDE initial feature set. Code preserved for future use.
-// import { ActionHUD } from './ActionHUD.js';
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
-import { SavePrompt } from './SavePrompt.js';
+import { SavePrompt, type SavePromptCallbacks } from './SavePrompt.js';
 import { /* createDefaultActions, */ ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
@@ -92,6 +90,99 @@ const AppInner: React.FC = () => {
   const forceCloseTabIdRef = useRef<string | null>(null);
   // When closing the active tab, switch back to this tab if it still exists (:q / Ctrl+W)
   const previousActiveTabIdRef = useRef<string | null>(null);
+
+  // Vanilla component instances
+  const statusBarRef = useRef<StatusBar | null>(null);
+  const savePromptRef = useRef<SavePrompt | null>(null);
+  const statusBarContainerRef = useRef<HTMLDivElement>(null);
+
+  // Mount vanilla modal components (self-managing visibility via window globals)
+  useEffect(() => {
+    const settingsPanel = new SettingsPanel();
+    settingsPanel.mount(document.body);
+    const diagnosticsPanel = new DiagnosticsPanel();
+    diagnosticsPanel.mount(document.body);
+    const recoveryDialog = new RecoveryDialog();
+    recoveryDialog.mount(document.body);
+    const savePromptInst = new SavePrompt();
+    savePromptInst.mount(document.body);
+    savePromptRef.current = savePromptInst;
+
+    return () => {
+      settingsPanel.destroy();
+      diagnosticsPanel.destroy();
+      recoveryDialog.destroy();
+      savePromptInst.destroy();
+      savePromptRef.current = null;
+    };
+  }, []);
+
+  // Mount vanilla StatusBar into its container
+  useEffect(() => {
+    if (!statusBarContainerRef.current) return;
+    const sb = new StatusBar();
+    sb.mount(statusBarContainerRef.current);
+    statusBarRef.current = sb;
+    return () => {
+      sb.destroy();
+      statusBarRef.current = null;
+    };
+  }, []);
+
+  // Update StatusBar props when they change
+  useEffect(() => {
+    const sb = statusBarRef.current;
+    if (!sb) return;
+    sb.fileTreePath = fileTreeReportedRoot;
+    sb.onHomeClick = () => {
+      const tabBarAPI = (window as any).__tabBarAPI;
+      if (tabBarAPI) {
+        tabBarAPI.switchTab(HOME_TERMINAL_ID);
+      }
+      setShowWelcome(false);
+      setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+    };
+  }, [fileTreeReportedRoot]);
+
+  // Sync savePrompt state with vanilla SavePrompt component
+  useEffect(() => {
+    const sp = savePromptRef.current;
+    if (!sp) return;
+    if (savePrompt.show) {
+      const callbacks: SavePromptCallbacks = {
+        onSave: async () => {
+          const monacoAPI = (window as any).__monacoEditorAPI;
+          if (monacoAPI && window.api?.saveFile) {
+            const filePath = monacoAPI.getFilePath();
+            if (filePath) {
+              const content = monacoAPI.getValue();
+              await window.api.saveFile(filePath, content);
+              monacoAPI.markAsSaved();
+              if ((window as any).__tabBarAPI) {
+                (window as any).__tabBarAPI.updateTabDirty(savePrompt.tabId, false);
+              }
+            }
+          }
+          if (savePrompt.resolve) savePrompt.resolve(true);
+          sp.hide();
+          setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
+        },
+        onDiscard: () => {
+          if (savePrompt.resolve) savePrompt.resolve(true);
+          sp.hide();
+          setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
+        },
+        onCancel: () => {
+          if (savePrompt.resolve) savePrompt.resolve(false);
+          sp.hide();
+          setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
+        },
+      };
+      sp.show(savePrompt.fileName, callbacks);
+    } else {
+      sp.hide();
+    }
+  }, [savePrompt]);
 
   // Set up global terminal data listener (PTY output -> xterm.js display)
   useEffect(() => {
@@ -1617,7 +1708,7 @@ const AppInner: React.FC = () => {
   // Terminal data listener is set up globally at the top of this component (line 40)
   // Removed duplicate listener that was causing periodic redraws
 
-  // Focus logic disabled - ActionHUD (Ctrl+K) is currently disabled
+  // Focus logic disabled - ActionHUD was removed in React refactor
   // useEffect(() => {
   //   if (showWelcome && welcomeRef.current) {
   //     console.log('[App] Focusing welcome screen for keyboard shortcuts');
@@ -2152,71 +2243,10 @@ const AppInner: React.FC = () => {
           </main>
         </div>
         
-        <StatusBar fileTreePath={fileTreeReportedRoot} onHomeClick={() => {
-          const tabBarAPI = (window as any).__tabBarAPI;
-          if (tabBarAPI) {
-            tabBarAPI.switchTab(HOME_TERMINAL_ID);
-          }
-          setShowWelcome(false);
-          setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
-        }} />
+        {/* StatusBar — vanilla component mounted via ref */}
+        <div ref={statusBarContainerRef} />
         
-        {/* Modal components */}
-        {/* Action HUD disabled — not part of TDE initial feature set. Code preserved for future use. */}
-        {/* <ActionHUD actions={actions} /> */}
-        <SettingsPanel />
-        <DiagnosticsPanel />
-        <RecoveryDialog />
-        
-        {/* Save prompt for unsaved changes */}
-        {savePrompt.show && (
-          <SavePrompt
-            fileName={savePrompt.fileName}
-            onSave={async () => {
-              // Save the file
-              const monacoAPI = (window as any).__monacoEditorAPI;
-              if (monacoAPI && window.api?.saveFile) {
-                const filePath = monacoAPI.getFilePath();
-                if (filePath) {
-                  const content = monacoAPI.getValue();
-                  await window.api.saveFile(filePath, content);
-                  monacoAPI.markAsSaved();
-                  
-                  // Update tab dirty state
-                  if ((window as any).__tabBarAPI) {
-                    (window as any).__tabBarAPI.updateTabDirty(savePrompt.tabId, false);
-                  }
-                }
-              }
-              
-              // Resolve the promise to allow closing
-              if (savePrompt.resolve) {
-                savePrompt.resolve(true);
-              }
-              
-              // Hide the prompt
-              setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
-            }}
-            onDiscard={() => {
-              // Discard changes and close
-              if (savePrompt.resolve) {
-                savePrompt.resolve(true);
-              }
-              
-              // Hide the prompt
-              setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
-            }}
-            onCancel={() => {
-              // Don't close the tab
-              if (savePrompt.resolve) {
-                savePrompt.resolve(false);
-              }
-              
-              // Hide the prompt
-              setSavePrompt({ show: false, fileName: '', tabId: '', resolve: null });
-            }}
-          />
-        )}
+        {/* SavePrompt, SettingsPanel, DiagnosticsPanel, RecoveryDialog — vanilla components mounted to document.body via useEffect */}
         
         {/* About Novi popup */}
         {showAbout && (
