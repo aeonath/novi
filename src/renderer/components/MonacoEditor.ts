@@ -324,7 +324,7 @@ export class MonacoEditor extends Component {
       runLinting: () => this.editorService?.runMockLinting(),
       clearDiagnostics: () => this.editorService?.clearDiagnostics(),
       focus: () => this.editor?.focus(),
-      openCommandPalette: () => this.editor?.trigger('', 'editor.action.quickCommand', null),
+      openCommandPalette: () => { this.editor?.focus(); this.editor?.trigger('', 'editor.action.quickCommand', null); },
     };
   }
 
