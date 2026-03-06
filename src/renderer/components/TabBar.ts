@@ -216,7 +216,7 @@ export class TabBar extends Component {
     const label = el('span', {
       style: [
         'flex: 1', 'overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap',
-        isActive && tab.type === 'terminal' ? 'color: #4ec9b0' : '',
+        isActive && tab.type === 'terminal' ? 'color: #ffffff; font-weight: bold' : '',
       ].join(';'),
     });
     const labelText = tab.type === 'file' ? `${getFileIcon(tab.fileName)} ${tab.fileName}` : tab.fileName;

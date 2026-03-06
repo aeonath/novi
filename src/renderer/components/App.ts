@@ -379,8 +379,8 @@ export class App extends Component {
       window.api.terminalOnInitialCwd((terminalId: string, cwd: string) => {
         console.log('[App] Terminal', terminalId, 'initial CWD:', cwd);
         this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [terminalId]: { ...this.terminalFileTreeRoots[terminalId], cwd } };
-        this.fileTree.loading = false;
-        this.updateFileTreeDisplayRoot();
+        // Don't clear loading here — initialCwd just echoes the saved workspace CWD.
+        // Wait for terminalOnPwd (OSC 7) which reports the shell's actual CWD.
       });
       this.addCleanup(() => window.api?.terminalRemoveInitialCwdListener?.());
     }
