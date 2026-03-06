@@ -60,28 +60,30 @@ export class EditorService {
     this.models.set(filePath, editorModel);
     console.log(`[EditorService] Created model for ${filePath} (${language})`);
 
-    // Force retokenization for worker-based languages (TypeScript, JavaScript)
-    // Monaco's TS/JS language services sometimes don't tokenize models immediately.
-    // Note: monaco.languages.typescript may be undefined when using the minified AMD bundle.
-    if (language === 'typescript' || language === 'javascript') {
+    // Force retokenization after a short delay.
+    // Monarch tokenizers (shell, python, markdown, etc.) load async via AMD.
+    // TS/JS also need a nudge for their worker-based tokenization.
+    // Re-setting the language after a delay ensures the tokenizer has loaded.
+    if (language !== 'plaintext') {
       setTimeout(() => {
         try {
-          const tsApi = (monaco as any).languages?.typescript;
-          if (tsApi && typeof tsApi.getTypeScriptWorker === 'function') {
-            tsApi.getTypeScriptWorker()
-              .then((_worker: any) => {
-                monaco.editor.setModelLanguage(model, 'plaintext');
-                monaco.editor.setModelLanguage(model, language);
-              })
-              .catch(() => { /* fallback below */ });
+          if (language === 'typescript' || language === 'javascript') {
+            const tsApi = (monaco as any).languages?.typescript;
+            if (tsApi && typeof tsApi.getTypeScriptWorker === 'function') {
+              tsApi.getTypeScriptWorker()
+                .then(() => {
+                  monaco.editor.setModelLanguage(model, 'plaintext');
+                  monaco.editor.setModelLanguage(model, language);
+                })
+                .catch(() => {});
+            }
           }
-          // Always force retokenization (works even when TS API is not available)
           monaco.editor.setModelLanguage(model, 'plaintext');
           monaco.editor.setModelLanguage(model, language);
         } catch (e) {
           console.warn(`[EditorService] Failed to retokenize ${language} model:`, e);
         }
-      }, 200);
+      }, 300);
     }
 
     return editorModel;
@@ -112,6 +114,14 @@ export class EditorService {
     // Restore view state
     if (editorModel.viewState) {
       this.editor.restoreViewState(editorModel.viewState);
+    }
+
+    // Force retokenization — Monarch tokenizers load async via AMD and may
+    // not be ready when the model was first created. Re-setting the language
+    // ensures the tokenizer runs once the provider is available.
+    const lang = editorModel.model.getLanguageId();
+    if (lang && lang !== 'plaintext') {
+      monaco.editor.setModelLanguage(editorModel.model, lang);
     }
 
     console.log(`[EditorService] Switched to ${filePath}`);

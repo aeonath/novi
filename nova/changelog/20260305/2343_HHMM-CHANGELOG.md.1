@@ -1,0 +1,33 @@
+# Changelog — 2026-03-05 23:43.1
+
+## Fix syntax highlighting for shell and other Monarch-based languages
+
+### Summary
+Shell scripts (and other Monarch-tokenized languages like Python, Markdown) had no syntax highlighting because the Monarch tokenizer modules load asynchronously via AMD, and models created before the tokenizer finished loading never got retokenized. Added forced retokenization on every model switch and model creation to ensure highlighting works regardless of load order.
+
+### Root Cause
+Monaco's Monarch tokenizers for shell, python, and markdown are loaded async via AMD `require()`. If a file is opened before the tokenizer module loads, the model gets the correct language ID but no tokenization rules. The existing retokenization code (lines 140-144 in MonacoEditor.ts) only catches models that exist at the time the AMD callback fires — models created later miss it. Additionally, the AMD error callback was silent `() => {}`, hiding any load failures.
+
+### Implementation
+
+#### `src/renderer/services/editor-service.ts`
+- In `switchToModel()`: added `monaco.editor.setModelLanguage(model, lang)` after setting the model, forcing retokenization on every tab switch
+- In `getOrCreateModel()`: expanded the deferred retokenization from TS/JS-only to ALL non-plaintext languages with a 300ms delay
+
+#### `src/renderer/components/MonacoEditor.ts`
+- Added error logging to both the AMD `require` success and error callbacks (was previously silent)
+
+#### `src/tests/core-0.4.0/editor-service.test.ts`
+- Added `getLanguageId` and `setModelLanguage` to mock model/editor
+
+### Files Changed
+- **`src/renderer/services/editor-service.ts`** — Retokenize on switchToModel and all new models
+- **`src/renderer/components/MonacoEditor.ts`** — Add error logging to AMD language module loading
+- **`src/tests/core-0.4.0/editor-service.test.ts`** — Update mock with getLanguageId/setModelLanguage
+
+### Test Results
+- 36 suites, 654 tests — all passing
+- Build succeeds
+
+### Commit Hash
+TBD

@@ -16,15 +16,17 @@ const mockMonaco = {
     file: jest.fn((path: string) => ({ path })),
   },
   editor: {
-    createModel: jest.fn((content: string, _language: string, _uri: any) => {
+    createModel: jest.fn((content: string, language: string, _uri: any) => {
       let currentContent = content;
       return {
         getValue: jest.fn(() => currentContent),
         setValue: jest.fn((newContent: string) => { currentContent = newContent; }),
+        getLanguageId: jest.fn(() => language),
         dispose: jest.fn(),
       };
     }),
     setModelMarkers: jest.fn(),
+    setModelLanguage: jest.fn(),
   },
   MarkerSeverity: {
     Error: 8,

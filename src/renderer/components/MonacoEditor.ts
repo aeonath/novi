@@ -143,8 +143,12 @@ export class MonacoEditor extends Component {
                 monaco.editor.setModelLanguage(model, languageId);
               }
             });
-          } catch (_) {}
-        }, () => {});
+          } catch (err) {
+            console.error(`[MonacoEditor] Failed to register ${languageId} tokenizer:`, err);
+          }
+        }, (err: any) => {
+          console.error(`[MonacoEditor] AMD load failed for ${moduleId}:`, err);
+        });
       });
     }
 
