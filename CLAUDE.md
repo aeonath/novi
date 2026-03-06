@@ -146,10 +146,12 @@ For **every** completed task:
 2. **Sprint Task Summary** (sprint tasks only): `nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_TASKX_SUMMARY.md`
    - High-level status report: objectives, checklist, files list, test counts.
 3. **DOD Summary** (if entire sprint is complete): `nova/aeon/trajectory-1.0.0/yield-0.x.x/SPRINTX_DOD_SUMMARY.md`
-4. **Commit** — one commit per user prompt, no exceptions:
+4. **Commit** — one commit per user prompt, no exceptions. Use two separate commands with `-C` to avoid permission prompts:
    ```bash
-   git add -A
-   git commit -m "SprintX TaskY: brief description"
+   git -C /c/Work/novi add .
+   ```
+   ```bash
+   git -C /c/Work/novi commit -m "SprintX TaskY: brief description"
    ```
    - Format: `SprintX TaskY: <short description>` (< 80 chars, no conventional-commit prefixes).
    - Do NOT create a second commit to update the changelog with the hash — leave `TBD`.
