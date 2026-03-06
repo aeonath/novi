@@ -262,6 +262,7 @@ export class App extends Component {
       showGitToggle: true,
       showOpenFolder: this.singleFileTree,
     });
+    this.fileTree.loading = true;
     this.fileTree.mount(this.fileTreeContainerEl);
 
     // GitPanel
@@ -353,6 +354,7 @@ export class App extends Component {
       window.api.terminalOnPwd((terminalId: string, pwd: string) => {
         console.log('[App] Terminal', terminalId, 'PWD changed to:', pwd);
         this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [terminalId]: { ...this.terminalFileTreeRoots[terminalId], cwd: pwd } };
+        this.fileTree.loading = false;
         this.updateFileTreeDisplayRoot();
         const segments = pwd.replace(/\\/g, '/').split('/').filter(Boolean);
         const dirName = segments[segments.length - 1] || pwd;
@@ -377,6 +379,7 @@ export class App extends Component {
       window.api.terminalOnInitialCwd((terminalId: string, cwd: string) => {
         console.log('[App] Terminal', terminalId, 'initial CWD:', cwd);
         this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [terminalId]: { ...this.terminalFileTreeRoots[terminalId], cwd } };
+        this.fileTree.loading = false;
         this.updateFileTreeDisplayRoot();
       });
       this.addCleanup(() => window.api?.terminalRemoveInitialCwdListener?.());
@@ -430,6 +433,7 @@ export class App extends Component {
       const sf = await window.api?.getSetting<boolean>('singlefiletree', false);
       this.singleFileTree = !!sf;
       this.fileTree.setShowOpenFolder(this.singleFileTree);
+      if (this.singleFileTree) this.fileTree.loading = false;
       const ef = await window.api?.getSetting<number>('fontSize', 14);
       const tf = await window.api?.getSetting<number>('terminalFontSize', 14);
       this.editorFontSize = ef ?? 14;

@@ -58,6 +58,7 @@ export class FileTree extends Component {
   private config: FileTreeConfig;
   private rootPath: string | null = null;
   private tree: FileNode[] = [];
+  private _loading = false;
   private expandedDirs = new Set<string>();
   private contextMenuEl: HTMLElement | null = null;
 
@@ -184,6 +185,13 @@ export class FileTree extends Component {
   setShowOpenFolder(show: boolean): void {
     if (this.config.showOpenFolder !== show) {
       this.config.showOpenFolder = show;
+      this.render();
+    }
+  }
+
+  set loading(value: boolean) {
+    if (this._loading !== value) {
+      this._loading = value;
       this.render();
     }
   }
@@ -355,6 +363,31 @@ export class FileTree extends Component {
 
   private renderContent(): void {
     clearChildren(this.contentEl);
+
+    if (this._loading) {
+      const loader = el('div');
+      setStyles(loader, {
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', padding: '32px 16px', textAlign: 'center',
+        color: '#858585', fontSize: '13px', gap: '12px',
+      });
+      const spinner = el('div');
+      setStyles(spinner, {
+        width: '24px', height: '24px', border: '2px solid #3e3e42',
+        borderTopColor: '#858585', borderRadius: '50%',
+      });
+      spinner.style.animation = 'novi-spin 0.8s linear infinite';
+      if (!document.getElementById('novi-spin-keyframes')) {
+        const style = document.createElement('style');
+        style.id = 'novi-spin-keyframes';
+        style.textContent = '@keyframes novi-spin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+      }
+      loader.appendChild(spinner);
+      loader.appendChild(el('span', {}, 'Loading...'));
+      this.contentEl.appendChild(loader);
+      return;
+    }
 
     if (this.tree.length === 0 && !this.rootPath) {
       // Empty state
