@@ -86,9 +86,9 @@ export class FileTreeWatcher extends EventEmitter {
         this.emit('change', { type: 'unlinkDir', path });
       });
 
-      this.watcher.on('change', (path: string) => {
-        // Forward file content changes so the editor can prompt to reload
-        this.emit('change', { type: 'change', path });
+      this.watcher.on('change', () => {
+        // File content changes are handled by EditorFileWatcher, not here.
+        // FileTreeWatcher only cares about structural changes (add/unlink).
       });
 
       this.watcher.on('error', (error: unknown) => {

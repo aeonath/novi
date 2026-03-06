@@ -81,6 +81,17 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.removeAllListeners('filetree-change');
   },
   
+  // Editor file watcher (watches individual open files for external changes)
+  editorWatchFile: (filePath: string) => ipcRenderer.invoke('editor-watch-file', filePath),
+  editorUnwatchFile: (filePath: string) => ipcRenderer.invoke('editor-unwatch-file', filePath),
+  editorOnFileChanged: (callback: (filePath: string) => void) => {
+    ipcRenderer.removeAllListeners('editor-file-changed');
+    ipcRenderer.on('editor-file-changed', (_event, filePath: string) => callback(filePath));
+  },
+  editorRemoveFileChangedListener: () => {
+    ipcRenderer.removeAllListeners('editor-file-changed');
+  },
+
   // Workspace operations
   workspaceSave: (state: any) => ipcRenderer.invoke('workspace-save', state),
   workspaceLoad: () => ipcRenderer.invoke('workspace-load'),

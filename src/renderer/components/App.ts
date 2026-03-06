@@ -421,12 +421,10 @@ export class App extends Component {
     window.addEventListener('novi-gitenabled-changed', geHandler);
     this.addCleanup(() => window.removeEventListener('novi-gitenabled-changed', geHandler));
 
-    // External file change detection — prompt to reload open files changed on disk
-    if (window.api?.fileTreeOnChange) {
-      window.api.fileTreeOnChange((event: { type: string; path: string }) => {
-        if (event.type === 'change') {
-          this.handleExternalFileChange(event.path);
-        }
+    // External file change detection — dedicated editor file watcher (independent of file tree)
+    if (window.api?.editorOnFileChanged) {
+      window.api.editorOnFileChanged((filePath: string) => {
+        this.handleExternalFileChange(filePath);
       });
     }
   }
@@ -860,6 +858,7 @@ export class App extends Component {
     this.updateContentVisibility();
 
     if (tab.type === 'file') {
+      if (tab.filePath) window.api?.editorWatchFile?.(tab.filePath);
       (window as any).__monacoEditorAPI?.loadFile(tab.filePath, tab.content);
       (window as any).__statusBarAPI?.setStatus(`Editing: ${tab.fileName}`);
     } else if (tab.type === 'image') {
@@ -890,6 +889,7 @@ export class App extends Component {
         this.syncNoviShellInstances();
       }
       if (tab && (tab.type === 'file' || tab.type === 'image')) {
+        if (tab.type === 'file' && tab.filePath) window.api?.editorUnwatchFile?.(tab.filePath);
         const next = { ...this.fileTabToTreeRoot }; delete next[tabId]; this.fileTabToTreeRoot = next;
       }
       if (tab?.type === 'file' && tab.isDirty) {
@@ -1418,7 +1418,6 @@ export class App extends Component {
 
   private handleExternalFileChange(changedPath: string): void {
     const normalized = changedPath.replace(/\\/g, '/');
-    // Already showing a banner for this file
     if (this.pendingReloadBanners.has(normalized)) return;
 
     const tabBarAPI = (window as any).__tabBarAPI;
@@ -1429,14 +1428,32 @@ export class App extends Component {
     );
     if (!match) return;
 
-    // Don't prompt if the change came from our own save
+    // Switch to the changed file's tab so the banner is visible
+    if (this.activeTab?.id !== match.id) {
+      tabBarAPI.switchTab(match.id);
+    }
+
+    // Don't prompt if the file isn't dirty (likely our own save or no user edits)
     const monacoAPI = (window as any).__monacoEditorAPI;
-    if (monacoAPI?.getFilePath?.()?.replace(/\\/g, '/') === normalized && !monacoAPI.isDirty()) return;
+    if (monacoAPI?.getFilePath?.()?.replace(/\\/g, '/') === normalized && !monacoAPI.isDirty()) {
+      // Auto-reload silently since user hasn't made changes
+      window.api?.readFile?.(changedPath).then((fileData: any) => {
+        monacoAPI.loadFile(changedPath, fileData.content);
+        monacoAPI.markAsSaved();
+        tabBarAPI.updateTabContent(match.id, fileData.content);
+        tabBarAPI.updateTabDirty(match.id, false);
+        (window as any).__statusBarAPI?.setStatus('File reloaded from disk');
+        setTimeout(() => {
+          const fileName = normalized.split('/').pop() || 'file';
+          (window as any).__statusBarAPI?.setStatus(`Editing: ${fileName}`);
+        }, 2000);
+      }).catch(() => {});
+      return;
+    }
 
     this.pendingReloadBanners.add(normalized);
     const fileName = normalized.split('/').pop() || 'file';
 
-    // Show a banner at the top of the monaco container
     const banner = document.createElement('div');
     Object.assign(banner.style, {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1444,7 +1461,7 @@ export class App extends Component {
       fontSize: '13px', fontFamily: "'Segoe UI', sans-serif",
       borderBottom: '1px solid #007acc', zIndex: '100',
     });
-    banner.textContent = `${fileName} has been changed on disk.`;
+    banner.textContent = `${fileName} has been changed on disk. You have unsaved changes.`;
 
     const btnContainer = document.createElement('div');
     Object.assign(btnContainer.style, { display: 'flex', gap: '8px', marginLeft: '12px' });

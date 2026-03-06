@@ -18,6 +18,7 @@ import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
+import { editorFileWatcher } from './services/editor-file-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
 import { commandStatsService } from './services/command-stats-service';
 import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
@@ -619,6 +620,7 @@ void app.whenReady().then(() => {
 
   ipcMain.handle('save-file', async (_e, filePath: string, content: string) => {
     try {
+      editorFileWatcher.markSaved(filePath);
       const parentDir = dirname(filePath);
       await mkdir(parentDir, { recursive: true });
       await writeFile(filePath, content, 'utf-8');
@@ -909,6 +911,19 @@ void app.whenReady().then(() => {
   // Forward file tree change events to renderer
   fileTreeWatcher.on('change', (event) => {
     mainWindowRef?.webContents.send('filetree-change', event);
+  });
+
+  // Editor file watcher IPC handlers (watches individual open files for external changes)
+  ipcMain.handle('editor-watch-file', async (_e, filePath: string) => {
+    editorFileWatcher.watchFile(filePath);
+  });
+
+  ipcMain.handle('editor-unwatch-file', async (_e, filePath: string) => {
+    editorFileWatcher.unwatchFile(filePath);
+  });
+
+  editorFileWatcher.on('file-changed', (filePath: string) => {
+    mainWindowRef?.webContents.send('editor-file-changed', filePath);
   });
 
   // Absorb watcher errors so they don't become unhandled EventEmitter exceptions
