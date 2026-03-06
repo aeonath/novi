@@ -67,21 +67,15 @@ export class EditorService {
     if (language !== 'plaintext') {
       setTimeout(() => {
         try {
-          if (language === 'typescript' || language === 'javascript') {
-            const tsApi = (monaco as any).languages?.typescript;
-            if (tsApi && typeof tsApi.getTypeScriptWorker === 'function') {
-              tsApi.getTypeScriptWorker()
-                .then(() => {
-                  monaco.editor.setModelLanguage(model, 'plaintext');
-                  monaco.editor.setModelLanguage(model, language);
-                })
-                .catch(() => {});
-            }
-          }
+          // Toggle through plaintext to force full retokenization.
+          // Always restore the original language even if an error occurs.
           monaco.editor.setModelLanguage(model, 'plaintext');
-          monaco.editor.setModelLanguage(model, language);
-        } catch (e) {
-          console.warn(`[EditorService] Failed to retokenize ${language} model:`, e);
+        } finally {
+          try {
+            monaco.editor.setModelLanguage(model, language);
+          } catch (e) {
+            console.warn(`[EditorService] Failed to retokenize ${language} model:`, e);
+          }
         }
       }, 300);
     }

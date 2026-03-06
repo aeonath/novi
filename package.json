@@ -117,6 +117,7 @@
     "isomorphic-git": "^1.37.2",
     "monaco-editor": "^0.54.0",
     "monaco-textmate": "^3.0.1",
+    "monaco-vim": "^0.4.4",
     "node-gyp": "^11.5.0",
     "vscode-oniguruma": "^2.0.1"
   }

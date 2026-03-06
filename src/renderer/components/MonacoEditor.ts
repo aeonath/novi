@@ -237,9 +237,7 @@ export class MonacoEditor extends Component {
           this.vimAdapter = null;
         }
         if (enabled) await this.initVim();
-        // Re-apply theme and retokenize to restore syntax highlighting
-        const currentTheme = appState.theme?.name === 'light' ? 'novi-light' : 'novi-dark';
-        monaco.editor.setTheme(currentTheme);
+        // Retokenize to restore syntax highlighting after vim toggle
         const model = this.editor.getModel();
         if (model) {
           const lang = model.getLanguageId();
@@ -273,7 +271,7 @@ export class MonacoEditor extends Component {
     try {
       const on = await window.api.getSetting<boolean>('vimode', false);
       if (on && this.editor && this.vimStatusBar) {
-        const mod = await import('../vim/index.js');
+        const mod = await import('monaco-vim');
         this.vimAdapter = mod.initVimMode(this.editor, this.vimStatusBar);
         const Vim = (mod as any).VimMode?.Vim;
         if (Vim && typeof Vim.defineEx === 'function') {
@@ -291,11 +289,9 @@ export class MonacoEditor extends Component {
             }).catch(() => params?.callback?.());
           });
         }
-        // Re-apply theme and retokenize to preserve syntax highlighting
-        const monacoTheme = appState.theme?.name === 'light' ? 'novi-light' : 'novi-dark';
+        // Retokenize after vim init to preserve syntax highlighting
         setTimeout(() => {
           if (!this.editor) return;
-          monaco.editor.setTheme(monacoTheme);
           const m = this.editor.getModel();
           if (m) {
             const lang = m.getLanguageId();

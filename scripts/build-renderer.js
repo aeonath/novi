@@ -21,6 +21,13 @@ async function build() {
       format: 'iife',
       sourcemap: true,
       external: ['electron'],
+      alias: {
+        // Redirect monaco-vim's Monaco ESM import to our shim that uses the
+        // globally AMD-loaded Monaco instance. This prevents a second copy of
+        // Monaco's editor API being bundled, which causes dual-instance state
+        // conflicts (broken themes, tokenization, language registration).
+        'monaco-editor/esm/vs/editor/editor.api': './src/renderer/shims/monaco-editor-api.ts',
+      },
       define: {
         'process.env.NODE_ENV': '"production"',
       },
