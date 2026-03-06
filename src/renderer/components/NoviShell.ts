@@ -24,7 +24,7 @@ export class NoviShell extends Component {
   private currentLine = '';
   private contextMenuEl: HTMLElement | null = null;
   private termContainer: HTMLElement;
-  private appVersion = '0.6.9';
+  private appVersion = 'unknown';
   private _isActive = false;
 
   constructor(config: NoviShellConfig) {
@@ -75,7 +75,7 @@ export class NoviShell extends Component {
   private async init(): Promise<void> {
     if (this.terminal) return;
 
-    this.appVersion = await window.api?.getVersion?.().catch(() => '0.6.9') ?? '0.6.9';
+    this.appVersion = await window.api?.getVersion?.().catch(() => 'unknown') ?? 'unknown';
 
     const terminal = new XTerm({
       cursorBlink: true, fontSize: 14,

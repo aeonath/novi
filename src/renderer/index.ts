@@ -35,7 +35,7 @@ window.addEventListener('novi-debug-changed', ((e: CustomEvent) => {
   applyDebugMode(!!e.detail?.enabled);
 }) as EventListener);
 
-_origLog('[Novi] Initializing Novi Terminal Environment v0.8.0...');
+_origLog('[Novi] Initializing Novi Terminal Environment...');
 
 // Wait for Monaco to load before initializing
 const waitForMonaco = async (): Promise<boolean> => {

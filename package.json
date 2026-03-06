@@ -107,7 +107,7 @@
       "allowElevation": true
     }
   },
-  "version": "0.8.0",
+  "version": "0.8.1",
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
     "@xterm/addon-fit": "^0.10.0",

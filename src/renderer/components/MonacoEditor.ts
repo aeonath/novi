@@ -466,7 +466,7 @@ function defineNoviThemes(): void {
       { token: 'type', foreground: '4ec9b0' },
     ],
     colors: {
-      'editor.background': '#1e1e1e', 'editor.foreground': '#ffffff',
+      'editor.background': '#1e1e1e', 'editor.foreground': '#cccccc',
       'editor.lineHighlightBackground': '#2d2d30', 'editor.selectionBackground': '#264f78',
     },
   });

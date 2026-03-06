@@ -8,7 +8,6 @@ Novi focuses on clarity, performance, and a workspace that feels effortless to u
 At its core is a Monaco editor with vim mode, an integrated terminal, and the Novi Shell —
 a command interface for controlling the environment.
 
-**Version:** 0.8.0 (Sprint 8)
 **Status:** Active Development
 
 ## Project Structure

@@ -1,0 +1,34 @@
+# Changelog — 2026-03-06 00:25.1
+
+## Version 0.8.1, editor foreground color, single-source version
+
+### Summary
+Bumped to 0.8.1. Changed editor foreground from pure white (#ffffff) to off-white (#cccccc) matching the terminal. Made package.json the single source of truth for the version — removed all hardcoded version strings from source files and README.
+
+### Implementation
+
+#### Editor foreground color
+- Changed `editor.foreground` in `novi-dark` theme from `#ffffff` to `#cccccc` to match terminal foreground
+
+#### Single-source version
+- `package.json` is the sole version source (read by `main.ts:getAppVersion()` via `readFileSync`)
+- Renderer gets version via `window.api.getVersion()` IPC call
+- Removed hardcoded `'0.8.0'` / `'0.6.9'` fallbacks from `App.ts`, `NoviShell.ts`, `main.ts` — replaced with `'unknown'`
+- Removed hardcoded version from `index.ts` init log
+- Stripped version line from `README.md`
+
+### Files Changed
+- **`package.json`** / **`package-lock.json`** — Version 0.8.1
+- **`src/renderer/components/MonacoEditor.ts`** — Editor foreground #cccccc
+- **`src/main/main.ts`** — Fallback 'unknown' instead of hardcoded version
+- **`src/renderer/index.ts`** — Remove version from init log
+- **`src/renderer/components/App.ts`** — Fallback 'unknown'
+- **`src/renderer/components/NoviShell.ts`** — Fallback 'unknown'
+- **`README.md`** — Removed version line
+
+### Test Results
+- 36 suites, 654 tests — all passing
+- Build succeeds
+
+### Commit Hash
+TBD
