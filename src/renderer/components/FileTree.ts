@@ -189,6 +189,13 @@ export class FileTree extends Component {
     }
   }
 
+  setShowGitToggle(show: boolean): void {
+    if (this.config.showGitToggle !== show) {
+      this.config.showGitToggle = show;
+      this.render();
+    }
+  }
+
   get isLoading(): boolean {
     return this._loading;
   }

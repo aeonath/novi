@@ -1,11 +1,11 @@
 /**
- * © 2025 MiraNova Studios. All rights reserved.
- * See the LICENSE file in the project root for full license text.
+ * © 2025-2026 MiraNova Studios. All rights reserved.
  */
 
 /**
- * Git Credential Helper for Nova
- * Handles authentication within Nova's UI instead of external credential managers
+ * Git Credential Helper for Novi
+ * Handles authentication prompts within Novi's UI via IPC
+ * Used by isomorphic-git's onAuth/onAuthFailure callbacks
  */
 
 import { BrowserWindow } from 'electron';
@@ -13,9 +13,7 @@ import { BrowserWindow } from 'electron';
 export interface CredentialRequest {
   type: 'password' | 'username' | 'passphrase';
   prompt: string;
-  protocol?: string;
   host?: string;
-  username?: string;
 }
 
 export interface CredentialResponse {
@@ -36,7 +34,7 @@ class GitCredentialHelper {
   }
 
   /**
-   * Request credentials from the user via Nova's UI
+   * Request credentials from the user via Novi's UI
    */
   async requestCredentials(request: CredentialRequest): Promise<CredentialResponse> {
     if (!this.mainWindow) {
@@ -58,7 +56,7 @@ class GitCredentialHelper {
     return new Promise((resolve, reject) => {
       this.pendingRequest = { resolve, reject };
 
-      // Timeout after 5 minutes (should never happen in practice)
+      // Timeout after 5 minutes
       setTimeout(() => {
         if (this.pendingRequest) {
           this.pendingRequest.reject(new Error('Credential request timeout'));
@@ -91,21 +89,6 @@ class GitCredentialHelper {
       this.pendingRequest = null;
     }
   }
-
-  /**
-   * Get environment variables to bypass external credential managers
-   */
-  getCredentialEnvironment(): Record<string, string> {
-    return {
-      GIT_TERMINAL_PROMPT: '0',              // Disable terminal prompts
-      GCM_INTERACTIVE: 'never',              // Disable Git Credential Manager interactive mode
-      GIT_ASKPASS: '',                        // Disable askpass scripts
-      SSH_ASKPASS: '',                        // Disable SSH askpass
-      GIT_SSH_COMMAND: 'ssh -o BatchMode=yes -o StrictHostKeyChecking=no', // SSH non-interactive
-    };
-  }
 }
 
 export const gitCredentialHelper = new GitCredentialHelper();
-
-

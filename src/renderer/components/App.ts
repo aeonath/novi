@@ -44,6 +44,7 @@ export class App extends Component {
   private showWelcome = false;
   private monacoReady = false;
   private showGitPanel = false;
+  private gitEnabled = true;
   private workspaceRoot: string | null = null;
   private activeTab: ActiveTab | null = null;
   private terminalTabs: Array<{ id: string; fileName: string; workspaceRoot?: string | null }> = [];
@@ -255,7 +256,7 @@ export class App extends Component {
     this.fileTree = new FileTree({
       onFileOpen: (fp) => this.onFileTreeFileOpen(fp),
       onDirectoryOpen: (dp) => this.onFileTreeDirectoryOpen(dp),
-      onToggleGit: () => { this.showGitPanel = !this.showGitPanel; this.updateSidebarVisibility(); },
+      onToggleGit: () => { if (this.gitEnabled) { this.showGitPanel = !this.showGitPanel; this.updateSidebarVisibility(); } },
       onNewTerminal: () => this.actionContext.onNewTerminal?.(),
       onNoviPrompt: () => this.actionContext.onNoviPrompt?.(),
       onRootChange: (p) => { this.fileTreeReportedRoot = p; this.statusBar.fileTreePath = p; },
@@ -404,6 +405,20 @@ export class App extends Component {
     };
     window.addEventListener('novi-singlefiletree-changed', sftHandler);
     this.addCleanup(() => window.removeEventListener('novi-singlefiletree-changed', sftHandler));
+
+    // gitenabled setting changes
+    const geHandler = () => {
+      window.api?.getSetting<boolean>('gitenabled', true).then((v) => {
+        this.gitEnabled = v !== false;
+        this.fileTree.setShowGitToggle(this.gitEnabled);
+        if (!this.gitEnabled && this.showGitPanel) {
+          this.showGitPanel = false;
+          this.updateSidebarVisibility();
+        }
+      });
+    };
+    window.addEventListener('novi-gitenabled-changed', geHandler);
+    this.addCleanup(() => window.removeEventListener('novi-gitenabled-changed', geHandler));
   }
 
   // ============================================================
@@ -446,6 +461,9 @@ export class App extends Component {
       this.monacoEditor.fontSize = this.editorFontSize;
       const v = await window.api?.getVersion?.();
       this.appVersion = v ?? '0.6.9';
+      const ge = await window.api?.getSetting<boolean>('gitenabled', true);
+      this.gitEnabled = ge !== false;
+      this.fileTree.setShowGitToggle(this.gitEnabled);
     } catch { /* ignore */ }
   }
 
@@ -662,7 +680,7 @@ export class App extends Component {
     // Don't update the file tree while it's in loading state —
     // wait for the terminal to report its CWD first.
     if (this.fileTree && !this.fileTree.isLoading) this.fileTree.displayRoot = root;
-    if (this.gitPanel) this.gitPanel.workspaceRoot = root || this.workspaceRoot;
+    if (this.gitPanel && this.gitEnabled) this.gitPanel.workspaceRoot = root || this.workspaceRoot;
   }
 
   private updateContentVisibility(): void {

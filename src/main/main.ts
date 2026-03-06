@@ -846,11 +846,6 @@ void app.whenReady().then(() => {
 
   ipcMain.handle('git-manual-refresh', async (_e, cwd: string) => {
     try {
-      // Quick check: if no .git dir, return non-repo immediately (avoids spawning git process)
-      const gitDir = join(cwd, '.git');
-      if (!existsSync(gitDir)) {
-        return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
-      }
       return await gitService.getStatus(cwd);
     } catch (error) {
       logError('Failed to manually refresh git status', error as Error);

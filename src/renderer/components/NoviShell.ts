@@ -203,26 +203,28 @@ export class NoviShell extends Component {
         const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
         const debug = await window.api.getSetting<boolean>('debug', false);
         const keeptabs = await window.api.getSetting<boolean>('keeptabs', true);
+        const gitenabled = await window.api.getSetting<boolean>('gitenabled', true);
         t.writeln('\x1b[36mCurrent settings:\x1b[0m');
         t.writeln(`  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  debug          ${debug ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  keeptabs      ${keeptabs ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
+        t.writeln(`  gitenabled     ${gitenabled ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
       } catch (_) { t.writeln('\x1b[31mFailed to read settings\x1b[0m'); }
       return;
     }
     const option = args[0].toLowerCase();
     const value = args[1]?.toLowerCase();
-    const validOptions = ['vimode', 'compat', 'singlefiletree', 'debug', 'keeptabs'];
+    const validOptions = ['vimode', 'compat', 'singlefiletree', 'debug', 'keeptabs', 'gitenabled'];
     if (!validOptions.includes(option)) {
       t.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
-      t.writeln('Supported: vimode, compat, singlefiletree, debug, keeptabs');
+      t.writeln('Supported: vimode, compat, singlefiletree, debug, keeptabs, gitenabled');
       return;
     }
     if (value === undefined || value === '') {
       try {
-        const defaultVal = option === 'keeptabs' ? true : false;
+        const defaultVal = (option === 'keeptabs' || option === 'gitenabled') ? true : false;
         const on = await window.api.getSetting<boolean>(option, defaultVal);
         t.writeln(on ? `\x1b[32m${option} is on\x1b[0m` : `\x1b[33m${option} is off\x1b[0m`);
       } catch (_) { t.writeln('\x1b[31mFailed to read setting\x1b[0m'); }
@@ -238,6 +240,7 @@ export class NoviShell extends Component {
         vimode: 'novi-vimode-changed',
         singlefiletree: 'novi-singlefiletree-changed',
         debug: 'novi-debug-changed',
+        gitenabled: 'novi-gitenabled-changed',
       };
       if (eventMap[option]) {
         const detail = option === 'singlefiletree' ? {} : { enabled: value === 'on' };

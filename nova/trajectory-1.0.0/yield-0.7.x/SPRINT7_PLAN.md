@@ -107,3 +107,6 @@ File altogether.  THen on the editor tab it would reappear be active again.
 The same logic applies to the Novi Shell
 
 This is true for Save As. as well.
+
+
+## Task 10 - 
