@@ -56,7 +56,7 @@ export class App extends Component {
   private terminalFontSize = 14;
   private showAbout = false;
   private showCheckUpdates = false;
-  private appVersion = '0.6.9';
+  private appVersion = '0.8.0';
   private singleFileTree = true;
   private terminalFileTreeRoots: Record<string, { cwd: string; overriddenRoot?: string }> = {};
   private fileTabToTreeRoot: Record<string, string> = {};
@@ -468,7 +468,7 @@ export class App extends Component {
       this.terminalFontSize = tf ?? 14;
       this.monacoEditor.fontSize = this.editorFontSize;
       const v = await window.api?.getVersion?.();
-      this.appVersion = v ?? '0.6.9';
+      this.appVersion = v ?? '0.8.0';
       const ge = await window.api?.getSetting<boolean>('gitenabled', true);
       this.gitEnabled = ge !== false;
       this.fileTree.setShowGitToggle(this.gitEnabled);
