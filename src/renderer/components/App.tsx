@@ -11,15 +11,17 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { AppProvider, useAppContext } from '../contexts/AppContext.js';
 import { TitleBar } from './TitleBar.js';
+import type { TitleBarConfig } from './TitleBar.js';
 import { StatusBar } from './StatusBar.js';
 import { TabBar } from './TabBar.js';
+import type { TabBarConfig } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
 import { ImageEditor } from './ImageEditor.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
 import { NoviShell } from './NoviShell.js';
-// Note: Phase 2 components are now vanilla TS classes (not React FCs).
+// Note: Phase 2 & 3 components are now vanilla TS classes (not React FCs).
 // They are mounted imperatively via useEffect hooks below.
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
@@ -112,6 +114,12 @@ const AppInner: React.FC = () => {
   const terminalInstancesRef = useRef<Map<string, { instance: Terminal; container: HTMLElement }>>(new Map());
   const noviShellInstancesRef = useRef<Map<string, { instance: NoviShell; container: HTMLElement }>>(new Map());
   const imageEditorInstanceRef = useRef<{ instance: ImageEditor; filePath: string } | null>(null);
+
+  // Vanilla component instances (Phase 3)
+  const titleBarContainerRef = useRef<HTMLDivElement>(null);
+  const tabBarContainerRef = useRef<HTMLDivElement>(null);
+  const titleBarRef = useRef<TitleBar | null>(null);
+  const tabBarRef = useRef<TabBar | null>(null);
 
   // Callback refs for vanilla components (avoids stale closures)
   const actionContextRef = useRef<ActionContext>({} as ActionContext);
@@ -534,6 +542,42 @@ const AppInner: React.FC = () => {
       }
     };
   }, [singleFileTree, activeTab, currentFileTreeDisplayRoot]);
+
+  // --- Phase 3: Mount TitleBar (vanilla) ---
+  const titleBarCallbacksRef = useRef<{ onCommand: (cmd: string) => void }>({ onCommand: () => {} });
+  useEffect(() => {
+    const container = titleBarContainerRef.current;
+    if (!container || titleBarRef.current) return;
+    const tb = new TitleBar({
+      onCommand: (cmd: string) => titleBarCallbacksRef.current.onCommand(cmd),
+      activeTabType: activeTab?.type ?? null,
+    });
+    tb.mount(container);
+    titleBarRef.current = tb;
+    return () => { tb.destroy(); titleBarRef.current = null; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync TitleBar config when activeTabType changes
+  useEffect(() => {
+    titleBarRef.current?.updateConfig({ activeTabType: activeTab?.type ?? null });
+  }, [activeTab?.type]);
+
+  // --- Phase 3: Mount TabBar (vanilla) ---
+  const tabBarCallbacksRef = useRef<Partial<TabBarConfig>>({});
+  useEffect(() => {
+    const container = tabBarContainerRef.current;
+    if (!container || tabBarRef.current) return;
+    const tb = new TabBar({
+      pinnedTabIds: homeTerminalPinnedSet,
+      getPreferredNextTabId: () => previousActiveTabIdRef.current ?? null,
+      onAllTabsClosed: () => tabBarCallbacksRef.current.onAllTabsClosed?.(),
+      onTabSwitch: (tab) => tabBarCallbacksRef.current.onTabSwitch?.(tab),
+      onTabClose: (tabId) => tabBarCallbacksRef.current.onTabClose?.(tabId) ?? Promise.resolve(true),
+    });
+    tb.mount(container);
+    tabBarRef.current = tb;
+    return () => { tb.destroy(); tabBarRef.current = null; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Set up global terminal data listener (PTY output -> xterm.js display)
   useEffect(() => {
@@ -1992,6 +2036,96 @@ const AppInner: React.FC = () => {
     };
   }, [actionContext]);
 
+  // Sync Phase 3 callback refs
+  useEffect(() => {
+    titleBarCallbacksRef.current.onCommand = handleMenuCommand;
+  }, [handleMenuCommand]);
+
+  useEffect(() => {
+    tabBarCallbacksRef.current.onAllTabsClosed = () => {
+      setShowWelcome(false);
+      setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+      const tabBarAPI = (window as any).__tabBarAPI;
+      if (tabBarAPI) tabBarAPI.switchTab(HOME_TERMINAL_ID);
+    };
+    tabBarCallbacksRef.current.onTabSwitch = (tab) => {
+      previousActiveTabIdRef.current = activeTab?.id ?? null;
+      console.log('[App] Tab switched to:', tab.fileName, 'type:', tab.type);
+      setActiveTab({
+        id: tab.id,
+        type: tab.type,
+        filePath: (tab.type === 'image' || tab.type === 'novi-prompt') ? tab.filePath : undefined,
+      });
+      setShowWelcome(false);
+      if (tab.type === 'file') {
+        if ((window as any).__monacoEditorAPI) {
+          (window as any).__monacoEditorAPI.loadFile(tab.filePath, tab.content);
+        }
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
+        }
+      } else if (tab.type === 'image') {
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus(`Viewing: ${tab.fileName}`);
+        }
+      } else if (tab.type === 'terminal') {
+        if ((window as any).__statusBarAPI) {
+          (window as any).__statusBarAPI.setStatus(`Terminal: ${tab.fileName}`);
+        }
+      }
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (tab.type === 'file') {
+            (window as any).__monacoEditorAPI?.focus?.();
+          } else if (tab.type === 'terminal') {
+            const term = (window as any).__terminalAPI?.[tab.id];
+            if (term?.focus) term.focus();
+          } else if (tab.type === 'novi-prompt') {
+            const shell = (window as any).__noviShellAPI?.[tab.id];
+            if (shell?.focus) shell.focus();
+          }
+        });
+      });
+    };
+    tabBarCallbacksRef.current.onTabClose = async (tabId: string) => {
+      if (tabId === HOME_TERMINAL_ID) return false;
+      if (forceCloseTabIdRef.current === tabId) {
+        forceCloseTabIdRef.current = null;
+        return true;
+      }
+      if ((window as any).__tabBarAPI) {
+        const tabs = (window as any).__tabBarAPI.getTabs();
+        const tab = tabs.find((t: any) => t.id === tabId);
+        if (tab && tab.type === 'terminal') {
+          if (window.api?.terminalKill) {
+            await window.api.terminalKill(tab.filePath);
+          }
+          setTerminalTabs(prev => prev.filter(t => t.id !== tabId));
+          setTerminalFileTreeRoots(prev => { const next = { ...prev }; delete next[tabId]; return next; });
+          console.log('[App] Removed terminal from state:', tabId);
+        }
+        if (tab && tab.type === 'novi-prompt') {
+          setNoviPromptTabs(prev => prev.filter(t => t.id !== tabId));
+          console.log('[App] Removed novi prompt from state:', tabId);
+        }
+        if (tab && (tab.type === 'file' || tab.type === 'image')) {
+          setFileTabToTreeRoot(prev => { const next = { ...prev }; delete next[tabId]; return next; });
+        }
+        if (tab && tab.type === 'file' && tab.isDirty) {
+          return new Promise<boolean>((resolve) => {
+            setSavePrompt({
+              show: true,
+              fileName: tab.fileName,
+              tabId: tabId,
+              resolve: resolve,
+            });
+          });
+        }
+      }
+      return true;
+    };
+  }, [activeTab?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Ctrl+Tab keybinding to cycle through tabs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2133,7 +2267,8 @@ const AppInner: React.FC = () => {
 
   return (
       <div className="novi-layout" style={styles.layout}>
-        <TitleBar onCommand={handleMenuCommand} activeTabType={activeTab?.type} />
+        {/* TitleBar — vanilla component mounted via ref */}
+        <div ref={titleBarContainerRef} style={{ display: 'contents' }} />
         
         <div style={styles.mainContent}>
           <aside style={{ ...styles.sidebar, width: `${sidebarWidth}px`, flexShrink: 0 }}>
@@ -2168,114 +2303,8 @@ const AppInner: React.FC = () => {
           />
           
           <main style={styles.editorArea}>
-            <TabBar
-              pinnedTabIds={homeTerminalPinnedSet}
-              getPreferredNextTabId={() => previousActiveTabIdRef.current ?? null}
-              onAllTabsClosed={() => {
-                // Home terminal is always present, switch to it
-                setShowWelcome(false);
-                setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
-                const tabBarAPI = (window as any).__tabBarAPI;
-                if (tabBarAPI) tabBarAPI.switchTab(HOME_TERMINAL_ID);
-              }}
-              onTabSwitch={(tab) => {
-                // Remember tab we're leaving so :q / Ctrl+W can return to it
-                previousActiveTabIdRef.current = activeTab?.id ?? null;
-                console.log('[App] Tab switched to:', tab.fileName, 'type:', tab.type);
-                setActiveTab({ 
-                  id: tab.id, 
-                  type: tab.type,
-                  filePath: (tab.type === 'image' || tab.type === 'novi-prompt') ? tab.filePath : undefined
-                });
-                
-                // Hide welcome screen when a tab is clicked
-                setShowWelcome(false);
-                
-                if (tab.type === 'file') {
-                  // Load the tab's content into Monaco
-                  if ((window as any).__monacoEditorAPI) {
-                    (window as any).__monacoEditorAPI.loadFile(tab.filePath, tab.content);
-                  }
-                  
-                  // Update status bar
-                  if ((window as any).__statusBarAPI) {
-                    (window as any).__statusBarAPI.setStatus(`Editing: ${tab.fileName}`);
-                  }
-                } else if (tab.type === 'image') {
-                  // Update status bar for image
-                  if ((window as any).__statusBarAPI) {
-                    (window as any).__statusBarAPI.setStatus(`Viewing: ${tab.fileName}`);
-                  }
-                } else if (tab.type === 'terminal') {
-                  // Update status bar for terminal
-                  if ((window as any).__statusBarAPI) {
-                    (window as any).__statusBarAPI.setStatus(`Terminal: ${tab.fileName}`);
-                  }
-                }
-
-                // Focus the active pane after it's visible so typing works immediately
-                requestAnimationFrame(() => {
-                  requestAnimationFrame(() => {
-                    if (tab.type === 'file') {
-                      (window as any).__monacoEditorAPI?.focus?.();
-                    } else if (tab.type === 'terminal') {
-                      const term = (window as any).__terminalAPI?.[tab.id];
-                      if (term?.focus) term.focus();
-                    } else if (tab.type === 'novi-prompt') {
-                      const shell = (window as any).__noviShellAPI?.[tab.id];
-                      if (shell?.focus) shell.focus();
-                    }
-                  });
-                });
-              }}
-              onTabClose={async (tabId: string) => {
-                // Home terminal cannot be closed
-                if (tabId === HOME_TERMINAL_ID) return false;
-                if (forceCloseTabIdRef.current === tabId) {
-                  forceCloseTabIdRef.current = null;
-                  return true;
-                }
-                // Get the tab to check its type
-                if ((window as any).__tabBarAPI) {
-                  const tabs = (window as any).__tabBarAPI.getTabs();
-                  const tab = tabs.find((t: any) => t.id === tabId);
-                  
-                  if (tab && tab.type === 'terminal') {
-                    // Kill terminal session
-                    if (window.api?.terminalKill) {
-                      await window.api.terminalKill(tab.filePath); // filePath is terminalId for terminals
-                    }
-                    setTerminalTabs(prev => prev.filter(t => t.id !== tabId));
-                    setTerminalFileTreeRoots(prev => { const next = { ...prev }; delete next[tabId]; return next; });
-                    console.log('[App] Removed terminal from state:', tabId);
-                  }
-                  
-                  if (tab && tab.type === 'novi-prompt') {
-                    setNoviPromptTabs(prev => prev.filter(t => t.id !== tabId));
-                    console.log('[App] Removed novi prompt from state:', tabId);
-                  }
-                  
-                  if (tab && (tab.type === 'file' || tab.type === 'image')) {
-                    setFileTabToTreeRoot(prev => { const next = { ...prev }; delete next[tabId]; return next; });
-                  }
-                  
-                  // For file tabs, check if they're dirty (unsaved changes)
-                  if (tab && tab.type === 'file' && tab.isDirty) {
-                    // Show save prompt and wait for user decision
-                    return new Promise<boolean>((resolve) => {
-                      setSavePrompt({
-                        show: true,
-                        fileName: tab.fileName,
-                        tabId: tabId,
-                        resolve: resolve,
-                      });
-                    });
-                  }
-                }
-                
-                return true;
-              }}
-            />
+            {/* TabBar — vanilla component mounted via ref */}
+            <div ref={tabBarContainerRef} style={{ display: 'contents' }} />
             
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showWelcome && !monacoReady ? (
