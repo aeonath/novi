@@ -859,7 +859,19 @@ export class App extends Component {
 
     if (tab.type === 'file') {
       if (tab.filePath) window.api?.editorWatchFile?.(tab.filePath);
-      (window as any).__monacoEditorAPI?.loadFile(tab.filePath, tab.content);
+      // Always read fresh content from disk when switching to a file tab
+      if (tab.filePath && !tab.isDirty && window.api?.readFile) {
+        window.api.readFile(tab.filePath).then((fileData) => {
+          (window as any).__monacoEditorAPI?.loadFile(tab.filePath, fileData.content);
+          (window as any).__monacoEditorAPI?.markAsSaved();
+          (window as any).__tabBarAPI?.updateTabContent(tab.id, fileData.content);
+        }).catch(() => {
+          // Fallback to cached content if disk read fails
+          (window as any).__monacoEditorAPI?.loadFile(tab.filePath, tab.content);
+        });
+      } else {
+        (window as any).__monacoEditorAPI?.loadFile(tab.filePath, tab.content);
+      }
       (window as any).__statusBarAPI?.setStatus(`Editing: ${tab.fileName}`);
     } else if (tab.type === 'image') {
       (window as any).__statusBarAPI?.setStatus(`Viewing: ${tab.fileName}`);
