@@ -59,26 +59,35 @@ class GitService {
     }
   }
 
-  private isRepo(dir: string): boolean {
-    return fs.existsSync(join(dir, '.git'));
+  /**
+   * Find the git repo root for a given directory, walking up parent dirs.
+   * Returns null if not inside a git repository.
+   */
+  async findRoot(cwd: string): Promise<string | null> {
+    try {
+      return await git.findRoot({ fs, filepath: cwd });
+    } catch {
+      return null;
+    }
   }
 
   async getStatus(cwd: string): Promise<GitStatus> {
     try {
-      if (!this.isRepo(cwd)) {
+      const root = await this.findRoot(cwd);
+      if (!root) {
         return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
       }
 
-      const branch = await git.currentBranch({ fs, dir: cwd }) || null;
+      const branch = await git.currentBranch({ fs, dir: root }) || null;
 
       // statusMatrix returns [filepath, HEAD, WORKDIR, STAGE] tuples
       // HEAD: 0=absent, 1=present
       // WORKDIR: 0=absent, 2=present
       // STAGE: 0=absent, 1=matches HEAD, 2=differs from HEAD, 3=matches WORKDIR
-      const matrix = await git.statusMatrix({ fs, dir: cwd });
+      const matrix = await git.statusMatrix({ fs, dir: root });
       const files = this.parseStatusMatrix(matrix);
 
-      const { ahead, behind } = await this.getAheadBehind(cwd, branch);
+      const { ahead, behind } = await this.getAheadBehind(root, branch);
 
       await this.log('getStatus', `Branch: ${branch}, Files: ${files.length}`, true);
       return { isRepo: true, branch, files, ahead, behind };
@@ -172,16 +181,17 @@ class GitService {
 
   async stageFile(cwd: string, filePath: string): Promise<boolean> {
     try {
+      const root = await this.findRoot(cwd) || cwd;
       if (DEBUG_GIT_OPERATIONS) {
-        console.log(`[GitService] Staging file: ${filePath} in ${cwd}`);
+        console.log(`[GitService] Staging file: ${filePath} in ${root}`);
       }
 
       // Check if file exists — if not, it's a delete that needs to be staged
-      const fullPath = join(cwd, filePath);
+      const fullPath = join(root, filePath);
       if (fs.existsSync(fullPath)) {
-        await git.add({ fs, dir: cwd, filepath: filePath });
+        await git.add({ fs, dir: root, filepath: filePath });
       } else {
-        await git.remove({ fs, dir: cwd, filepath: filePath });
+        await git.remove({ fs, dir: root, filepath: filePath });
       }
 
       await this.log('stageFile', filePath, true);
@@ -196,12 +206,13 @@ class GitService {
 
   async unstageFile(cwd: string, filePath: string): Promise<boolean> {
     try {
+      const root = await this.findRoot(cwd) || cwd;
       if (DEBUG_GIT_OPERATIONS) {
-        console.log(`[GitService] Unstaging file: ${filePath} in ${cwd}`);
+        console.log(`[GitService] Unstaging file: ${filePath} in ${root}`);
       }
 
       // Reset the file in the index to match HEAD
-      await git.resetIndex({ fs, dir: cwd, filepath: filePath });
+      await git.resetIndex({ fs, dir: root, filepath: filePath });
 
       await this.log('unstageFile', filePath, true);
       return true;
@@ -215,12 +226,13 @@ class GitService {
 
   async commit(cwd: string, message: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const name = await git.getConfig({ fs, dir: cwd, path: 'user.name' }) || 'Unknown';
-      const email = await git.getConfig({ fs, dir: cwd, path: 'user.email' }) || 'unknown@unknown';
+      const root = await this.findRoot(cwd) || cwd;
+      const name = await git.getConfig({ fs, dir: root, path: 'user.name' }) || 'Unknown';
+      const email = await git.getConfig({ fs, dir: root, path: 'user.email' }) || 'unknown@unknown';
 
       await git.commit({
         fs,
-        dir: cwd,
+        dir: root,
         message: message || '',
         author: { name, email },
       });
@@ -236,12 +248,13 @@ class GitService {
 
   async push(cwd: string): Promise<{ success: boolean; error?: string }> {
     try {
+      const root = await this.findRoot(cwd) || cwd;
       await git.push({
         fs,
         http,
-        dir: cwd,
-        onAuth: (url) => this.handleAuth(url, cwd),
-        onAuthFailure: (url) => this.handleAuthRetry(url, cwd),
+        dir: root,
+        onAuth: (url) => this.handleAuth(url, root),
+        onAuthFailure: (url) => this.handleAuthRetry(url, root),
       });
 
       await this.log('push', 'Success', true);
@@ -256,16 +269,17 @@ class GitService {
 
   async pull(cwd: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const name = await git.getConfig({ fs, dir: cwd, path: 'user.name' }) || 'Unknown';
-      const email = await git.getConfig({ fs, dir: cwd, path: 'user.email' }) || 'unknown@unknown';
+      const root = await this.findRoot(cwd) || cwd;
+      const name = await git.getConfig({ fs, dir: root, path: 'user.name' }) || 'Unknown';
+      const email = await git.getConfig({ fs, dir: root, path: 'user.email' }) || 'unknown@unknown';
 
       await git.pull({
         fs,
         http,
-        dir: cwd,
+        dir: root,
         author: { name, email },
-        onAuth: (url) => this.handleAuth(url, cwd),
-        onAuthFailure: (url) => this.handleAuthRetry(url, cwd),
+        onAuth: (url) => this.handleAuth(url, root),
+        onAuthFailure: (url) => this.handleAuthRetry(url, root),
       });
 
       await this.log('pull', 'Success', true);

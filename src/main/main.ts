@@ -823,11 +823,11 @@ void app.whenReady().then(() => {
     try {
       const normalized = repoPath.replace(/\\/g, '/');
       if (/^[A-Za-z]:\/?$/.test(normalized)) return; // don't watch drive root
-      // Quick check: skip if no .git directory exists (avoids watching entire non-repo trees)
-      const gitDir = join(repoPath, '.git');
-      if (!existsSync(gitDir)) return;
-      await gitWatcher.watch(repoPath);
-      logInfo(`Started watching git repository: ${repoPath}`);
+      // Find the repo root (may be a parent directory)
+      const root = await gitService.findRoot(repoPath);
+      if (!root) return; // not inside a git repo
+      await gitWatcher.watch(root);
+      logInfo(`Started watching git repository: ${root}`);
     } catch (error) {
       logError('Failed to start git watcher', error as Error);
       throw error;
@@ -841,6 +841,14 @@ void app.whenReady().then(() => {
     } catch (error) {
       logError('Failed to stop git watcher', error as Error);
       throw error;
+    }
+  });
+
+  ipcMain.handle('git-find-root', async (_e, cwd: string) => {
+    try {
+      return await gitService.findRoot(cwd);
+    } catch {
+      return null;
     }
   });
 

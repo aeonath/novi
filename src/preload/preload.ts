@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.removeAllListeners('git-change');
   },
   gitManualRefresh: (cwd: string) => ipcRenderer.invoke('git-manual-refresh', cwd),
+  gitFindRoot: (cwd: string) => ipcRenderer.invoke('git-find-root', cwd),
   
   // Git credential handling
   gitOnCredentialRequest: (callback: (request: any) => void) => {

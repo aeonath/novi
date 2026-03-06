@@ -59,6 +59,7 @@ export class FileTree extends Component {
   private rootPath: string | null = null;
   private tree: FileNode[] = [];
   private _loading = false;
+  private _inGitRepo = false;
   private expandedDirs = new Set<string>();
   private contextMenuEl: HTMLElement | null = null;
 
@@ -211,6 +212,7 @@ export class FileTree extends Component {
     if (path && path !== this.rootPath) {
       this.rootPath = path;
       this.loadDirectory(path);
+      this.checkGitRepo(path);
       this.config.onRootChange?.(this.rootPath);
     }
   }
@@ -228,6 +230,21 @@ export class FileTree extends Component {
       this.config.onRootChange?.(dirPath);
     } catch (err) {
       console.error('[FileTree] Failed to open directory:', err);
+    }
+  }
+
+  private async checkGitRepo(path: string): Promise<void> {
+    if (!window.api?.gitFindRoot) {
+      this._inGitRepo = false;
+      return;
+    }
+    try {
+      const root = await window.api.gitFindRoot(path);
+      const wasInRepo = this._inGitRepo;
+      this._inGitRepo = root !== null;
+      if (wasInRepo !== this._inGitRepo) this.renderHeader();
+    } catch {
+      this._inGitRepo = false;
     }
   }
 
@@ -350,7 +367,7 @@ export class FileTree extends Component {
     this.titleEl.textContent = dirName;
 
     clearChildren(this.headerBtnsEl);
-    if (this.config.showGitToggle && this.rootPath && this.config.onToggleGit && this.tree.some(n => n.name === '.git' && n.isDirectory)) {
+    if (this.config.showGitToggle && this.rootPath && this.config.onToggleGit && this._inGitRepo) {
       const gitBtn = this.makeHeaderBtn('\u271a', 'Toggle Git View');
       gitBtn.addEventListener('click', () => this.config.onToggleGit!());
       this.headerBtnsEl.appendChild(gitBtn);

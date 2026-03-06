@@ -109,4 +109,16 @@ The same logic applies to the Novi Shell
 This is true for Save As. as well.
 
 
-## Task 10 - 
+## Task 10 - The command pallate grayed out
+
+The command pallate is currently grayed out on the editor tab in the application menu.  When not in 
+vi mode, this should be available via selection on the application menu
+and via CTRL+P.  The command pallate should remain grayed out on the Terminal Tab including the Home Terminal and the Novi Shell.  The 
+CTRL+P should also not work in these cases.  When on the EDITOR
+TAB it should be active.  
+
+An alternate approache woudl be to make the command pallate available 
+on the terminal tab but remove all options having to do with the monaco
+editor.
+
+Let's see if we can get this Command Pallate working again claude. 

@@ -124,6 +124,7 @@ declare global {
       gitOnChange: (callback: (event: { type: string; path: string }) => void) => void;
       gitRemoveChangeListener: () => void;
       gitManualRefresh: (cwd: string) => Promise<GitStatus>;
+      gitFindRoot: (cwd: string) => Promise<string | null>;
       gitOnCredentialRequest: (callback: (request: GitCredentialRequest) => void) => void;
       gitRemoveCredentialListener: () => void;
       gitProvideCredentials: (response: GitCredentialResponse) => Promise<{ success: boolean }>;
