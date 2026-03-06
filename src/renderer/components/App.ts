@@ -1433,26 +1433,10 @@ export class App extends Component {
       tabBarAPI.switchTab(match.id);
     }
 
-    // Don't prompt if the file isn't dirty (likely our own save or no user edits)
-    const monacoAPI = (window as any).__monacoEditorAPI;
-    if (monacoAPI?.getFilePath?.()?.replace(/\\/g, '/') === normalized && !monacoAPI.isDirty()) {
-      // Auto-reload silently since user hasn't made changes
-      window.api?.readFile?.(changedPath).then((fileData: any) => {
-        monacoAPI.loadFile(changedPath, fileData.content);
-        monacoAPI.markAsSaved();
-        tabBarAPI.updateTabContent(match.id, fileData.content);
-        tabBarAPI.updateTabDirty(match.id, false);
-        (window as any).__statusBarAPI?.setStatus('File reloaded from disk');
-        setTimeout(() => {
-          const fileName = normalized.split('/').pop() || 'file';
-          (window as any).__statusBarAPI?.setStatus(`Editing: ${fileName}`);
-        }, 2000);
-      }).catch(() => {});
-      return;
-    }
-
     this.pendingReloadBanners.add(normalized);
     const fileName = normalized.split('/').pop() || 'file';
+    const monacoAPI = (window as any).__monacoEditorAPI;
+    const isDirty = monacoAPI?.getFilePath?.()?.replace(/\\/g, '/') === normalized && monacoAPI.isDirty();
 
     const banner = document.createElement('div');
     Object.assign(banner.style, {
@@ -1461,7 +1445,9 @@ export class App extends Component {
       fontSize: '13px', fontFamily: "'Segoe UI', sans-serif",
       borderBottom: '1px solid #007acc', zIndex: '100',
     });
-    banner.textContent = `${fileName} has been changed on disk. You have unsaved changes.`;
+    banner.textContent = isDirty
+      ? `${fileName} has been changed on disk. You have unsaved changes.`
+      : `${fileName} has been changed on disk.`;
 
     const btnContainer = document.createElement('div');
     Object.assign(btnContainer.style, { display: 'flex', gap: '8px', marginLeft: '12px' });
