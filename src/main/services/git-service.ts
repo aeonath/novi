@@ -139,6 +139,30 @@ class GitService {
     return files;
   }
 
+  /**
+   * Lightweight fetch of just the current branch's remote ref.
+   * Updates refs/remotes/origin/<branch> so ahead/behind is accurate after push/pull.
+   */
+  private async fetchRemoteRef(dir: string): Promise<void> {
+    try {
+      const branch = await git.currentBranch({ fs, dir });
+      if (!branch) return;
+      const remote = await git.getConfig({ fs, dir, path: `branch.${branch}.remote` });
+      if (!remote) return;
+      await git.fetch({
+        fs,
+        http,
+        dir,
+        remote,
+        ref: branch,
+        singleBranch: true,
+        onAuth: (url) => this.handleAuth(url, dir),
+      });
+    } catch {
+      // Non-critical — status will just show stale ahead/behind
+    }
+  }
+
   private async getAheadBehind(cwd: string, branch: string | null): Promise<{ ahead: number; behind: number }> {
     if (!branch) return { ahead: 0, behind: 0 };
 
@@ -257,6 +281,9 @@ class GitService {
         onAuth: (url) => this.handleAuth(url, root),
         onAuthFailure: (url) => this.handleAuthRetry(url, root),
       });
+
+      // Update remote tracking ref so ahead/behind counts refresh
+      await this.fetchRemoteRef(root);
 
       await this.log('push', 'Success', true);
       return { success: true };
