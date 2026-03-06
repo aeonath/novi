@@ -38,9 +38,13 @@ export class EditorService {
    * Create or get a model for a file
    */
   public getOrCreateModel(filePath: string, content: string, language: string): EditorModel {
-    // Check if model already exists
+    // If model exists, update its content to match what was passed in
     if (this.models.has(filePath)) {
-      return this.models.get(filePath)!;
+      const existing = this.models.get(filePath)!;
+      if (existing.model.getValue() !== content) {
+        existing.model.setValue(content);
+      }
+      return existing;
     }
 
     // Create new model
