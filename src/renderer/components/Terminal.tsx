@@ -11,6 +11,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebglAddon } from '@xterm/addon-webgl';
 // Note: xterm.css is loaded in index.html
 
 export interface TerminalProps {
@@ -189,6 +190,20 @@ export const Terminal: React.FC<TerminalProps> = ({ terminalId, workspaceRoot, o
     try {
       terminal.open(containerRef.current);
       console.log('[Terminal] Terminal opened successfully');
+
+      // Enable GPU-accelerated rendering via WebGL for faster text output.
+      // Falls back to canvas renderer if WebGL is unavailable.
+      try {
+        const webglAddon = new WebglAddon();
+        webglAddon.onContextLoss(() => {
+          console.warn('[Terminal] WebGL context lost, falling back to canvas renderer');
+          webglAddon.dispose();
+        });
+        terminal.loadAddon(webglAddon);
+        console.log('[Terminal] WebGL renderer enabled');
+      } catch (webglError) {
+        console.warn('[Terminal] WebGL not available, using canvas renderer:', webglError);
+      }
       
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;

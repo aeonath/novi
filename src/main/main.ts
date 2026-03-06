@@ -16,7 +16,6 @@ import { gitService } from './services/git-service';
 import { gitWatcher } from './services/git-watcher';
 import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService } from './services/terminal-service';
-import { ensureNoviStubDir } from './novi-stub';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
@@ -993,7 +992,6 @@ void app.whenReady().then(() => {
   ipcMain.handle('terminal-create', async (_e, cwd?: string, cols = 80, rows = 24, customId?: string) => {
     try {
       const cwdPath = cwd || process.cwd();
-      ensureNoviStubDir(app.getPath('userData')); // stub on disk for optional manual PATH; we never modify user PATH
       const terminalId = terminalService.createSession(cwd, cols, rows, customId);
       const session = terminalService.getSession(terminalId);
       
@@ -1012,6 +1010,22 @@ void app.whenReady().then(() => {
       // Track whether we still need to inject a cd for workspace restore.
       // The first OSC 7 proves bash has fully initialized (PROMPT_COMMAND fired).
       let pendingCdRestore = cwd ? cwd : null;
+
+      // Batch PTY output into ~16ms frames to reduce IPC overhead.
+      // Instead of sending every tiny PTY chunk as a separate IPC message,
+      // we accumulate data and flush once per frame (~60fps).
+      let dataBuffer = '';
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      const FLUSH_INTERVAL_MS = 16;
+
+      const flushBuffer = () => {
+        flushTimer = null;
+        if (dataBuffer && mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('terminal-data', terminalId, dataBuffer);
+          dataBuffer = '';
+        }
+      };
+
       session.pty.onData((data: string) => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
           // Parse OSC 7 to extract CWD (invisible to xterm.js — no stripping needed)
@@ -1033,8 +1047,11 @@ void app.whenReady().then(() => {
               mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedPath);
             }
           }
-          // Pass ALL data to renderer unchanged — OSC 7 is silently consumed by xterm.js
-          mainWindowRef.webContents.send('terminal-data', terminalId, data);
+          // Accumulate data and schedule flush on next frame boundary
+          dataBuffer += data;
+          if (!flushTimer) {
+            flushTimer = setTimeout(flushBuffer, FLUSH_INTERVAL_MS);
+          }
         }
       });
 
