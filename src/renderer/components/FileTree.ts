@@ -391,7 +391,7 @@ export class FileTree extends Component {
           width: '8px', height: '8px', borderRadius: '50%',
           backgroundColor: '#858585',
         });
-        dot.style.animation = `novi-dot-pulse 1.2s ease-in-out ${i * 0.2}s infinite`;
+        dot.style.animation = `novi-dot-pulse 2.5s ease-in-out ${i * 0.4}s infinite`;
         loader.appendChild(dot);
       }
       this.contentEl.appendChild(loader);

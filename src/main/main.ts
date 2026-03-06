@@ -519,26 +519,19 @@ void app.whenReady().then(() => {
       const entries = await readdir(dirPath, { withFileTypes: true });
       const isDriveRoot = /^[A-Za-z]:[\/\\]?$/.test(dirPath.replace(/\\/g, '/'));
 
-      const result = await Promise.all(
-        entries.map(async (entry) => {
-          if (isDriveRoot && WINDOWS_SYSTEM_NAMES.has(entry.name)) return null;
-          const fullPath = join(dirPath, entry.name);
-          try {
-            const stats = await stat(fullPath);
-            return {
-              name: entry.name,
-              path: fullPath,
-              type: entry.isDirectory() ? 'directory' : 'file',
-              isDirectory: entry.isDirectory(),
-              size: stats.size,
-            };
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      const filtered = result.filter((r): r is NonNullable<typeof r> => r != null);
+      const filtered: { name: string; path: string; type: string; isDirectory: boolean; size: number }[] = [];
+      for (const entry of entries) {
+        if (isDriveRoot && WINDOWS_SYSTEM_NAMES.has(entry.name)) continue;
+        const fullPath = join(dirPath, entry.name);
+        const isDir = entry.isDirectory();
+        filtered.push({
+          name: entry.name,
+          path: fullPath,
+          type: isDir ? 'directory' : 'file',
+          isDirectory: isDir,
+          size: 0,
+        });
+      }
       return filtered.sort((a, b) => {
         if (a.isDirectory && !b.isDirectory) {
           return -1;
@@ -830,6 +823,9 @@ void app.whenReady().then(() => {
     try {
       const normalized = repoPath.replace(/\\/g, '/');
       if (/^[A-Za-z]:\/?$/.test(normalized)) return; // don't watch drive root
+      // Quick check: skip if no .git directory exists (avoids watching entire non-repo trees)
+      const gitDir = join(repoPath, '.git');
+      if (!existsSync(gitDir)) return;
       await gitWatcher.watch(repoPath);
       logInfo(`Started watching git repository: ${repoPath}`);
     } catch (error) {
@@ -850,7 +846,11 @@ void app.whenReady().then(() => {
 
   ipcMain.handle('git-manual-refresh', async (_e, cwd: string) => {
     try {
-      // Removed noisy console log - this happens frequently via event-driven updates
+      // Quick check: if no .git dir, return non-repo immediately (avoids spawning git process)
+      const gitDir = join(cwd, '.git');
+      if (!existsSync(gitDir)) {
+        return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
+      }
       return await gitService.getStatus(cwd);
     } catch (error) {
       logError('Failed to manually refresh git status', error as Error);
