@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+## CRITICAL: Git Commit Rules
+
+**NEVER chain `git add` and `git commit` in a single command using `&&`.** Always run them as separate Bash calls:
+1. First call: `git add -A`
+2. Second call: `git commit -m "..."`
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project

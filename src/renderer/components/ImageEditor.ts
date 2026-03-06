@@ -196,6 +196,13 @@ export class ImageEditor extends Component {
     if (this.loading) { this.showLoading(); return; }
     if (this.errorMsg) { this.showError(); return; }
 
+    // Re-attach image container and processing overlay if removed by showLoading/showError
+    if (!this.viewportEl.contains(this.imageContainerEl)) {
+      clearChildren(this.viewportEl);
+      this.viewportEl.appendChild(this.imageContainerEl);
+      this.viewportEl.appendChild(this.processingEl);
+    }
+
     this.imgEl.src = this.imageUrl || '';
     this.imgEl.alt = this.filePath;
     this.imgEl.style.cursor = this.cropMode ? 'crosshair' : 'default';
