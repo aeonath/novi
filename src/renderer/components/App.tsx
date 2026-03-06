@@ -19,6 +19,8 @@ import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
 import { NoviShell } from './NoviShell.js';
+// Note: Phase 2 components are now vanilla TS classes (not React FCs).
+// They are mounted imperatively via useEffect hooks below.
 import { SettingsPanel } from './SettingsPanel.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
@@ -91,10 +93,35 @@ const AppInner: React.FC = () => {
   // When closing the active tab, switch back to this tab if it still exists (:q / Ctrl+W)
   const previousActiveTabIdRef = useRef<string | null>(null);
 
-  // Vanilla component instances
+  // Vanilla component instances (Phase 1)
   const statusBarRef = useRef<StatusBar | null>(null);
   const savePromptRef = useRef<SavePrompt | null>(null);
   const statusBarContainerRef = useRef<HTMLDivElement>(null);
+
+  // Vanilla component instances (Phase 2)
+  const fileTreeContainerRef = useRef<HTMLDivElement>(null);
+  const gitPanelContainerRef = useRef<HTMLDivElement>(null);
+  const monacoContainerRef = useRef<HTMLDivElement>(null);
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
+  const noviShellContainerRef = useRef<HTMLDivElement>(null);
+  const imageEditorContainerRef = useRef<HTMLDivElement>(null);
+
+  const fileTreeRef = useRef<FileTree | null>(null);
+  const gitPanelRef = useRef<GitPanel | null>(null);
+  const monacoRef = useRef<MonacoEditor | null>(null);
+  const terminalInstancesRef = useRef<Map<string, { instance: Terminal; container: HTMLElement }>>(new Map());
+  const noviShellInstancesRef = useRef<Map<string, { instance: NoviShell; container: HTMLElement }>>(new Map());
+  const imageEditorInstanceRef = useRef<{ instance: ImageEditor; filePath: string } | null>(null);
+
+  // Callback refs for vanilla components (avoids stale closures)
+  const actionContextRef = useRef<ActionContext>({} as ActionContext);
+  const fileTreeCallbacksRef = useRef({
+    onFileOpen: (_filePath: string) => {},
+    onDirectoryOpen: (_dirPath: string) => {},
+    onToggleGit: () => {},
+    onNewTerminal: () => {},
+    onNoviPrompt: () => {},
+  });
 
   // Mount vanilla modal components (self-managing visibility via window globals)
   useEffect(() => {
@@ -183,6 +210,301 @@ const AppInner: React.FC = () => {
       sp.hide();
     }
   }, [savePrompt]);
+
+  // --- Phase 2: Mount vanilla FileTree ---
+  useEffect(() => {
+    if (!fileTreeContainerRef.current) return;
+    const ft = new FileTree({
+      onFileOpen: (fp: string) => fileTreeCallbacksRef.current.onFileOpen(fp),
+      onDirectoryOpen: (dp: string) => fileTreeCallbacksRef.current.onDirectoryOpen(dp),
+      onToggleGit: () => fileTreeCallbacksRef.current.onToggleGit(),
+      onNewTerminal: () => fileTreeCallbacksRef.current.onNewTerminal(),
+      onNoviPrompt: () => fileTreeCallbacksRef.current.onNoviPrompt(),
+      onRootChange: (p: string | null) => setFileTreeReportedRoot(p),
+      showGitToggle: true,
+      showOpenFolder: true,
+    });
+    ft.mount(fileTreeContainerRef.current);
+    fileTreeRef.current = ft;
+    return () => { ft.destroy(); fileTreeRef.current = null; };
+  }, []);
+
+  // --- Phase 2: Mount vanilla GitPanel ---
+  useEffect(() => {
+    if (!gitPanelContainerRef.current) return;
+    const gp = new GitPanel({
+      workspaceRoot: null,
+      onToggleFiles: () => setShowGitPanel(false),
+      onRefreshStatus: async () => {
+        const gitRoot = currentFileTreeDisplayRoot || workspaceRoot;
+        if (!gitRoot || !window.api?.gitGetStatus) return;
+        try {
+          const status = await window.api.gitGetStatus(gitRoot);
+          if (status.isRepo) setGitStatus(status);
+        } catch (error) {
+          console.error('[App] Failed to refresh git status:', error);
+        }
+      },
+    });
+    gp.mount(gitPanelContainerRef.current);
+    gitPanelRef.current = gp;
+    return () => { gp.destroy(); gitPanelRef.current = null; };
+  }, []);
+
+  // Update GitPanel workspaceRoot when it changes
+  useEffect(() => {
+    if (gitPanelRef.current) {
+      gitPanelRef.current.workspaceRoot = currentFileTreeDisplayRoot || workspaceRoot;
+    }
+  }, [currentFileTreeDisplayRoot, workspaceRoot]);
+
+  // --- Phase 2: Mount vanilla MonacoEditor ---
+  useEffect(() => {
+    if (!monacoContainerRef.current) return;
+    const me = new MonacoEditor({
+      fontSize: editorFontSize,
+      onDirtyChange: (isDirty: boolean) => {
+        // This closure is fine — MonacoEditor stores the callback and the tabBarAPI call doesn't need activeTab
+        const tabBarAPI = (window as any).__tabBarAPI;
+        const currentActive = tabBarAPI?.getActiveTab();
+        if (currentActive && currentActive.type === 'file') {
+          tabBarAPI.updateTabDirty(currentActive.id, isDirty);
+        }
+      },
+    });
+    me.mount(monacoContainerRef.current);
+    monacoRef.current = me;
+    return () => { me.destroy(); monacoRef.current = null; };
+  }, []);
+
+  // Update MonacoEditor fontSize when it changes
+  useEffect(() => {
+    if (monacoRef.current) monacoRef.current.fontSize = editorFontSize;
+  }, [editorFontSize]);
+
+  // --- Phase 2: Manage Terminal instances ---
+  useEffect(() => {
+    const container = terminalContainerRef.current;
+    if (!container) return;
+    const instances = terminalInstancesRef.current;
+    const currentIds = new Set(terminalTabs.map(t => t.id));
+
+    // Create new instances
+    for (const tab of terminalTabs) {
+      if (!instances.has(tab.id)) {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'flex:1;display:none;flex-direction:column;overflow:hidden;background-color:#1e1e1e';
+        container.appendChild(wrapper);
+        const terminal = new Terminal({
+          terminalId: tab.id,
+          workspaceRoot: tab.workspaceRoot || undefined,
+          onData: (data: string) => {
+            if (window.api?.terminalWrite) window.api.terminalWrite(tab.id, data);
+          },
+          onResize: (cols: number, rows: number) => {
+            if (window.api?.terminalResize) window.api.terminalResize(tab.id, cols, rows);
+          },
+          onNewTerminal: () => actionContextRef.current.onNewTerminal?.(),
+          fontSize: terminalFontSize,
+        });
+        terminal.mount(wrapper);
+        instances.set(tab.id, { instance: terminal, container: wrapper });
+      }
+    }
+
+    // Remove deleted instances
+    for (const [id, entry] of instances) {
+      if (!currentIds.has(id)) {
+        entry.instance.destroy();
+        entry.container.remove();
+        instances.delete(id);
+      }
+    }
+  }, [terminalTabs, terminalFontSize]);
+
+  // Update Terminal active state and fontSize
+  useEffect(() => {
+    for (const [id, entry] of terminalInstancesRef.current) {
+      const isAct = activeTab?.id === id;
+      entry.container.style.display = isAct ? 'flex' : 'none';
+      entry.instance.isActive = isAct;
+      entry.instance.fontSizeProp = terminalFontSize;
+    }
+  }, [activeTab, terminalFontSize]);
+
+  // --- Phase 2: Manage NoviShell instances ---
+  useEffect(() => {
+    const container = noviShellContainerRef.current;
+    if (!container) return;
+    const instances = noviShellInstancesRef.current;
+    const currentIds = new Set(noviPromptTabs.map(t => t.id));
+
+    // Create new instances
+    for (const tab of noviPromptTabs) {
+      if (!instances.has(tab.id)) {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'flex:1;display:none;flex-direction:column;overflow:hidden;background-color:#1e1e1e';
+        container.appendChild(wrapper);
+        const shell = new NoviShell({
+          promptId: tab.id,
+          onClose: () => {
+            const tabBarAPI = (window as any).__tabBarAPI;
+            if (tabBarAPI) tabBarAPI.closeTab(tab.id);
+          },
+        });
+        shell.mount(wrapper);
+        instances.set(tab.id, { instance: shell, container: wrapper });
+      }
+    }
+
+    // Remove deleted instances
+    for (const [id, entry] of instances) {
+      if (!currentIds.has(id)) {
+        entry.instance.destroy();
+        entry.container.remove();
+        instances.delete(id);
+      }
+    }
+  }, [noviPromptTabs]);
+
+  // Update NoviShell active state
+  useEffect(() => {
+    for (const [id, entry] of noviShellInstancesRef.current) {
+      const isAct = activeTab?.id === id;
+      entry.container.style.display = isAct ? 'flex' : 'none';
+      entry.instance.isActive = isAct;
+    }
+  }, [activeTab]);
+
+  // --- Phase 2: Manage ImageEditor instance ---
+  useEffect(() => {
+    const container = imageEditorContainerRef.current;
+    if (!container) return;
+
+    // Determine the filePath for the active image tab
+    let imagePath: string | null = null;
+    if (activeTab?.type === 'image') {
+      if (activeTab.filePath) {
+        imagePath = activeTab.filePath;
+      } else {
+        const tabBarAPI = (window as any).__tabBarAPI;
+        const tabs = tabBarAPI?.getTabs() || [];
+        const currentTab = tabs.find((t: any) => t.id === activeTab.id);
+        imagePath = currentTab?.filePath || null;
+      }
+    }
+
+    const current = imageEditorInstanceRef.current;
+
+    if (!imagePath) {
+      // No image tab active — destroy existing instance
+      if (current) {
+        current.instance.destroy();
+        imageEditorInstanceRef.current = null;
+        while (container.firstChild) container.removeChild(container.firstChild);
+      }
+      return;
+    }
+
+    // If already showing this image, do nothing
+    if (current && current.filePath === imagePath) return;
+
+    // Destroy old and create new
+    if (current) {
+      current.instance.destroy();
+      while (container.firstChild) container.removeChild(container.firstChild);
+    }
+    const ie = new ImageEditor(imagePath);
+    ie.mount(container);
+    imageEditorInstanceRef.current = { instance: ie, filePath: imagePath };
+  }, [activeTab]);
+
+  // Update FileTree callbacks and config when React state changes
+  useEffect(() => {
+    actionContextRef.current = actionContext;
+  }, [actionContext]);
+
+  // Update FileTree displayRoot
+  useEffect(() => {
+    if (fileTreeRef.current) {
+      fileTreeRef.current.displayRoot = currentFileTreeDisplayRoot;
+    }
+  }, [currentFileTreeDisplayRoot]);
+
+  // Update FileTree callbacks
+  useEffect(() => {
+    fileTreeCallbacksRef.current.onToggleGit = () => setShowGitPanel(prev => !prev);
+    fileTreeCallbacksRef.current.onNewTerminal = () => actionContextRef.current.onNewTerminal?.();
+    fileTreeCallbacksRef.current.onNoviPrompt = () => actionContextRef.current.onNoviPrompt?.();
+  }, []);
+
+  useEffect(() => {
+    fileTreeCallbacksRef.current.onFileOpen = async (filePath: string) => {
+      console.log('[App] FileTree file open:', filePath);
+      if (!window.api?.readFile) return;
+      try {
+        setShowWelcome(false);
+        if (isImageFile(filePath)) {
+          if ((window as any).__tabBarAPI) {
+            const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+            const tabId = `tab-${Date.now()}`;
+            (window as any).__tabBarAPI.addTab({
+              id: tabId, type: 'image', filePath, fileName, isDirty: false, content: '',
+            });
+            if (currentFileTreeDisplayRoot) {
+              setFileTabToTreeRoot(prev => ({ ...prev, [tabId]: currentFileTreeDisplayRoot }));
+            }
+            setActiveTab({ id: tabId, type: 'image' });
+          }
+          return;
+        }
+        const fileData = await window.api.readFile(filePath);
+        if ((window as any).__monacoEditorAPI) {
+          (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
+        }
+        if ((window as any).__tabBarAPI) {
+          const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+          const tabId = `tab-${Date.now()}`;
+          (window as any).__tabBarAPI.addTab({
+            id: tabId, type: 'file', filePath, fileName, isDirty: false, content: fileData.content, language: 'typescript',
+          });
+          if (currentFileTreeDisplayRoot) {
+            setFileTabToTreeRoot(prev => ({ ...prev, [tabId]: currentFileTreeDisplayRoot }));
+          }
+        }
+      } catch (error) {
+        console.error('[App] Failed to open file from tree:', error);
+      }
+    };
+
+    fileTreeCallbacksRef.current.onDirectoryOpen = async (dirPath: string) => {
+      console.log('[App] Directory opened:', dirPath);
+      if (singleFileTree) {
+        setWorkspaceRoot(dirPath);
+      } else if (activeTab?.type === 'terminal') {
+        setTerminalFileTreeRoots(prev => ({
+          ...prev,
+          [activeTab.id]: { ...prev[activeTab.id], cwd: prev[activeTab.id]?.cwd ?? '', overriddenRoot: dirPath },
+        }));
+      } else if (activeTab?.type === 'file' || activeTab?.type === 'image') {
+        setFileTabToTreeRoot(prev => ({ ...prev, [activeTab.id]: dirPath }));
+      } else {
+        setWorkspaceRoot(dirPath);
+      }
+      if (singleFileTree || !activeTab || activeTab.type === 'novi-prompt') {
+        if (window.api?.gitGetStatus) {
+          try {
+            const status = await window.api.gitGetStatus(dirPath);
+            if (status.isRepo) setGitStatus(status);
+            else setGitStatus(null);
+          } catch (error) {
+            console.error('[App] Failed to get git status:', error);
+            setGitStatus(null);
+          }
+        }
+      }
+    };
+  }, [singleFileTree, activeTab, currentFileTreeDisplayRoot]);
 
   // Set up global terminal data listener (PTY output -> xterm.js display)
   useEffect(() => {
@@ -1761,23 +2083,7 @@ const AppInner: React.FC = () => {
     };
   }, [isResizing]);
 
-  // Memoize terminal callbacks to prevent unnecessary re-renders and periodic redraws
-  // CRITICAL: These callbacks were being recreated inline on every render,
-  // causing Terminal component's useEffect dependencies to change,
-  // triggering refits and redraws every 5-10 seconds
-  // Task 8: Forward all input to the PTY (Ctrl+C, Tab, etc. work). After Enter we inspect PTY output for "novi ...".
-  const handleTerminalData = useCallback(async (terminalId: string, data: string) => {
-    if (window.api?.terminalWrite) {
-      await window.api.terminalWrite(terminalId, data);
-    }
-  }, []);
-
-  const handleTerminalResize = useCallback(async (terminalId: string, cols: number, rows: number) => {
-    console.log(`[App] Terminal ${terminalId} resize: ${cols}x${rows}`);
-    if (window.api?.terminalResize) {
-      await window.api.terminalResize(terminalId, cols, rows);
-    }
-  }, []);
+  // Terminal data/resize callbacks are now handled internally by the vanilla Terminal component
 
   // Close context menu on click outside
   useEffect(() => {
@@ -1825,153 +2131,14 @@ const AppInner: React.FC = () => {
         
         <div style={styles.mainContent}>
           <aside style={{ ...styles.sidebar, width: `${sidebarWidth}px`, flexShrink: 0 }}>
-            {/* Always render both components, but hide with CSS to preserve state */}
             {/* Gray placeholder when Novi Shell is active */}
             {activeTab?.type === 'novi-prompt' && !showGitPanel && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#252526' }} />
             )}
-            <div style={{ display: (showGitPanel || activeTab?.type === 'novi-prompt') ? 'none' : 'flex', flexDirection: 'column', height: '100%' }}>
-              <FileTree
-                onToggleGit={() => setShowGitPanel(!showGitPanel)}
-                onNewTerminal={actionContext.onNewTerminal}
-                onNoviPrompt={actionContext.onNoviPrompt}
-                displayRoot={currentFileTreeDisplayRoot}
-                isTerminalTree={!singleFileTree && activeTab?.type === 'terminal'}
-                showOpenFolder={singleFileTree}
-                onRootChange={setFileTreeReportedRoot}
-                onDirectoryOpen={async (dirPath: string) => {
-                  console.log('[App] Directory opened:', dirPath);
-                  if (singleFileTree) {
-                    setWorkspaceRoot(dirPath);
-                  } else if (activeTab?.type === 'terminal') {
-                    setTerminalFileTreeRoots(prev => ({
-                      ...prev,
-                      [activeTab.id]: { ...prev[activeTab.id], cwd: prev[activeTab.id]?.cwd ?? '', overriddenRoot: dirPath },
-                    }));
-                  } else if (activeTab?.type === 'file' || activeTab?.type === 'image') {
-                    setFileTabToTreeRoot(prev => ({ ...prev, [activeTab.id]: dirPath }));
-                  } else {
-                    setWorkspaceRoot(dirPath);
-                  }
-                  if (singleFileTree || !activeTab || activeTab.type === 'novi-prompt') {
-                    if (window.api?.gitGetStatus) {
-                      try {
-                        const status = await window.api.gitGetStatus(dirPath);
-                        if (status.isRepo) setGitStatus(status);
-                        else setGitStatus(null);
-                      } catch (error) {
-                        console.error('[App] Failed to get git status:', error);
-                        setGitStatus(null);
-                      }
-                    }
-                  }
-                }}
-                onFileOpen={async (filePath: string) => {
-                  console.log('[App] FileTree file open:', filePath);
-                  
-                  if (!window.api?.readFile) {
-                    console.error('[App] File API not available');
-                    return;
-                  }
-
-                  try {
-                    // Hide welcome screen
-                    setShowWelcome(false);
-
-                    // Check if this is an image file
-                    if (isImageFile(filePath)) {
-                      const mimeType = getMimeType(filePath);
-                      console.log('[App] Image file detected from tree:', filePath);
-                      console.log('[App] MIME type:', mimeType);
-
-                      // Add image tab and associate current file tree root with this tab
-                      if ((window as any).__tabBarAPI) {
-                        const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
-                        const tabId = `tab-${Date.now()}`;
-                        (window as any).__tabBarAPI.addTab({
-                          id: tabId,
-                          type: 'image',
-                          filePath: filePath,
-                          fileName: fileName,
-                          isDirty: false,
-                          content: '',
-                        });
-                        if (currentFileTreeDisplayRoot) {
-                          setFileTabToTreeRoot(prev => ({ ...prev, [tabId]: currentFileTreeDisplayRoot }));
-                        }
-                        setActiveTab({
-                          id: tabId,
-                          type: 'image',
-                        });
-                      }
-
-                      // Update status bar
-                      if ((window as any).__statusBarAPI) {
-                        (window as any).__statusBarAPI.setStatus(`Viewing: ${filePath.split(/[\\/]/).pop()}`);
-                      }
-
-                      console.log('[App] Image file opened from tree successfully');
-                      return;
-                    }
-
-                    // For text files, read content and load into Monaco
-                    const fileData = await window.api.readFile(filePath);
-                    console.log('[App] File loaded from tree, size:', fileData.content.length, 'bytes');
-
-                    // Load into Monaco editor
-                    if ((window as any).__monacoEditorAPI) {
-                      (window as any).__monacoEditorAPI.loadFile(filePath, fileData.content);
-                    }
-
-                    // Add tab and associate current file tree root with this tab
-                    if ((window as any).__tabBarAPI) {
-                      const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
-                      const tabId = `tab-${Date.now()}`;
-                      (window as any).__tabBarAPI.addTab({
-                        id: tabId,
-                        type: 'file',
-                        filePath: filePath,
-                        fileName: fileName,
-                        isDirty: false,
-                        content: fileData.content,
-                        language: 'typescript', // Will be auto-detected by Monaco
-                      });
-                      if (currentFileTreeDisplayRoot) {
-                        setFileTabToTreeRoot(prev => ({ ...prev, [tabId]: currentFileTreeDisplayRoot }));
-                      }
-                    }
-
-                    // Update status bar
-                    if ((window as any).__statusBarAPI) {
-                      (window as any).__statusBarAPI.setStatus(`Editing: ${filePath.split(/[\\/]/).pop()}`);
-                    }
-
-                    console.log('[App] File opened from tree successfully');
-                  } catch (error) {
-                    console.error('[App] Failed to open file from tree:', error);
-                  }
-                }}
-              />
-            </div>
-            
-            <div style={{ display: showGitPanel ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-              <GitPanel
-                workspaceRoot={currentFileTreeDisplayRoot || workspaceRoot}
-                onToggleFiles={() => setShowGitPanel(false)}
-                onRefreshStatus={async () => {
-                  const gitRoot = currentFileTreeDisplayRoot || workspaceRoot;
-                  if (!gitRoot || !window.api?.gitGetStatus) return;
-                  try {
-                    const status = await window.api.gitGetStatus(gitRoot);
-                    if (status.isRepo) {
-                      setGitStatus(status);
-                    }
-                  } catch (error) {
-                    console.error('[App] Failed to refresh git status:', error);
-                  }
-                }}
-              />
-            </div>
+            {/* FileTree — vanilla component mounted via ref */}
+            <div ref={fileTreeContainerRef} style={{ display: (showGitPanel || activeTab?.type === 'novi-prompt') ? 'none' : 'flex', flexDirection: 'column', height: '100%' }} />
+            {/* GitPanel — vanilla component mounted via ref */}
+            <div ref={gitPanelContainerRef} style={{ display: showGitPanel ? 'flex' : 'none', flexDirection: 'column', height: '100%' }} />
           </aside>
           
           {/* Resizable divider */}
@@ -2120,125 +2287,25 @@ const AppInner: React.FC = () => {
                 </div>
               ) : null}
               
-              {/* Render all terminals (hidden when not active) to preserve state */}
-              {terminalTabs.map((tab) => {
-                // Create stable callback references for this specific terminal
-                // Prevents Terminal useEffect from re-running on every parent render
-                const terminalOnData = (data: string) => handleTerminalData(tab.id, data);
-                const terminalOnResize = (cols: number, rows: number) => handleTerminalResize(tab.id, cols, rows);
-                
-                return (
-                  <div
-                    key={tab.id}
-                    style={{ 
-                      flex: 1, 
-                      display: activeTab?.id === tab.id ? 'flex' : 'none',
-                      flexDirection: 'column',
-                      overflow: 'hidden',
-                      backgroundColor: '#1e1e1e',
-                    }}
-                  >
-                    <Terminal 
-                      terminalId={tab.id}
-                      workspaceRoot={tab.workspaceRoot || undefined}
-                      isActive={activeTab?.id === tab.id}
-                      onData={terminalOnData}
-                      onResize={terminalOnResize}
-                      onNewTerminal={actionContext.onNewTerminal}
-                      fontSize={terminalFontSize}
-                    />
-                  </div>
-                );
-              })}
-              
-              {/* Render all novi prompts (hidden when not active) to preserve state */}
-              {noviPromptTabs.map((tab) => {
-                return (
-                  <div
-                    key={tab.id}
-                    style={{ 
-                      flex: 1, 
-                      display: activeTab?.id === tab.id ? 'flex' : 'none',
-                      flexDirection: 'column',
-                      overflow: 'hidden',
-                      backgroundColor: '#1e1e1e',
-                    }}
-                  >
-                    <NoviShell 
-                      promptId={tab.id}
-                      isActive={activeTab?.id === tab.id}
-                      onClose={() => {
-                        const tabBarAPI = (window as any).__tabBarAPI;
-                        if (tabBarAPI) tabBarAPI.closeTab(tab.id);
-                      }}
-                    />
-                  </div>
-                );
-              })}
-              
-              {/* Monaco Editor */}
-              <div style={{ 
-                flex: 1, 
+              {/* Terminal instances — vanilla components managed via useEffect */}
+              <div ref={terminalContainerRef} style={{ display: 'contents' }} />
+
+              {/* NoviShell instances — vanilla components managed via useEffect */}
+              <div ref={noviShellContainerRef} style={{ display: 'contents' }} />
+
+              {/* Monaco Editor — vanilla component mounted via ref */}
+              <div ref={monacoContainerRef} style={{
+                flex: 1,
                 display: activeTab?.type === 'file' && !showWelcome ? 'flex' : 'none',
                 overflow: 'hidden',
-              }}>
-                <MonacoEditor 
-                  fontSize={editorFontSize}
-                  onDirtyChange={(isDirty) => {
-                    // Update the active tab's dirty state
-                    if (activeTab && activeTab.type === 'file') {
-                      const tabBarAPI = (window as any).__tabBarAPI;
-                      if (tabBarAPI) {
-                        tabBarAPI.updateTabDirty(activeTab.id, isDirty);
-                        console.log('[App] Updated tab dirty state:', activeTab.id, isDirty);
-                      }
-                    }
-                  }}
-                />
-              </div>
+              }} />
 
-              {/* Image Editor */}
-              <div style={{ 
-                flex: 1, 
+              {/* Image Editor — vanilla component managed via useEffect */}
+              <div ref={imageEditorContainerRef} style={{
+                flex: 1,
                 display: activeTab?.type === 'image' && !showWelcome ? 'flex' : 'none',
                 overflow: 'hidden',
-              }}>
-                {activeTab?.type === 'image' && (() => {
-                  // If activeTab has filePath (from newly opened image), use it directly
-                  if (activeTab.filePath) {
-                    console.log('[App] Rendering ImageEditor with filePath from activeTab:', activeTab.filePath);
-                    return <ImageEditor filePath={activeTab.filePath} />;
-                  }
-                  
-                  // Otherwise, look up the tab in TabBar (for restored images)
-                  const tabBarAPI = (window as any).__tabBarAPI;
-                  if (!tabBarAPI) {
-                    console.warn('[App] TabBar API not available for ImageEditor');
-                    return null;
-                  }
-                  
-                  const tabs = tabBarAPI.getTabs() || [];
-                  const currentTab = tabs.find((t: any) => t.id === activeTab.id);
-                  
-                  console.log('[App] Looking up image tab in TabBar:');
-                  console.log('  - activeTab.id:', activeTab.id);
-                  console.log('  - tabs count:', tabs.length);
-                  console.log('  - tabs IDs:', tabs.map((t: any) => ({ id: t.id, type: t.type, path: t.filePath })));
-                  console.log('  - currentTab:', currentTab);
-                  
-                  if (!currentTab) {
-                    console.error('[App] Cannot find image tab with ID:', activeTab.id);
-                    return null;
-                  }
-                  
-                  if (!currentTab.filePath) {
-                    console.error('[App] Image tab has no filePath:', currentTab);
-                    return null;
-                  }
-                  
-                  return <ImageEditor filePath={currentTab.filePath} />;
-                })()}
-              </div>
+              }} />
             </div>
           </main>
         </div>
