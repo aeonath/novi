@@ -823,11 +823,10 @@ void app.whenReady().then(() => {
     try {
       const normalized = repoPath.replace(/\\/g, '/');
       if (/^[A-Za-z]:\/?$/.test(normalized)) return; // don't watch drive root
-      // Find the repo root (may be a parent directory)
-      const root = await gitService.findRoot(repoPath);
-      if (!root) return; // not inside a git repo
-      await gitWatcher.watch(root);
-      logInfo(`Started watching git repository: ${root}`);
+      // Only watch if .git is directly in this directory
+      if (!existsSync(join(repoPath, '.git'))) return;
+      await gitWatcher.watch(repoPath);
+      logInfo(`Started watching git repository: ${repoPath}`);
     } catch (error) {
       logError('Failed to start git watcher', error as Error);
       throw error;

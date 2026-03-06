@@ -73,21 +73,22 @@ class GitService {
 
   async getStatus(cwd: string): Promise<GitStatus> {
     try {
-      const root = await this.findRoot(cwd);
-      if (!root) {
+      // Only operate if .git is directly in the cwd — never walk parents
+      const gitDir = join(cwd, '.git');
+      if (!fs.existsSync(gitDir)) {
         return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
       }
 
-      const branch = await git.currentBranch({ fs, dir: root }) || null;
+      const branch = await git.currentBranch({ fs, dir: cwd }) || null;
 
       // statusMatrix returns [filepath, HEAD, WORKDIR, STAGE] tuples
       // HEAD: 0=absent, 1=present
       // WORKDIR: 0=absent, 2=present
       // STAGE: 0=absent, 1=matches HEAD, 2=differs from HEAD, 3=matches WORKDIR
-      const matrix = await git.statusMatrix({ fs, dir: root });
+      const matrix = await git.statusMatrix({ fs, dir: cwd });
       const files = this.parseStatusMatrix(matrix);
 
-      const { ahead, behind } = await this.getAheadBehind(root, branch);
+      const { ahead, behind } = await this.getAheadBehind(cwd, branch);
 
       await this.log('getStatus', `Branch: ${branch}, Files: ${files.length}`, true);
       return { isRepo: true, branch, files, ahead, behind };
