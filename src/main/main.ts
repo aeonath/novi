@@ -909,6 +909,14 @@ void app.whenReady().then(() => {
     mainWindowRef?.webContents.send('filetree-change', event);
   });
 
+  // Absorb watcher errors so they don't become unhandled EventEmitter exceptions
+  fileTreeWatcher.on('error', (err: unknown) => {
+    logError('File tree watcher error', err instanceof Error ? err : new Error(String(err)));
+  });
+  gitWatcher.on('error', (err: unknown) => {
+    logError('Git watcher error', err instanceof Error ? err : new Error(String(err)));
+  });
+
   // Workspace IPC handlers
   ipcMain.handle('workspace-save', async (_e, state: any) => {
     try {

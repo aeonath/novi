@@ -134,6 +134,7 @@ export class GitWatcher extends EventEmitter {
       ],
       persistent: true,
       ignoreInitial: true,         // Don't fire events for existing files
+      ignorePermissionErrors: true, // Skip EACCES errors (e.g. Windows AppX symlinks)
       awaitWriteFinish: {          // Wait for file write to complete
         stabilityThreshold: 100,
         pollInterval: 50,

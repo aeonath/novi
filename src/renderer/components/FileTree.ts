@@ -372,29 +372,28 @@ export class FileTree extends Component {
       const loader = el('div');
       setStyles(loader, {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100%', color: '#858585', fontSize: '16px', letterSpacing: '2px',
+        height: '100%', gap: '8px',
       });
-      const dots = el('span', {}, '...');
       if (!document.getElementById('novi-dots-keyframes')) {
         const style = document.createElement('style');
         style.id = 'novi-dots-keyframes';
         style.textContent = [
-          '@keyframes novi-dots {',
-          '  0% { content: ""; }',
-          '  25% { content: "."; }',
-          '  50% { content: ".."; }',
-          '  75% { content: "..."; }',
-          '}',
-          '.novi-loading-dots::after {',
-          '  content: "";',
-          '  animation: novi-dots 1.2s steps(1) infinite;',
+          '@keyframes novi-dot-pulse {',
+          '  0%, 100% { transform: scale(1); opacity: 0.4; }',
+          '  20% { transform: scale(1.8); opacity: 1; }',
           '}',
         ].join('\n');
         document.head.appendChild(style);
       }
-      dots.textContent = '';
-      dots.className = 'novi-loading-dots';
-      loader.appendChild(dots);
+      for (let i = 0; i < 5; i++) {
+        const dot = el('div');
+        setStyles(dot, {
+          width: '8px', height: '8px', borderRadius: '50%',
+          backgroundColor: '#858585',
+        });
+        dot.style.animation = `novi-dot-pulse 1.2s ease-in-out ${i * 0.2}s infinite`;
+        loader.appendChild(dot);
+      }
       this.contentEl.appendChild(loader);
       return;
     }
