@@ -476,10 +476,15 @@ export class App extends Component {
       console.log('[App] Restoring workspace:', workspace);
       if (workspace.workspaceRoot) {
         this.workspaceRoot = workspace.workspaceRoot;
-        ensureReady('filetree-ready').then(() => {
-          const ftApi = (window as any).__fileTreeAPI;
-          if (ftApi?.loadDirectory) ftApi.loadDirectory(workspace.workspaceRoot);
-        }).catch(() => {});
+        // Only restore the saved file tree root in singlefiletree mode.
+        // In multi-tree mode, the file tree is driven by terminal CWD —
+        // it stays in loading state until the terminal reports its CWD.
+        if (this.singleFileTree) {
+          ensureReady('filetree-ready').then(() => {
+            const ftApi = (window as any).__fileTreeAPI;
+            if (ftApi?.loadDirectory) ftApi.loadDirectory(workspace.workspaceRoot);
+          }).catch(() => {});
+        }
       }
       if (workspace.layout) this.showGitPanel = workspace.layout.showGitPanel;
 
@@ -649,7 +654,9 @@ export class App extends Component {
     if (this.activeTab?.type !== 'novi-prompt' && root) {
       this.lastFileTreeRoot = root;
     }
-    if (this.fileTree) this.fileTree.displayRoot = root;
+    // Don't update the file tree while it's in loading state —
+    // wait for the terminal to report its CWD first.
+    if (this.fileTree && !this.fileTree.isLoading) this.fileTree.displayRoot = root;
     if (this.gitPanel) this.gitPanel.workspaceRoot = root || this.workspaceRoot;
   }
 

@@ -189,6 +189,10 @@ export class FileTree extends Component {
     }
   }
 
+  get isLoading(): boolean {
+    return this._loading;
+  }
+
   set loading(value: boolean) {
     if (this._loading !== value) {
       this._loading = value;
