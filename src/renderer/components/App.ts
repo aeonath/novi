@@ -859,8 +859,9 @@ export class App extends Component {
 
     if (tab.type === 'file') {
       if (tab.filePath) window.api?.editorWatchFile?.(tab.filePath);
-      // Always read fresh content from disk when switching to a file tab
-      if (tab.filePath && !tab.isDirty && window.api?.readFile) {
+      // Read fresh content from disk when switching to a file tab (skip if pending reload prompt)
+      const normalizedTabPath = tab.filePath?.replace(/\\/g, '/') || '';
+      if (tab.filePath && !tab.isDirty && !this.pendingReloadBanners.has(normalizedTabPath) && window.api?.readFile) {
         window.api.readFile(tab.filePath).then((fileData) => {
           (window as any).__monacoEditorAPI?.loadFile(tab.filePath, fileData.content);
           (window as any).__monacoEditorAPI?.markAsSaved();
