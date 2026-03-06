@@ -310,7 +310,7 @@ export class TitleBar extends Component {
       const disabled = item.disabled === true ||
         (tabType === 'novi-prompt' && item.command && FONT_COMMANDS.includes(item.command)) ||
         (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command)) ||
-        (isNonFileTab && item.command && EDITOR_ONLY_COMMANDS.includes(item.command));
+        (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command));
 
       const menuItem = el('div', {
         style: [
