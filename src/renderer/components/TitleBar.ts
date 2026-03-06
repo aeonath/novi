@@ -58,7 +58,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'New Terminal', command: 'new-terminal', shortcut: 'Ctrl+T' },
     { label: 'Novi Shell', command: 'novi-prompt', shortcut: 'Ctrl+Shift+N' },
     { separator: true },
-    { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P', disabled: true },
+    { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P' },
     { separator: true },
     { label: 'Clear Workspace', command: 'reset-workspace' },
   ],
@@ -72,6 +72,7 @@ const MENUS: Record<string, MenuItem[]> = {
 
 const FONT_COMMANDS = ['increase-font-size', 'decrease-font-size', 'reset-font-size'];
 const SAVE_COMMANDS = ['save', 'save-as'];
+const EDITOR_ONLY_COMMANDS = ['command-palette'];
 
 export class TitleBar extends Component {
   private config: TitleBarConfig;
@@ -308,7 +309,8 @@ export class TitleBar extends Component {
       const isNonFileTab = tabType === 'terminal' || tabType === 'novi-prompt';
       const disabled = item.disabled === true ||
         (tabType === 'novi-prompt' && item.command && FONT_COMMANDS.includes(item.command)) ||
-        (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command));
+        (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command)) ||
+        (isNonFileTab && item.command && EDITOR_ONLY_COMMANDS.includes(item.command));
 
       const menuItem = el('div', {
         style: [
