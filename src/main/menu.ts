@@ -185,7 +185,6 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         { type: 'separator' },
         {
           label: 'Command Palette',
-          accelerator: 'CmdOrCtrl+P',
           click: () => executeCommand('command-palette', mainWindow),
         },
         { type: 'separator' },

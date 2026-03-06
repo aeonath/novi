@@ -58,7 +58,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'New Terminal', command: 'new-terminal', shortcut: 'Ctrl+T' },
     { label: 'Novi Shell', command: 'novi-prompt', shortcut: 'Ctrl+Shift+N' },
     { separator: true },
-    { label: 'Command Palette', command: 'command-palette', shortcut: 'Ctrl+P' },
+    { label: 'Command Palette', command: 'command-palette' },
     { separator: true },
     { label: 'Clear Workspace', command: 'reset-workspace' },
   ],

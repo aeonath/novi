@@ -437,12 +437,6 @@ export class App extends Component {
       }
       if (ke.ctrlKey && ke.key === 'r') { ke.preventDefault(); this.reloadFileFromDisk(); }
       if (ke.ctrlKey && ke.shiftKey && ke.key === 'G') { ke.preventDefault(); void this.actionContext.onGitRefresh?.(); }
-      if (ke.ctrlKey && !ke.shiftKey && ke.key === 'p') {
-        ke.preventDefault();
-        if (this.activeTab?.type === 'file') {
-          (window as any).__monacoEditorAPI?.openCommandPalette();
-        }
-      }
       if (ke.ctrlKey && ke.key === 'Tab') {
         ke.preventDefault();
         this.cycleTab(ke.shiftKey);
