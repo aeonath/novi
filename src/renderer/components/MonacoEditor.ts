@@ -31,6 +31,7 @@ export class MonacoEditor extends Component {
 
   private currentFilePath: string | null = null;
   private savedContent = '';
+  private savedContentMap: Map<string, string> = new Map();
   private isDirtyFlag = false;
   private onDirtyChange?: (isDirty: boolean) => void;
   private _fontSize: number;
@@ -320,6 +321,7 @@ export class MonacoEditor extends Component {
   private exposeAPI(): void {
     (window as any).__monacoEditorAPI = {
       loadFile: (fp: string, content: string) => this.loadFile(fp, content),
+      switchToFile: (fp: string) => this.switchToFile(fp),
       getValue: () => this.getValue(),
       setValue: (c: string) => this.setValue(c),
       isDirty: () => this.isDirtyFlag,
@@ -344,9 +346,31 @@ export class MonacoEditor extends Component {
     this.currentFilePath = filePath;
     appState.activeFilePath = filePath;
     this.savedContent = content;
+    this.savedContentMap.set(filePath, content);
     this.isDirtyFlag = false;
     this.onDirtyChange?.(false);
     this.editorService.loadFile(filePath, content, language);
+  }
+
+  /**
+   * Switch to an already-open file without overwriting its model content.
+   * Used on tab switch to preserve unsaved edits.
+   */
+  switchToFile(filePath: string): boolean {
+    if (!this.editorService) return false;
+    // Save current file's savedContent before switching
+    if (this.currentFilePath) {
+      this.savedContentMap.set(this.currentFilePath, this.savedContent);
+    }
+    if (!this.editorService.switchToModel(filePath)) return false;
+    this.currentFilePath = filePath;
+    appState.activeFilePath = filePath;
+    // Restore saved content baseline for dirty tracking
+    this.savedContent = this.savedContentMap.get(filePath) ?? '';
+    const currentContent = this.editorService.getValue();
+    this.isDirtyFlag = currentContent !== this.savedContent;
+    this.onDirtyChange?.(this.isDirtyFlag);
+    return true;
   }
 
   getValue(): string { return this.editor?.getValue() ?? ''; }
@@ -354,6 +378,9 @@ export class MonacoEditor extends Component {
 
   markAsSaved(): void {
     this.savedContent = this.editor?.getValue() ?? '';
+    if (this.currentFilePath) {
+      this.savedContentMap.set(this.currentFilePath, this.savedContent);
+    }
     this.isDirtyFlag = false;
     this.onDirtyChange?.(false);
   }

@@ -865,7 +865,10 @@ export class App extends Component {
 
     if (tab.type === 'file') {
       if (tab.filePath) window.api?.editorWatchFile?.(tab.filePath);
-      (window as any).__monacoEditorAPI?.loadFile(tab.filePath, tab.content);
+      const monacoAPI = (window as any).__monacoEditorAPI;
+      if (monacoAPI && !monacoAPI.switchToFile(tab.filePath)) {
+        monacoAPI.loadFile(tab.filePath, tab.content);
+      }
       (window as any).__statusBarAPI?.setStatus(`Editing: ${tab.fileName}`);
     } else if (tab.type === 'image') {
       (window as any).__statusBarAPI?.setStatus(`Viewing: ${tab.fileName}`);
