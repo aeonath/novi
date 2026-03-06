@@ -96,7 +96,7 @@ export class App extends Component {
   private noviShellInstances = new Map<string, { instance: NoviShell; container: HTMLElement }>();
   private imageEditorInstance: { instance: ImageEditor; filePath: string } | null = null;
   private actionContext: ActionContext = {};
-  private pendingReloadBanners = new Set<string>(); // file paths with active reload prompts
+  private pendingReloadBanners = new Map<string, HTMLElement>(); // file path → banner element
 
   constructor() {
     super('div', 'novi-layout');
@@ -172,7 +172,7 @@ export class App extends Component {
 
     this.terminalContainerEl = el('div', { style: 'display: contents;' });
     this.noviShellContainerEl = el('div', { style: 'display: contents;' });
-    this.monacoContainerEl = el('div', { style: 'flex: 1; display: none; overflow: hidden;' });
+    this.monacoContainerEl = el('div', { style: 'flex: 1; display: none; flex-direction: column; overflow: hidden;' });
     this.imageEditorContainerEl = el('div', { style: 'flex: 1; display: none; overflow: hidden;' });
 
     const contentArea = el('div', { style: 'flex: 1; display: flex; flex-direction: column; overflow: hidden;' },
@@ -852,16 +852,21 @@ export class App extends Component {
     this.setActiveTab({
       id: tab.id,
       type: tab.type,
-      filePath: (tab.type === 'image' || tab.type === 'novi-prompt') ? tab.filePath : undefined,
+      filePath: (tab.type === 'file' || tab.type === 'image' || tab.type === 'novi-prompt') ? tab.filePath : undefined,
     });
     this.showWelcome = false;
     this.updateContentVisibility();
 
+    // Show/hide reload banners based on active tab
+    const activeNorm = tab.filePath?.replace(/\\/g, '/') || '';
+    for (const [path, bannerEl] of this.pendingReloadBanners) {
+      bannerEl.style.display = (tab.type === 'file' && path === activeNorm) ? 'flex' : 'none';
+    }
+
     if (tab.type === 'file') {
       if (tab.filePath) window.api?.editorWatchFile?.(tab.filePath);
       // Read fresh content from disk when switching to a file tab (skip if pending reload prompt)
-      const normalizedTabPath = tab.filePath?.replace(/\\/g, '/') || '';
-      if (tab.filePath && !tab.isDirty && !this.pendingReloadBanners.has(normalizedTabPath) && window.api?.readFile) {
+      if (tab.filePath && !tab.isDirty && !this.pendingReloadBanners.has(activeNorm) && window.api?.readFile) {
         window.api.readFile(tab.filePath).then((fileData) => {
           (window as any).__monacoEditorAPI?.loadFile(tab.filePath, fileData.content);
           (window as any).__monacoEditorAPI?.markAsSaved();
@@ -1441,14 +1446,13 @@ export class App extends Component {
     );
     if (!match) return;
 
-    this.pendingReloadBanners.add(normalized);
     const fileName = normalized.split('/').pop() || 'file';
     const monacoAPI = (window as any).__monacoEditorAPI;
     const isDirty = monacoAPI?.getFilePath?.()?.replace(/\\/g, '/') === normalized && monacoAPI.isDirty();
 
     const banner = document.createElement('div');
     Object.assign(banner.style, {
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      display: 'none', alignItems: 'center', justifyContent: 'space-between',
       padding: '6px 12px', backgroundColor: '#063b49', color: '#cccccc',
       fontSize: '13px', fontFamily: "'Segoe UI', sans-serif",
       borderBottom: '1px solid #007acc', zIndex: '100',
@@ -1458,7 +1462,7 @@ export class App extends Component {
       : `${fileName} has been changed on disk.`;
 
     const btnContainer = document.createElement('div');
-    Object.assign(btnContainer.style, { display: 'flex', gap: '8px', marginLeft: '12px' });
+    Object.assign(btnContainer.style, { display: 'flex', gap: '8px', marginLeft: '12px', flexShrink: '0' });
 
     const reloadBtn = document.createElement('button');
     reloadBtn.textContent = 'Reload';
@@ -1502,12 +1506,13 @@ export class App extends Component {
     btnContainer.appendChild(reloadBtn);
     btnContainer.appendChild(dismissBtn);
     banner.appendChild(btnContainer);
-    // Insert banner after tab bar (child 0) at top of editor area
-    const contentChild = this.editorAreaEl.children[1];
-    if (contentChild) {
-      this.editorAreaEl.insertBefore(banner, contentChild);
-    } else {
-      this.editorAreaEl.appendChild(banner);
+    this.pendingReloadBanners.set(normalized, banner);
+    this.monacoContainerEl.prepend(banner);
+
+    // Show immediately if this file's tab is currently active
+    const activeFilePath = this.activeTab?.filePath?.replace(/\\/g, '/');
+    if (this.activeTab?.type === 'file' && activeFilePath === normalized) {
+      banner.style.display = 'flex';
     }
   }
 
