@@ -231,10 +231,16 @@ export class MonacoEditor extends Component {
         if (this.vimAdapter) {
           try { this.vimAdapter.dispose(); } catch (_) {}
           this.vimAdapter = null;
-          const model = this.editor.getModel();
-          if (model) { this.editor.setModel(null); this.editor.setModel(model); }
         }
         if (enabled) await this.initVim();
+        // Re-apply theme and retokenize to restore syntax highlighting
+        const currentTheme = appState.theme?.name === 'light' ? 'novi-light' : 'novi-dark';
+        monaco.editor.setTheme(currentTheme);
+        const model = this.editor.getModel();
+        if (model) {
+          const lang = model.getLanguageId();
+          monaco.editor.setModelLanguage(model, lang);
+        }
       };
       window.addEventListener('novi-vimode-changed', vimodeHandler as EventListener);
       this.addCleanup(() => window.removeEventListener('novi-vimode-changed', vimodeHandler as EventListener));
@@ -281,12 +287,16 @@ export class MonacoEditor extends Component {
             }).catch(() => params?.callback?.());
           });
         }
+        // Re-apply theme and retokenize to preserve syntax highlighting
         const monacoTheme = appState.theme?.name === 'light' ? 'novi-light' : 'novi-dark';
         setTimeout(() => {
           if (!this.editor) return;
           monaco.editor.setTheme(monacoTheme);
           const m = this.editor.getModel();
-          if (m) { this.editor.setModel(null); this.editor.setModel(m); }
+          if (m) {
+            const lang = m.getLanguageId();
+            monaco.editor.setModelLanguage(m, lang);
+          }
         }, 0);
       }
     } catch (_) {}
