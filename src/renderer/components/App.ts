@@ -1441,11 +1441,6 @@ export class App extends Component {
     );
     if (!match) return;
 
-    // Switch to the changed file's tab so the banner is visible
-    if (this.activeTab?.id !== match.id) {
-      tabBarAPI.switchTab(match.id);
-    }
-
     this.pendingReloadBanners.add(normalized);
     const fileName = normalized.split('/').pop() || 'file';
     const monacoAPI = (window as any).__monacoEditorAPI;
@@ -1507,7 +1502,13 @@ export class App extends Component {
     btnContainer.appendChild(reloadBtn);
     btnContainer.appendChild(dismissBtn);
     banner.appendChild(btnContainer);
-    this.monacoContainerEl.prepend(banner);
+    // Insert banner after tab bar (child 0) at top of editor area
+    const contentChild = this.editorAreaEl.children[1];
+    if (contentChild) {
+      this.editorAreaEl.insertBefore(banner, contentChild);
+    } else {
+      this.editorAreaEl.appendChild(banner);
+    }
   }
 
   private checkMonaco(): void {
