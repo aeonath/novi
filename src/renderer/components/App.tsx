@@ -453,11 +453,6 @@ const AppInner: React.FC = () => {
     imageEditorInstanceRef.current = { instance: ie, filePath: imagePath };
   }, [activeTab]);
 
-  // Update FileTree callbacks and config when React state changes
-  useEffect(() => {
-    actionContextRef.current = actionContext;
-  }, [actionContext]);
-
   // Update FileTree displayRoot
   useEffect(() => {
     if (fileTreeRef.current) {
@@ -1655,6 +1650,11 @@ const AppInner: React.FC = () => {
       }
     },
   }), [workspaceRoot]);
+
+  // Sync actionContext to ref for Phase 2 vanilla components
+  useEffect(() => {
+    actionContextRef.current = actionContext;
+  }, [actionContext]);
 
   // Action HUD disabled — not part of TDE initial feature set. Code preserved for future use.
   // const actions = useMemo(() => createDefaultActions(actionContext), [actionContext]);
