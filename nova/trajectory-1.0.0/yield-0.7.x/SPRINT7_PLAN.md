@@ -96,3 +96,14 @@ We need to make it configurable to save the state of the environment. add
 the novi shell command set savestate on/off which will toggle the behavior
 if on it will behave as it does currently where it remembers the environment state. if off it will always start with the home terminal in whatever directory the user would normally start with (or in the directory that
 cd to in the bashrc) where the terminal would be.
+
+
+## Task 9 - Save on terminal makes no sense
+
+Currently you can call File -> Save on the Application Menu when on 
+a Terminal.  This should either be grayed out or simply removed from 
+File altogether.  THen on the editor tab it would reappear be active again.
+
+The same logic applies to the Novi Shell
+
+This is true for Save As. as well.

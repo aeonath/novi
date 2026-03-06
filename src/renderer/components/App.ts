@@ -414,7 +414,12 @@ export class App extends Component {
     this.listen(document, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       if (ke.ctrlKey && ke.key === 'o') { ke.preventDefault(); void this.actionContext.onOpenFile?.(); }
-      if (ke.ctrlKey && ke.key === 's') { ke.preventDefault(); void this.actionContext.onSaveFile?.(); }
+      if (ke.ctrlKey && ke.key === 's') {
+        ke.preventDefault();
+        if (this.activeTab?.type === 'file' || this.activeTab?.type === 'image') {
+          void this.actionContext.onSaveFile?.();
+        }
+      }
       if (ke.ctrlKey && ke.key === 'r') { ke.preventDefault(); this.reloadFileFromDisk(); }
       if (ke.ctrlKey && ke.shiftKey && ke.key === 'G') { ke.preventDefault(); void this.actionContext.onGitRefresh?.(); }
       if (ke.ctrlKey && ke.key === 'Tab') {
@@ -1131,8 +1136,16 @@ export class App extends Component {
         break;
       }
       case 'open-file': await this.actionContext.onOpenFile?.(); break;
-      case 'save': await this.actionContext.onSaveFile?.(); break;
-      case 'save-as': await this.actionContext.onSaveFileAs?.(); break;
+      case 'save':
+        if (this.activeTab?.type === 'file' || this.activeTab?.type === 'image') {
+          await this.actionContext.onSaveFile?.();
+        }
+        break;
+      case 'save-as':
+        if (this.activeTab?.type === 'file' || this.activeTab?.type === 'image') {
+          await this.actionContext.onSaveFileAs?.();
+        }
+        break;
       case 'close-file': await this.actionContext.onCloseFile?.(); break;
       case 'close-terminal':
         if (this.activeTab?.type === 'terminal') {

@@ -71,6 +71,7 @@ const MENUS: Record<string, MenuItem[]> = {
 };
 
 const FONT_COMMANDS = ['increase-font-size', 'decrease-font-size', 'reset-font-size'];
+const SAVE_COMMANDS = ['save', 'save-as'];
 
 export class TitleBar extends Component {
   private config: TitleBarConfig;
@@ -303,8 +304,11 @@ export class TitleBar extends Component {
         continue;
       }
 
+      const tabType = this.config.activeTabType;
+      const isNonFileTab = tabType === 'terminal' || tabType === 'novi-prompt';
       const disabled = item.disabled === true ||
-        (this.config.activeTabType === 'novi-prompt' && item.command && FONT_COMMANDS.includes(item.command));
+        (tabType === 'novi-prompt' && item.command && FONT_COMMANDS.includes(item.command)) ||
+        (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command));
 
       const menuItem = el('div', {
         style: [
