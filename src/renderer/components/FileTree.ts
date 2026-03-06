@@ -181,6 +181,13 @@ export class FileTree extends Component {
 
   // --- Public API ---
 
+  setShowOpenFolder(show: boolean): void {
+    if (this.config.showOpenFolder !== show) {
+      this.config.showOpenFolder = show;
+      this.render();
+    }
+  }
+
   set displayRoot(path: string | null) {
     if (path && path !== this.rootPath) {
       this.rootPath = path;

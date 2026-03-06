@@ -260,7 +260,7 @@ export class App extends Component {
       onNoviPrompt: () => this.actionContext.onNoviPrompt?.(),
       onRootChange: (p) => { this.fileTreeReportedRoot = p; this.statusBar.fileTreePath = p; },
       showGitToggle: true,
-      showOpenFolder: true,
+      showOpenFolder: this.singleFileTree,
     });
     this.fileTree.mount(this.fileTreeContainerEl);
 
@@ -395,6 +395,7 @@ export class App extends Component {
     const sftHandler = () => {
       window.api?.getSetting<boolean>('singlefiletree', false).then((v) => {
         this.singleFileTree = !!v;
+        this.fileTree.setShowOpenFolder(this.singleFileTree);
         this.updateFileTreeDisplayRoot();
       });
     };
@@ -428,6 +429,7 @@ export class App extends Component {
     try {
       const sf = await window.api?.getSetting<boolean>('singlefiletree', false);
       this.singleFileTree = !!sf;
+      this.fileTree.setShowOpenFolder(this.singleFileTree);
       const ef = await window.api?.getSetting<number>('fontSize', 14);
       const tf = await window.api?.getSetting<number>('terminalFontSize', 14);
       this.editorFontSize = ef ?? 14;
