@@ -211,6 +211,45 @@ const AppInner: React.FC = () => {
     }
   }, [savePrompt]);
 
+  // Track the last file tree root from a non-novi-prompt tab so novi-prompt tabs can reuse it
+  const lastFileTreeRootRef = useRef<string | null>(null);
+
+  // File tree root to display — must be defined before Phase 2 effects that reference it.
+  const currentFileTreeDisplayRoot = useMemo(() => {
+    if (singleFileTree) return workspaceRoot;
+    if (activeTab?.type === 'terminal') {
+      const t = terminalFileTreeRoots[activeTab.id];
+      const cwd = t?.overriddenRoot ?? t?.cwd;
+      return cwd || null;
+    }
+    if (activeTab?.type === 'file' || activeTab?.type === 'image') {
+      return fileTabToTreeRoot[activeTab.id] || workspaceRoot;
+    }
+    if (activeTab?.type === 'novi-prompt') {
+      return lastFileTreeRootRef.current || workspaceRoot;
+    }
+    return workspaceRoot;
+  }, [singleFileTree, workspaceRoot, activeTab, terminalFileTreeRoots, fileTabToTreeRoot]);
+
+  // Update last file tree root whenever a non-novi-prompt tab produces a valid root
+  useEffect(() => {
+    if (activeTab?.type !== 'novi-prompt' && currentFileTreeDisplayRoot) {
+      lastFileTreeRootRef.current = currentFileTreeDisplayRoot;
+    }
+  }, [activeTab, currentFileTreeDisplayRoot]);
+
+  // Update gitRootRef for GitPanel's onRefreshStatus callback
+  useEffect(() => {
+    gitRootRef.current = currentFileTreeDisplayRoot || workspaceRoot;
+  }, [currentFileTreeDisplayRoot, workspaceRoot]);
+
+  // Update GitPanel workspaceRoot when it changes
+  useEffect(() => {
+    if (gitPanelRef.current) {
+      gitPanelRef.current.workspaceRoot = currentFileTreeDisplayRoot || workspaceRoot;
+    }
+  }, [currentFileTreeDisplayRoot, workspaceRoot]);
+
   // --- Phase 2: Mount vanilla FileTree ---
   useEffect(() => {
     if (!fileTreeContainerRef.current) return;
@@ -230,13 +269,15 @@ const AppInner: React.FC = () => {
   }, []);
 
   // --- Phase 2: Mount vanilla GitPanel ---
+  // Use a ref so the onRefreshStatus callback always has the latest gitRoot
+  const gitRootRef = useRef<string | null>(null);
   useEffect(() => {
     if (!gitPanelContainerRef.current) return;
     const gp = new GitPanel({
       workspaceRoot: null,
       onToggleFiles: () => setShowGitPanel(false),
       onRefreshStatus: async () => {
-        const gitRoot = currentFileTreeDisplayRoot || workspaceRoot;
+        const gitRoot = gitRootRef.current;
         if (!gitRoot || !window.api?.gitGetStatus) return;
         try {
           const status = await window.api.gitGetStatus(gitRoot);
@@ -250,13 +291,6 @@ const AppInner: React.FC = () => {
     gitPanelRef.current = gp;
     return () => { gp.destroy(); gitPanelRef.current = null; };
   }, []);
-
-  // Update GitPanel workspaceRoot when it changes
-  useEffect(() => {
-    if (gitPanelRef.current) {
-      gitPanelRef.current.workspaceRoot = currentFileTreeDisplayRoot || workspaceRoot;
-    }
-  }, [currentFileTreeDisplayRoot, workspaceRoot]);
 
   // --- Phase 2: Mount vanilla MonacoEditor ---
   useEffect(() => {
@@ -1957,34 +1991,6 @@ const AppInner: React.FC = () => {
       delete (window as any).__actionAPI;
     };
   }, [actionContext]);
-
-  // Track the last file tree root from a non-novi-prompt tab so novi-prompt tabs can reuse it
-  const lastFileTreeRootRef = useRef<string | null>(null);
-
-  // File tree root to display. When a terminal tab is active, always show that terminal's CWD so file tree stays in sync.
-  const currentFileTreeDisplayRoot = useMemo(() => {
-    if (singleFileTree) return workspaceRoot;
-    if (activeTab?.type === 'terminal') {
-      const t = terminalFileTreeRoots[activeTab.id];
-      const cwd = t?.overriddenRoot ?? t?.cwd;
-      // Don't fall back to workspaceRoot — wait for the terminal to report its CWD
-      return cwd || null;
-    }
-    if (activeTab?.type === 'file' || activeTab?.type === 'image') {
-      return fileTabToTreeRoot[activeTab.id] || workspaceRoot;
-    }
-    if (activeTab?.type === 'novi-prompt') {
-      return lastFileTreeRootRef.current || workspaceRoot;
-    }
-    return workspaceRoot;
-  }, [singleFileTree, workspaceRoot, activeTab, terminalFileTreeRoots, fileTabToTreeRoot]);
-
-  // Update last file tree root whenever a non-novi-prompt tab produces a valid root
-  useEffect(() => {
-    if (activeTab?.type !== 'novi-prompt' && currentFileTreeDisplayRoot) {
-      lastFileTreeRootRef.current = currentFileTreeDisplayRoot;
-    }
-  }, [activeTab, currentFileTreeDisplayRoot]);
 
   // Ctrl+Tab keybinding to cycle through tabs
   useEffect(() => {
