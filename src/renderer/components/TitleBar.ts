@@ -55,6 +55,8 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Reset Font Size', command: 'reset-font-size', shortcut: 'Ctrl+0' },
   ],
   Novi: [
+    { label: 'Settings', command: 'settings', shortcut: 'Ctrl+,' },
+    { separator: true },
     { label: 'New Terminal', command: 'new-terminal', shortcut: 'Ctrl+T' },
     { label: 'Novi Shell', command: 'novi-prompt', shortcut: 'Ctrl+Shift+N' },
     { separator: true },
