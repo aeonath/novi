@@ -74,6 +74,9 @@ export class Terminal extends Component {
 
     if (active && !this.ptyCreated) {
       this.initPhase1();
+    } else if (active && this.ptyCreated && !this.terminal) {
+      // PTY exists but xterm not yet created (restart while tab was hidden)
+      this.initPhase2();
     }
 
     // Refit on tab switch (after initial mount)
@@ -247,6 +250,9 @@ export class Terminal extends Component {
    * Used when switching shells — ensures clean state like a fresh tab.
    */
   async restartTerminal(): Promise<void> {
+    // Save dimensions before dispose — needed to create PTY without measuring
+    const savedCols = this.terminal?.cols || 120;
+    const savedRows = this.terminal?.rows || 30;
     // Kill PTY on main process
     await window.api?.terminalKill?.(this.terminalId);
     // Dispose xterm and addons
@@ -258,14 +264,17 @@ export class Terminal extends Component {
     this.terminal?.dispose();
     this.terminal = null;
     this.fitAddon = null;
-    // Reset flags so initPhase1/2 can run again
-    this.ptyCreated = false;
+    // Reset flags so initPhase2 can run
     this.isReady = false;
     this.hasInitialFit = false;
     this.container.style.opacity = '0';
-    // Re-run the normal creation flow
+    // Create PTY immediately with saved dimensions — don't wait for container
+    // visibility (initPhase1 would deadlock if the terminal tab is hidden)
+    await (window as any).api?.terminalCreate(this.workspaceRoot, savedCols, savedRows, this.terminalId);
+    this.ptyCreated = true;
+    // Create xterm display immediately if visible, otherwise defer to isActive setter
     if (this._isActive) {
-      this.initPhase1();
+      this.initPhase2();
     }
   }
 
