@@ -1,12 +1,19 @@
 /**
- * © 2025 MiraNova Studios. All rights reserved.
- * See the LICENSE file in the project root for full license text.
+ * © 2025-2026 MiraNova Studios. All rights reserved.
  */
 
 /**
  * GitWatcher - Event-driven Git repository monitoring
- * Replaces polling with file system watching for better performance
- * Implements async queue to prevent git operation race conditions
+ *
+ * Watches ONLY .git/ internals (HEAD, index, refs/, FETCH_HEAD, ORIG_HEAD)
+ * to detect git state changes. Does NOT watch working tree files — that would
+ * react to gitignored build artifacts, temp files, and OS-level phantom events,
+ * causing unnecessary statusMatrix() scans and memory spikes.
+ *
+ * When .git internals change (commit, checkout, merge, rebase, stage, etc.),
+ * emits a debounced 'change' event so the renderer can refresh git status.
+ *
+ * Implements an async queue to prevent git operation race conditions.
  */
 
 import { watch, FSWatcher } from 'chokidar';
@@ -71,7 +78,7 @@ class AsyncQueue {
 
 /**
  * Git repository watcher
- * Monitors file changes and triggers git status updates on demand
+ * Monitors .git/ internals and emits change events for status refresh
  */
 export class GitWatcher extends EventEmitter {
   private watcher: FSWatcher | null = null;
@@ -79,7 +86,6 @@ export class GitWatcher extends EventEmitter {
   private queue: AsyncQueue;
   private logPath: string;
   private changeDebounceTimer: NodeJS.Timeout | null = null;
-  private changedFiles: Set<string> = new Set();
 
   constructor() {
     super();
@@ -99,7 +105,7 @@ export class GitWatcher extends EventEmitter {
   private async log(event: string, details: string): Promise<void> {
     const timestamp = new Date().toISOString();
     const entry = `[${timestamp}] [${event}] ${details}\n`;
-    
+
     try {
       await appendFile(this.logPath, entry);
     } catch (error) {
@@ -108,7 +114,9 @@ export class GitWatcher extends EventEmitter {
   }
 
   /**
-   * Start watching a repository directory
+   * Start watching a repository's .git/ internals.
+   * Only watches HEAD, index, refs/, FETCH_HEAD, ORIG_HEAD — the minimal set
+   * needed to detect git state changes (commit, checkout, stage, merge, etc.).
    */
   async watch(repoPath: string): Promise<void> {
     // Stop existing watcher if any
@@ -123,30 +131,34 @@ export class GitWatcher extends EventEmitter {
     }
     await this.log('WATCH_START', repoPath);
 
-    // Watch for file changes, ignoring .git directory and node_modules
-    this.watcher = watch(repoPath, {
-      ignored: [
-        // Dot files/folders EXCEPT .git (handled separately below)
-        /(^|[\/\\])\.(?!git([\/\\]|$))/,
-        // Inside .git, only watch HEAD, index, refs/, FETCH_HEAD, ORIG_HEAD
-        /\.git[\/\\](?!HEAD$|index$|refs[\/\\]|FETCH_HEAD$|ORIG_HEAD$)/,
-        /node_modules/,
-        /dist/,
-        /\.log$/,
-      ],
+    const gitDir = join(repoPath, '.git');
+
+    // Watch only the specific .git/ files that change on git operations:
+    //   HEAD       — branch switch, checkout
+    //   index      — stage, unstage, commit
+    //   refs/      — commit, push, pull, fetch, merge
+    //   FETCH_HEAD — fetch, pull
+    //   ORIG_HEAD  — merge, rebase
+    const watchPaths = [
+      join(gitDir, 'HEAD'),
+      join(gitDir, 'index'),
+      join(gitDir, 'refs'),
+      join(gitDir, 'FETCH_HEAD'),
+      join(gitDir, 'ORIG_HEAD'),
+    ];
+
+    this.watcher = watch(watchPaths, {
       persistent: true,
-      ignoreInitial: true,         // Don't fire events for existing files
-      ignorePermissionErrors: true, // Skip EACCES errors (e.g. Windows AppX symlinks)
-      awaitWriteFinish: {          // Wait for file write to complete
-        stabilityThreshold: 100,
-        pollInterval: 50,
-      },
+      ignoreInitial: true,
+      ignorePermissionErrors: true,
+      // No awaitWriteFinish — .git files are written atomically by git
     });
 
-    // Handle file changes
-    this.watcher.on('change', (path) => this.handleFileChange(path, 'modified'));
-    this.watcher.on('add', (path) => this.handleFileChange(path, 'added'));
-    this.watcher.on('unlink', (path) => this.handleFileChange(path, 'deleted'));
+    // Any change to .git internals → debounced 'change' event
+    const handler = (path: string) => this.handleGitInternalChange(path);
+    this.watcher.on('change', handler);
+    this.watcher.on('add', handler);
+    this.watcher.on('unlink', handler);
 
     // Handle errors
     this.watcher.on('error', (error: unknown) => {
@@ -172,7 +184,6 @@ export class GitWatcher extends EventEmitter {
     const pathToLog = this.watchedPath || 'unknown';
     this.watcher = null;
     this.watchedPath = null;
-    this.changedFiles.clear();
     if (this.changeDebounceTimer) {
       clearTimeout(this.changeDebounceTimer);
       this.changeDebounceTimer = null;
@@ -188,44 +199,30 @@ export class GitWatcher extends EventEmitter {
   }
 
   /**
-   * Handle file system change events
+   * Handle .git/ internal file changes.
+   * Debounced — git operations often touch multiple files (e.g. commit updates
+   * both index and refs/), so we wait 500ms for the dust to settle before
+   * emitting a single 'change' event.
    */
-  private handleFileChange(absolutePath: string, changeType: 'modified' | 'added' | 'deleted'): void {
+  private handleGitInternalChange(absolutePath: string): void {
     if (!this.watchedPath) return;
 
-    // Get relative path from repo root
     const relativePath = relative(this.watchedPath, absolutePath);
-    
+
     if (DEBUG_GIT_OPERATIONS) {
-      console.log(`[GitWatcher] Change detected: ${changeType} - ${relativePath}`);
+      console.log(`[GitWatcher] .git change detected: ${relativePath}`);
     }
-    this.log('FILE_CHANGE', `${changeType}: ${relativePath}`);
+    this.log('GIT_CHANGE', relativePath);
 
-    // Track changed file
-    this.changedFiles.add(relativePath);
-
-    // Emit immediate change event (for UI updates)
-    this.emit('change', {
-      type: changeType,
-      path: relativePath,
-      absolutePath,
-    });
-
-    // Debounce batch change event (for git status refresh)
+    // Debounce: git operations touch multiple .git files in rapid succession
     if (this.changeDebounceTimer) {
       clearTimeout(this.changeDebounceTimer);
     }
 
     this.changeDebounceTimer = setTimeout(() => {
-      const changes = Array.from(this.changedFiles);
-      if (DEBUG_GIT_OPERATIONS) {
-        console.log(`[GitWatcher] Batch change complete: ${changes.length} files`);
-      }
-      this.log('BATCH_CHANGE', `${changes.length} files: ${changes.join(', ')}`);
-      
-      this.emit('batch-change', changes);
-      this.changedFiles.clear();
-    }, 500); // 500ms debounce for batching rapid changes
+      this.changeDebounceTimer = null;
+      this.emit('change', { type: 'git-internal', path: relativePath });
+    }, 500);
   }
 
   /**
@@ -260,4 +257,3 @@ export class GitWatcher extends EventEmitter {
 
 // Singleton instance
 export const gitWatcher = new GitWatcher();
-

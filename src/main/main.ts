@@ -874,17 +874,9 @@ void app.whenReady().then(() => {
     }
   });
 
-  // Forward git change events to renderer
+  // Forward git change events to renderer (only fires on .git/ internal changes)
   gitWatcher.on('change', (event) => {
     mainWindowRef?.webContents.send('git-change', event);
-  });
-
-  gitWatcher.on('batch-change', (files) => {
-    // Only log if there are many files (more than 10)
-    if (files.length > 10) {
-      console.log('[Git] Batch change event, files:', files.length);
-    }
-    mainWindowRef?.webContents.send('git-batch-change', files);
   });
 
   // File tree watcher IPC handlers (root + expanded dirs only, depth 1)
