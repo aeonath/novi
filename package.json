@@ -2,6 +2,7 @@
   "name": "novi",
   "description": "Novi Editor",
   "main": "dist/main/main.js",
+  "version": "0.8.2",
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.json && node scripts/build-renderer.js && npm run copy:renderer && npm run copy:monaco",
@@ -107,7 +108,6 @@
       "allowElevation": true
     }
   },
-  "version": "0.8.1",
   "dependencies": {
     "@lydell/node-pty": "^1.1.0",
     "@xterm/addon-fit": "^0.10.0",
