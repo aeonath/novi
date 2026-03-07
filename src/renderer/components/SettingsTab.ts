@@ -11,7 +11,7 @@ import { Component } from '../core/component.js';
 import { el, clearChildren, setStyles } from '../core/dom.js';
 
 export type SettingsSection = 'terminal' | 'editor' | 'novi';
-export type ShellType = 'gitbash' | 'powershell' | 'wsl' | 'linux';
+export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
 const HOME_TERMINAL_ID = 'terminal-home';
 
@@ -147,6 +147,7 @@ export class SettingsTab extends Component {
   private renderWindowsShellSettings(): void {
     const options: ShellOption[] = [
       { type: 'gitbash', label: 'Git Bash', description: 'Git for Windows bash shell', hasPath: true, pathLabel: 'Git Bash Path' },
+      { type: 'cmd', label: 'Command Prompt', description: 'Windows cmd.exe — no directory tracking' },
       { type: 'powershell', label: 'PowerShell', description: 'Windows PowerShell' },
       {
         type: 'wsl',

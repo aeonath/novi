@@ -13,7 +13,7 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { logInfo, logError } from '../logger';
 
-export type ShellType = 'gitbash' | 'powershell' | 'wsl' | 'linux';
+export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
 export const DEFAULT_GITBASH_PATH = 'C:\\Program Files\\Git\\bin\\bash.exe';
 
@@ -78,6 +78,8 @@ class TerminalService {
     }
 
     switch (shellType) {
+      case 'cmd':
+        return 'C:\\Windows\\System32\\cmd.exe';
       case 'powershell':
         return 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
       case 'wsl':
@@ -108,6 +110,7 @@ class TerminalService {
    */
   private getShellArgs(shellType: ShellType): string[] {
     switch (shellType) {
+      case 'cmd': return [];
       case 'powershell': return ['-NoLogo'];
       case 'wsl': return [];
       case 'linux': return ['--login', '-i'];

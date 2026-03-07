@@ -19,8 +19,8 @@ describe('Terminal Shell Configuration', () => {
 
   it('should define all shell types', () => {
     // Type-level test: ensure ShellType covers all options
-    type ShellType = 'gitbash' | 'powershell' | 'wsl' | 'linux';
-    const types: ShellType[] = ['gitbash', 'powershell', 'wsl', 'linux'];
-    expect(types).toHaveLength(4);
+    type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
+    const types: ShellType[] = ['gitbash', 'cmd', 'powershell', 'wsl', 'linux'];
+    expect(types).toHaveLength(5);
   });
 });
