@@ -9,8 +9,10 @@ import type { SettingsSection } from '../../renderer/components/SettingsTab';
 const mockApi = {
   getSetting: jest.fn().mockResolvedValue(undefined),
   setSetting: jest.fn().mockResolvedValue(undefined),
-  terminalRestart: jest.fn().mockResolvedValue({ success: true }),
+  terminalKill: jest.fn().mockResolvedValue({ success: true }),
   browseForExecutable: jest.fn().mockResolvedValue(null),
+  getPlatform: jest.fn().mockResolvedValue('win32'),
+  checkWslAvailable: jest.fn().mockResolvedValue(false),
 };
 (window as any).api = mockApi;
 

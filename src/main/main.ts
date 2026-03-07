@@ -1179,76 +1179,8 @@ void app.whenReady().then(() => {
     return result.filePaths[0];
   });
 
-  // Restart a terminal session with the current shell config
-  ipcMain.handle('terminal-restart', async (_e, terminalId: string) => {
-    try {
-      const session = terminalService.getSession(terminalId);
-      const cwd = session?.cwd;
-      const cols = session?.cols || 120;
-      const rows = session?.rows || 30;
-      // Kill existing session
-      if (session) terminalService.killSession(terminalId);
-      // Recreate with same ID and current shell config
-      terminalService.createSession(cwd, cols, rows, terminalId);
-      const newSession = terminalService.getSession(terminalId);
-      if (!newSession || !mainWindowRef || mainWindowRef.isDestroyed()) {
-        return { success: false };
-      }
-      // Send initial CWD
-      const resolvedCwd = cwd || process.cwd();
-      mainWindowRef.webContents.send('terminal-initial-cwd', terminalId, resolvedCwd);
-      // Shells without PROMPT_COMMAND (cmd, powershell) never emit OSC 7,
-      // so the file tree stays in loading state. Send terminal-pwd directly.
-      const shellType = terminalService.getShellType();
-      const isBashLike = shellType === 'gitbash' || shellType === 'wsl' || shellType === 'linux';
-      if (!isBashLike) {
-        mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedCwd);
-      }
-      // Re-attach PTY output forwarding
-      const OSC7_RE = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*)(?:\x07|\x1b\\)/;
-      let dataBuffer = '';
-      let dataBufferLen = 0;
-      let flushTimer: ReturnType<typeof setTimeout> | null = null;
-      const FLUSH_INTERVAL_MS = 16;
-      const MAX_BUFFER_BYTES = 128 * 1024;
-      const flushBuffer = () => {
-        flushTimer = null;
-        if (dataBuffer && mainWindowRef && !mainWindowRef.isDestroyed()) {
-          mainWindowRef.webContents.send('terminal-data', terminalId, dataBuffer);
-          dataBuffer = '';
-          dataBufferLen = 0;
-        }
-      };
-      newSession.pty.onData((data: string) => {
-        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          const osc7Match = OSC7_RE.exec(data);
-          if (osc7Match) {
-            const rawPath = decodeURIComponent(osc7Match[1]);
-            const resolvedPath = process.platform === 'win32' ? msysToWindows(rawPath) : rawPath;
-            mainWindowRef!.webContents.send('terminal-pwd', terminalId, resolvedPath);
-          }
-          dataBuffer += data;
-          dataBufferLen += data.length;
-          if (dataBufferLen >= MAX_BUFFER_BYTES) {
-            if (flushTimer) { clearTimeout(flushTimer); }
-            flushBuffer();
-          } else if (!flushTimer) {
-            flushTimer = setTimeout(flushBuffer, FLUSH_INTERVAL_MS);
-          }
-        }
-      });
-      newSession.pty.onExit((e) => {
-        logInfo(`[Main] Restarted terminal ${terminalId} exited with code ${e.exitCode}`);
-        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-          mainWindowRef.webContents.send('terminal-exit', terminalId, e.exitCode);
-        }
-      });
-      return { success: true };
-    } catch (error) {
-      logError(`Failed to restart terminal ${terminalId}`, error as Error);
-      return { success: false };
-    }
-  });
+  // terminal-restart IPC removed — shell restart now uses terminalKill + terminalCreate
+  // from the renderer side, avoiding session map corruption from async onExit handlers.
 
   // Window control IPC handlers
   ipcMain.on('window-minimize', () => {

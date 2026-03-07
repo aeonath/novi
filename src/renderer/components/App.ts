@@ -339,6 +339,11 @@ export class App extends Component {
 
   private earlyTerminalData: Map<string, string[]> = new Map();
 
+  /** Get a Terminal component instance by ID (used by SettingsTab for shell restart) */
+  getTerminalInstance(terminalId: string): Terminal | undefined {
+    return this.terminalInstances.get(terminalId)?.instance;
+  }
+
   /** Flush any buffered terminal data that arrived before xterm was ready */
   flushEarlyTerminalData(terminalId: string): void {
     const buffer = this.earlyTerminalData.get(terminalId);

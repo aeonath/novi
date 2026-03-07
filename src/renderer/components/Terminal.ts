@@ -242,6 +242,33 @@ export class Terminal extends Component {
     this.terminal?.reset();
   }
 
+  /**
+   * Full restart: kill PTY, dispose xterm, reinitialize from scratch.
+   * Used when switching shells — ensures clean state like a fresh tab.
+   */
+  async restartTerminal(): Promise<void> {
+    // Kill PTY on main process
+    await window.api?.terminalKill?.(this.terminalId);
+    // Dispose xterm and addons
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    if ((window as any).__terminalAPI) {
+      delete (window as any).__terminalAPI[this.terminalId];
+    }
+    this.terminal?.dispose();
+    this.terminal = null;
+    this.fitAddon = null;
+    // Reset flags so initPhase1/2 can run again
+    this.ptyCreated = false;
+    this.isReady = false;
+    this.hasInitialFit = false;
+    this.container.style.opacity = '0';
+    // Re-run the normal creation flow
+    if (this._isActive) {
+      this.initPhase1();
+    }
+  }
+
   private registerAPI(): void {
     (window as any).__terminalAPI = (window as any).__terminalAPI || {};
     (window as any).__terminalAPI[this.terminalId] = {
