@@ -68,6 +68,7 @@ export class App extends Component {
   private previousActiveTabId: string | null = null;
   private lastFileTreeRoot: string | null = null;
   private welcomeContextMenu: { x: number; y: number } | null = null;
+  private shellLabel = 'git-bash';
   // restartingTerminalId tracked via (window as any).__restartingTerminalId
 
   // ---- DOM refs ----
@@ -527,7 +528,23 @@ export class App extends Component {
       const ge = await window.api?.getSetting<boolean>('gitenabled', true);
       this.gitEnabled = ge !== false;
       this.fileTree.setShowGitToggle(this.gitEnabled);
+      this.shellLabel = this.shellTypeToLabel(await window.api?.getSetting<string>('shellType'));
     } catch { /* ignore */ }
+  }
+
+  private shellTypeToLabel(shellType?: string | null): string {
+    switch (shellType) {
+      case 'cmd': return 'cmd.exe';
+      case 'powershell': return 'powershell.exe';
+      case 'wsl': return 'WSL';
+      case 'linux': return 'linux';
+      default: return 'git-bash';
+    }
+  }
+
+  /** Called by SettingsTab after shell type changes */
+  updateShellLabel(shellType: string): void {
+    this.shellLabel = this.shellTypeToLabel(shellType);
   }
 
   // ============================================================
@@ -932,7 +949,7 @@ export class App extends Component {
     } else if (tab.type === 'image') {
       (window as any).__statusBarAPI?.setStatus(`Viewing: ${tab.fileName}`);
     } else if (tab.type === 'terminal') {
-      (window as any).__statusBarAPI?.setStatus(`Terminal: ${tab.fileName}`);
+      (window as any).__statusBarAPI?.setStatus(`${this.shellLabel} Terminal: ${tab.fileName}`);
     } else if (tab.type === 'settings') {
       (window as any).__statusBarAPI?.setStatus('Settings');
     }
@@ -1190,7 +1207,7 @@ export class App extends Component {
           this.syncTerminalInstances();
           this.updateContentVisibility();
         }
-        (window as any).__statusBarAPI?.setStatus('Terminal: bash');
+        (window as any).__statusBarAPI?.setStatus(`${this.shellLabel} Terminal`);
       },
       onOpenSettings: async () => {
         const tabBarAPI = (window as any).__tabBarAPI;

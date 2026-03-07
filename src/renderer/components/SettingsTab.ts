@@ -411,6 +411,8 @@ export class SettingsTab extends Component {
     try {
       await window.api?.setSetting('shellType', this.currentShellType);
       await window.api?.setSetting('shellPath', this.currentShellPath);
+      // Update status bar shell label
+      (window as any).__appInstance?.updateShellLabel?.(this.currentShellType);
       // Signal to App that this is a deliberate restart (not a user exit)
       (window as any).__restartingTerminalId = HOME_TERMINAL_ID;
       // Full restart: kill PTY, dispose xterm, reinit from scratch
