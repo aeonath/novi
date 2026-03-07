@@ -107,6 +107,7 @@ export class App extends Component {
 
   constructor() {
     super('div', 'novi-layout');
+    (window as any).__appInstance = this;
     setStyles(this.el, {
       display: 'flex',
       flexDirection: 'column',
@@ -336,13 +337,33 @@ export class App extends Component {
   // IPC Listeners
   // ============================================================
 
+  private earlyTerminalData: Map<string, string[]> = new Map();
+
+  /** Flush any buffered terminal data that arrived before xterm was ready */
+  flushEarlyTerminalData(terminalId: string): void {
+    const buffer = this.earlyTerminalData.get(terminalId);
+    if (!buffer || buffer.length === 0) return;
+    const api = (window as any).__terminalAPI?.[terminalId];
+    if (api?.write) {
+      for (const chunk of buffer) api.write(chunk);
+    }
+    this.earlyTerminalData.delete(terminalId);
+  }
+
   private setupIpcListeners(): void {
-    // Terminal data
+    // Terminal data — buffer if xterm not yet ready, flush later
     if (window.api?.terminalOnData && window.api?.terminalRemoveDataListener) {
       window.api.terminalRemoveDataListener();
       window.api.terminalOnData((terminalId: string, data: string) => {
         const api = (window as any).__terminalAPI?.[terminalId];
-        if (api?.write) api.write(data);
+        if (api?.write) {
+          api.write(data);
+        } else {
+          // xterm not ready yet — buffer for replay
+          let buf = this.earlyTerminalData.get(terminalId);
+          if (!buf) { buf = []; this.earlyTerminalData.set(terminalId, buf); }
+          buf.push(data);
+        }
       });
       this.addCleanup(() => window.api?.terminalRemoveDataListener?.());
     }
@@ -355,9 +376,8 @@ export class App extends Component {
         if (terminalId === HOME_TERMINAL_ID) {
           if ((window as any).__restartingTerminalId === terminalId) {
             (window as any).__restartingTerminalId = null;
-            // Terminal is being restarted with new shell, clear xterm
-            const entry = this.terminalInstances.get(terminalId);
-            if (entry) entry.instance.resetTerminal();
+            // Deliberate restart — xterm was already cleared before restart.
+            // Do NOT resetTerminal() here: it races with the new PTY's output.
             return;
           }
           window.api?.quit?.();

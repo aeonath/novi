@@ -249,6 +249,8 @@ export class Terminal extends Component {
       clear: () => this.terminal?.clear(),
       focus: () => this.terminal?.focus(),
     };
+    // Flush any data that arrived before xterm was ready (fast-starting shells)
+    (window as any).__appInstance?.flushEarlyTerminalData?.(this.terminalId);
   }
 
   private handleContextMenu(e: MouseEvent): void {
