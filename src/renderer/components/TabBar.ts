@@ -13,7 +13,7 @@ import { markReady } from '../utils/ready-events.js';
 
 export interface Tab {
   id: string;
-  type: 'file' | 'terminal' | 'image' | 'novi-prompt';
+  type: 'file' | 'terminal' | 'image' | 'novi-prompt' | 'settings';
   filePath: string;
   fileName: string;
   isDirty: boolean;

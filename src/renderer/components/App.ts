@@ -21,7 +21,9 @@ import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
 import { NoviShell } from './NoviShell.js';
-import { SettingsPanel } from './SettingsPanel.js';
+import { SettingsTab } from './SettingsTab.js';
+import type { SettingsSection } from './SettingsTab.js';
+import { SettingsSidebar } from './SettingsSidebar.js';
 import { DiagnosticsPanel } from './DiagnosticsPanel.js';
 import { RecoveryDialog } from './RecoveryDialog.js';
 import { SavePrompt, type SavePromptCallbacks } from './SavePrompt.js';
@@ -34,7 +36,7 @@ const homeTerminalPinnedSet = new Set([HOME_TERMINAL_ID]);
 
 interface ActiveTab {
   id: string;
-  type: 'file' | 'image' | 'terminal' | 'novi-prompt';
+  type: 'file' | 'image' | 'terminal' | 'novi-prompt' | 'settings';
   filePath?: string;
   fileName?: string;
 }
@@ -80,6 +82,8 @@ export class App extends Component {
   private gitPanelContainerEl!: HTMLElement;
   private statusBarContainerEl!: HTMLElement;
   private noviPromptPlaceholderEl!: HTMLElement;
+  private settingsContainerEl!: HTMLElement;
+  private settingsSidebarContainerEl!: HTMLElement;
   private aboutOverlay: HTMLElement | null = null;
   private checkUpdatesOverlay: HTMLElement | null = null;
   private welcomeContextMenuEl: HTMLElement | null = null;
@@ -95,6 +99,8 @@ export class App extends Component {
   private terminalInstances = new Map<string, { instance: Terminal; container: HTMLElement }>();
   private noviShellInstances = new Map<string, { instance: NoviShell; container: HTMLElement }>();
   private imageEditorInstance: { instance: ImageEditor; filePath: string } | null = null;
+  private settingsTab: SettingsTab | null = null;
+  private settingsSidebar: SettingsSidebar | null = null;
   private actionContext: ActionContext = {};
   private pendingReloadBanners = new Map<string, HTMLElement>(); // file path → banner element
 
@@ -152,10 +158,12 @@ export class App extends Component {
     this.noviPromptPlaceholderEl = el('div', { style: 'display: none; flex-direction: column; height: 100%; background-color: #252526;' });
     this.fileTreeContainerEl = el('div', { style: 'display: flex; flex-direction: column; height: 100%;' });
     this.gitPanelContainerEl = el('div', { style: 'display: none; flex-direction: column; height: 100%;' });
+    this.settingsSidebarContainerEl = el('div', { style: 'display: none; flex-direction: column; height: 100%;' });
     this.sidebarEl = el('div', { style: `background-color: #252526; border-right: 1px solid #3e3e42; overflow: auto; width: ${this.sidebarWidth}px; flex-shrink: 0;` },
       this.noviPromptPlaceholderEl,
       this.fileTreeContainerEl,
       this.gitPanelContainerEl,
+      this.settingsSidebarContainerEl,
     );
 
     // Resize divider
@@ -174,6 +182,7 @@ export class App extends Component {
     this.noviShellContainerEl = el('div', { style: 'display: contents;' });
     this.monacoContainerEl = el('div', { style: 'flex: 1; display: none; flex-direction: column; overflow: hidden;' });
     this.imageEditorContainerEl = el('div', { style: 'flex: 1; display: none; overflow: hidden;' });
+    this.settingsContainerEl = el('div', { style: 'flex: 1; display: none; flex-direction: column; overflow: hidden;' });
 
     const contentArea = el('div', { style: 'flex: 1; display: flex; flex-direction: column; overflow: hidden;' },
       this.welcomeEl,
@@ -181,6 +190,7 @@ export class App extends Component {
       this.noviShellContainerEl,
       this.monacoContainerEl,
       this.imageEditorContainerEl,
+      this.settingsContainerEl,
     );
 
     this.editorAreaEl = el('div', { style: 'flex: 1; display: flex; flex-direction: column; overflow: hidden;' },
@@ -227,11 +237,20 @@ export class App extends Component {
   // ============================================================
 
   private mountChildComponents(): void {
-    // Modal components on document.body
-    const settingsPanel = new SettingsPanel();
-    settingsPanel.mount(document.body);
-    this.addCleanup(() => settingsPanel.destroy());
+    // Settings tab + sidebar
+    this.settingsTab = new SettingsTab();
+    this.settingsTab.mount(this.settingsContainerEl);
+    this.addCleanup(() => this.settingsTab?.destroy());
 
+    this.settingsSidebar = new SettingsSidebar({
+      onSectionSelect: (section: SettingsSection) => {
+        if (this.settingsTab) this.settingsTab.section = section;
+      },
+    });
+    this.settingsSidebar.mount(this.settingsSidebarContainerEl);
+    this.addCleanup(() => this.settingsSidebar?.destroy());
+
+    // Modal components on document.body
     const diagnosticsPanel = new DiagnosticsPanel();
     diagnosticsPanel.mount(document.body);
     this.addCleanup(() => diagnosticsPanel.destroy());
@@ -674,7 +693,7 @@ export class App extends Component {
     if (this.activeTab?.type === 'file' || this.activeTab?.type === 'image') {
       return this.fileTabToTreeRoot[this.activeTab.id] || this.workspaceRoot;
     }
-    if (this.activeTab?.type === 'novi-prompt') {
+    if (this.activeTab?.type === 'novi-prompt' || this.activeTab?.type === 'settings') {
       return this.lastFileTreeRoot || this.workspaceRoot;
     }
     return this.workspaceRoot;
@@ -682,7 +701,7 @@ export class App extends Component {
 
   private updateFileTreeDisplayRoot(): void {
     const root = this.currentFileTreeDisplayRoot;
-    if (this.activeTab?.type !== 'novi-prompt' && root) {
+    if (this.activeTab?.type !== 'novi-prompt' && this.activeTab?.type !== 'settings' && root) {
       this.lastFileTreeRoot = root;
     }
     // Don't update the file tree while it's in loading state —
@@ -713,13 +732,17 @@ export class App extends Component {
     this.monacoContainerEl.style.display = at?.type === 'file' && !showW ? 'flex' : 'none';
     // Image editor
     this.imageEditorContainerEl.style.display = at?.type === 'image' && !showW ? 'flex' : 'none';
+    // Settings
+    this.settingsContainerEl.style.display = at?.type === 'settings' && !showW ? 'flex' : 'none';
   }
 
   private updateSidebarVisibility(): void {
     const isNovi = this.activeTab?.type === 'novi-prompt';
+    const isSettings = this.activeTab?.type === 'settings';
     this.noviPromptPlaceholderEl.style.display = isNovi && !this.showGitPanel ? 'flex' : 'none';
-    this.fileTreeContainerEl.style.display = (this.showGitPanel || isNovi) ? 'none' : 'flex';
-    this.gitPanelContainerEl.style.display = this.showGitPanel ? 'flex' : 'none';
+    this.settingsSidebarContainerEl.style.display = isSettings ? 'flex' : 'none';
+    this.fileTreeContainerEl.style.display = (this.showGitPanel || isNovi || isSettings) ? 'none' : 'flex';
+    this.gitPanelContainerEl.style.display = this.showGitPanel && !isSettings ? 'flex' : 'none';
   }
 
   // ============================================================
@@ -874,6 +897,8 @@ export class App extends Component {
       (window as any).__statusBarAPI?.setStatus(`Viewing: ${tab.fileName}`);
     } else if (tab.type === 'terminal') {
       (window as any).__statusBarAPI?.setStatus(`Terminal: ${tab.fileName}`);
+    } else if (tab.type === 'settings') {
+      (window as any).__statusBarAPI?.setStatus('Settings');
     }
 
     requestAnimationFrame(() => requestAnimationFrame(() => this.focusActiveTab()));
@@ -1131,7 +1156,24 @@ export class App extends Component {
         }
         (window as any).__statusBarAPI?.setStatus('Terminal: bash');
       },
-      onOpenSettings: () => { (window as any).__settingsPanelAPI?.show(); },
+      onOpenSettings: async () => {
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (!tabBarAPI) return;
+        const existing = tabBarAPI.getTabs?.().find((t: any) => t.type === 'settings');
+        if (existing) {
+          tabBarAPI.switchTab(existing.id);
+          this.setActiveTab({ id: existing.id, type: 'settings' });
+          this.showWelcome = false;
+          this.updateContentVisibility();
+          return;
+        }
+        const settingsId = `settings-${Date.now()}`;
+        this.showWelcome = false;
+        tabBarAPI.addTab({ id: settingsId, type: 'settings', filePath: '', fileName: '\u2699\uFE0F Settings', isDirty: false, content: '', language: 'plaintext' });
+        this.setActiveTab({ id: settingsId, type: 'settings' });
+        this.updateContentVisibility();
+        (window as any).__statusBarAPI?.setStatus('Settings');
+      },
       onFormatDocument: async () => { await (window as any).__monacoEditorAPI?.formatDocument(); },
       onGoToDefinition: async () => { await (window as any).__monacoEditorAPI?.goToDefinition(); },
       onFindReferences: async () => { await (window as any).__monacoEditorAPI?.findReferences(); },
@@ -1198,6 +1240,7 @@ export class App extends Component {
         break;
       case 'new-terminal': await this.actionContext.onNewTerminal?.(); break;
       case 'novi-prompt': await this.actionContext.onNoviPrompt?.(); break;
+      case 'settings': await this.actionContext.onOpenSettings?.(); break;
       case 'command-palette':
         if (this.activeTab?.type === 'file') {
           (window as any).__monacoEditorAPI?.openCommandPalette();

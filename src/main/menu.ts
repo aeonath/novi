@@ -38,7 +38,8 @@ export type MenuCommand =
   | 'about'
   | 'documentation'
   | 'report-issue'
-  | 'check-updates';
+  | 'check-updates'
+  | 'settings';
 
 let commandHandler: ((command: MenuCommand, window: BrowserWindow) => void) | null = null;
 
@@ -172,6 +173,12 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
     {
       label: 'Novi',
       submenu: [
+        {
+          label: 'Settings',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => executeCommand('settings', mainWindow),
+        },
+        { type: 'separator' },
         {
           label: 'New Terminal',
           accelerator: 'CmdOrCtrl+`',

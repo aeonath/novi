@@ -306,9 +306,9 @@ export class TitleBar extends Component {
       }
 
       const tabType = this.config.activeTabType;
-      const isNonFileTab = tabType === 'terminal' || tabType === 'novi-prompt';
+      const isNonFileTab = tabType === 'terminal' || tabType === 'novi-prompt' || tabType === 'settings';
       const disabled = item.disabled === true ||
-        (tabType === 'novi-prompt' && item.command && FONT_COMMANDS.includes(item.command)) ||
+        ((tabType === 'novi-prompt' || tabType === 'settings') && item.command && FONT_COMMANDS.includes(item.command)) ||
         (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command)) ||
         (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command));
 
