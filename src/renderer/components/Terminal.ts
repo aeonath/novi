@@ -238,6 +238,10 @@ export class Terminal extends Component {
     this.resizeObserver.observe(this.container);
   }
 
+  resetTerminal(): void {
+    this.terminal?.reset();
+  }
+
   private registerAPI(): void {
     (window as any).__terminalAPI = (window as any).__terminalAPI || {};
     (window as any).__terminalAPI[this.terminalId] = {

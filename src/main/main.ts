@@ -15,7 +15,8 @@ import { logSuccess, logError as logFSError } from './services/fs-logger';
 import { gitService } from './services/git-service';
 import { gitWatcher } from './services/git-watcher';
 import { gitCredentialHelper } from './services/git-credential-helper';
-import { terminalService } from './services/terminal-service';
+import { terminalService, DEFAULT_GITBASH_PATH } from './services/terminal-service';
+import type { ShellType } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
 import { editorFileWatcher } from './services/editor-file-watcher';
@@ -39,6 +40,13 @@ function applyDebugMode(enabled: boolean) {
 
 // Load debug setting synchronously at startup
 applyDebugMode(!!getSetting<boolean>('debug', false));
+
+// Load shell settings at startup
+{
+  const shellType = getSetting<ShellType>('shellType', 'gitbash') || 'gitbash';
+  const shellPath = getSetting<string>('shellPath', DEFAULT_GITBASH_PATH) || DEFAULT_GITBASH_PATH;
+  terminalService.setShell(shellType, shellPath);
+}
 
 // --- MSYS / Git-bash path conversion ---
 // Git-bash reports POSIX paths via $PWD: /c/Work → C:\Work, / → Git root, /usr → Git root\usr
@@ -237,6 +245,11 @@ void app.whenReady().then(() => {
   ipcMain.handle('set-setting', (_e, key: string, value: unknown) => {
     setSetting(key, value);
     if (key === 'debug') applyDebugMode(!!value);
+    if (key === 'shellType' || key === 'shellPath') {
+      const st = getSetting<ShellType>('shellType', 'gitbash') || 'gitbash';
+      const sp = getSetting<string>('shellPath', DEFAULT_GITBASH_PATH) || DEFAULT_GITBASH_PATH;
+      terminalService.setShell(st, sp);
+    }
   });
   ipcMain.on('renderer-error', (_e, payload: { message: string; stack?: string }) => {
     logError(`Renderer error: ${payload.message}`, payload.stack);
@@ -1128,6 +1141,80 @@ void app.whenReady().then(() => {
     }
   });
   
+  // Browse for executable file (used by settings UI for custom shell paths)
+  ipcMain.handle('browse-for-executable', async () => {
+    if (!mainWindowRef) return null;
+    const result = await dialog.showOpenDialog(mainWindowRef, {
+      properties: ['openFile'],
+      filters: [{ name: 'Executables', extensions: ['exe'] }],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  // Restart a terminal session with the current shell config
+  ipcMain.handle('terminal-restart', async (_e, terminalId: string) => {
+    try {
+      const session = terminalService.getSession(terminalId);
+      const cwd = session?.cwd;
+      const cols = session?.cols || 120;
+      const rows = session?.rows || 30;
+      // Kill existing session
+      if (session) terminalService.killSession(terminalId);
+      // Recreate with same ID and current shell config
+      terminalService.createSession(cwd, cols, rows, terminalId);
+      const newSession = terminalService.getSession(terminalId);
+      if (!newSession || !mainWindowRef || mainWindowRef.isDestroyed()) {
+        return { success: false };
+      }
+      // Send initial CWD
+      mainWindowRef.webContents.send('terminal-initial-cwd', terminalId, cwd || process.cwd());
+      // Re-attach PTY output forwarding
+      const OSC7_RE = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*)(?:\x07|\x1b\\)/;
+      let dataBuffer = '';
+      let dataBufferLen = 0;
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      const FLUSH_INTERVAL_MS = 16;
+      const MAX_BUFFER_BYTES = 128 * 1024;
+      const flushBuffer = () => {
+        flushTimer = null;
+        if (dataBuffer && mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('terminal-data', terminalId, dataBuffer);
+          dataBuffer = '';
+          dataBufferLen = 0;
+        }
+      };
+      newSession.pty.onData((data: string) => {
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+          const osc7Match = OSC7_RE.exec(data);
+          if (osc7Match) {
+            const rawPath = decodeURIComponent(osc7Match[1]);
+            const resolvedPath = process.platform === 'win32' ? msysToWindows(rawPath) : rawPath;
+            mainWindowRef!.webContents.send('terminal-pwd', terminalId, resolvedPath);
+          }
+          dataBuffer += data;
+          dataBufferLen += data.length;
+          if (dataBufferLen >= MAX_BUFFER_BYTES) {
+            if (flushTimer) { clearTimeout(flushTimer); }
+            flushBuffer();
+          } else if (!flushTimer) {
+            flushTimer = setTimeout(flushBuffer, FLUSH_INTERVAL_MS);
+          }
+        }
+      });
+      newSession.pty.onExit((e) => {
+        logInfo(`[Main] Restarted terminal ${terminalId} exited with code ${e.exitCode}`);
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('terminal-exit', terminalId, e.exitCode);
+        }
+      });
+      return { success: true };
+    } catch (error) {
+      logError(`Failed to restart terminal ${terminalId}`, error as Error);
+      return { success: false };
+    }
+  });
+
   // Window control IPC handlers
   ipcMain.on('window-minimize', () => {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {

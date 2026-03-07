@@ -36,6 +36,7 @@ describe('TerminalService', () => {
     
     // Reset terminal service state
     terminalService.cleanup();
+    terminalService.setShell('gitbash');
 
     // Setup mock PTY
     mockPty = {
@@ -71,26 +72,24 @@ describe('TerminalService', () => {
         );
       });
 
-      it('should fallback to system bash if Git bash not found on Windows', () => {
-        (existsSync as jest.Mock).mockImplementation((path: string) => {
-          return path === 'C:\\Windows\\System32\\bash.exe';
-        });
-
-        terminalService.createSession();
-        expect(pty.spawn).toHaveBeenCalledWith(
-          'C:\\Windows\\System32\\bash.exe',
-          ['--login', '-i'],
-          expect.objectContaining({ name: 'xterm-256color' })
-        );
-      });
-
-      it('should fallback to cmd.exe if no bash found on Windows', () => {
+      it('should fallback to cmd.exe if Git bash not found on Windows', () => {
         (existsSync as jest.Mock).mockReturnValue(false);
 
         terminalService.createSession();
         expect(pty.spawn).toHaveBeenCalledWith(
           'C:\\Windows\\System32\\cmd.exe',
           ['--login', '-i'],
+          expect.objectContaining({ name: 'xterm-256color' })
+        );
+      });
+
+      it('should use WSL bash when shell type is wsl', () => {
+        terminalService.setShell('wsl');
+
+        terminalService.createSession();
+        expect(pty.spawn).toHaveBeenCalledWith(
+          'C:\\Windows\\System32\\bash.exe',
+          [],
           expect.objectContaining({ name: 'xterm-256color' })
         );
       });

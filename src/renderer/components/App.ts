@@ -68,6 +68,7 @@ export class App extends Component {
   private previousActiveTabId: string | null = null;
   private lastFileTreeRoot: string | null = null;
   private welcomeContextMenu: { x: number; y: number } | null = null;
+  // restartingTerminalId tracked via (window as any).__restartingTerminalId
 
   // ---- DOM refs ----
   private sidebarEl!: HTMLElement;
@@ -351,7 +352,17 @@ export class App extends Component {
       window.api.terminalRemoveExitListener();
       window.api.terminalOnExit((terminalId: string, exitCode: number) => {
         console.log('[App] Terminal', terminalId, 'exited with code', exitCode);
-        if (terminalId === HOME_TERMINAL_ID) { window.api?.quit?.(); return; }
+        if (terminalId === HOME_TERMINAL_ID) {
+          if ((window as any).__restartingTerminalId === terminalId) {
+            (window as any).__restartingTerminalId = null;
+            // Terminal is being restarted with new shell, clear xterm
+            const entry = this.terminalInstances.get(terminalId);
+            if (entry) entry.instance.resetTerminal();
+            return;
+          }
+          window.api?.quit?.();
+          return;
+        }
         const tabBarAPI = (window as any).__tabBarAPI;
         if (tabBarAPI) {
           tabBarAPI.closeTab(terminalId);

@@ -13,9 +13,14 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { logInfo, logError } from '../logger';
 
+export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl';
+
+export const DEFAULT_GITBASH_PATH = 'C:\\Program Files\\Git\\bin\\bash.exe';
+
 export interface CreateSessionOptions {
-  /** Reserved for future use; we do not modify the user's PATH */
-  _reserved?: unknown;
+  /** Override the shell for this session */
+  shellType?: ShellType;
+  shellPath?: string;
 }
 
 export interface TerminalSession {
@@ -29,13 +34,28 @@ export interface TerminalSession {
 class TerminalService {
   private sessions: Map<string, TerminalSession> = new Map();
   private nextId = 1;
+  private configuredShellType: ShellType = 'gitbash';
+  private configuredShellPath: string = DEFAULT_GITBASH_PATH;
 
   /**
-   * Get shell path - platform-aware detection
+   * Set the configured shell for new terminals
    */
-  private getShellPath(): string {
+  setShell(type: ShellType, path?: string): void {
+    this.configuredShellType = type;
+    if (path) this.configuredShellPath = path;
+    logInfo(`[TerminalService] Shell configured: type=${type}, path=${path || '(default)'}`);
+  }
+
+  getShellType(): ShellType { return this.configuredShellType; }
+  getShellPathConfig(): string { return this.configuredShellPath; }
+
+  /**
+   * Resolve shell executable path from type
+   */
+  resolveShellPath(type?: ShellType, customPath?: string): string {
+    const shellType = type || this.configuredShellType;
+
     if (process.platform !== 'win32') {
-      // Linux / macOS: prefer $SHELL, then common paths
       const userShell = process.env.SHELL;
       if (userShell && existsSync(userShell)) {
         logInfo(`[TerminalService] Using user shell: ${userShell}`);
@@ -51,34 +71,55 @@ class TerminalService {
       return '/bin/sh';
     }
 
-    // Windows: try Git for Windows bash first
-    const gitBashPaths = [
-      'C:\\Program Files\\Git\\bin\\bash.exe',
-      'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
-    ];
-
-    for (const path of gitBashPaths) {
-      if (existsSync(path)) {
-        logInfo(`[TerminalService] Using Git bash: ${path}`);
-        return path;
+    switch (shellType) {
+      case 'cmd':
+        return 'C:\\Windows\\System32\\cmd.exe';
+      case 'powershell':
+        return 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
+      case 'wsl':
+        return 'C:\\Windows\\System32\\bash.exe';
+      case 'gitbash':
+      default: {
+        const path = customPath || this.configuredShellPath;
+        if (existsSync(path)) return path;
+        // Fallback detection
+        const fallbacks = [
+          DEFAULT_GITBASH_PATH,
+          'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+        ];
+        for (const fb of fallbacks) {
+          if (existsSync(fb)) {
+            logInfo(`[TerminalService] Git bash fallback: ${fb}`);
+            return fb;
+          }
+        }
+        logInfo('[TerminalService] Git bash not found, falling back to cmd.exe');
+        return 'C:\\Windows\\System32\\cmd.exe';
       }
     }
+  }
 
-    if (existsSync('C:\\Windows\\System32\\bash.exe')) {
-      logInfo('[TerminalService] Using system bash');
-      return 'C:\\Windows\\System32\\bash.exe';
+  /**
+   * Get shell args based on type
+   */
+  private getShellArgs(shellType: ShellType): string[] {
+    switch (shellType) {
+      case 'cmd': return [];
+      case 'powershell': return ['-NoLogo'];
+      case 'wsl': return [];
+      case 'gitbash':
+      default: return ['--login', '-i'];
     }
-
-    logInfo('[TerminalService] Using cmd.exe as fallback');
-    return 'C:\\Windows\\System32\\cmd.exe';
   }
 
   /**
    * Create a new terminal session with PTY
    */
-  createSession(cwd?: string, cols = 120, rows = 30, customId?: string, _options?: CreateSessionOptions): string {
+  createSession(cwd?: string, cols = 120, rows = 30, customId?: string, options?: CreateSessionOptions): string {
     const id = customId || `terminal-${this.nextId++}`;
-    const shellPath = this.getShellPath();
+    const shellType = options?.shellType || this.configuredShellType;
+    const shellPath = this.resolveShellPath(shellType, options?.shellPath);
+    const shellArgs = this.getShellArgs(shellType);
     const cwdPath = cwd || homedir();
 
     const baseEnv = { ...process.env };
@@ -86,25 +127,27 @@ class TerminalService {
     // silently consumes, unlike the old 'echo' approach which produced visible
     // text that had to be regex-stripped and left orphaned ConPTY cursor
     // sequences that corrupted vim/TUI screen restoration.
-    const promptCommand = 'printf "\\033]7;file://localhost%s\\007" "$PWD"';
+    const isBashLike = shellType === 'gitbash' || shellType === 'wsl';
+    const envOverrides: Record<string, string> = {
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      LANG: 'C.UTF-8',
+      LC_ALL: 'C.UTF-8',
+      LC_CTYPE: 'C.UTF-8',
+      LESSCHARSET: 'utf-8',
+    };
+    if (isBashLike) {
+      envOverrides.PROMPT_COMMAND = 'printf "\\033]7;file://localhost%s\\007" "$PWD"';
+    }
 
-    logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath}, cwd: ${cwdPath}, dimensions: ${cols}x${rows}`);
+    logInfo(`[TerminalService] Creating PTY session ${id} with shell: ${shellPath} (${shellType}), cwd: ${cwdPath}, dimensions: ${cols}x${rows}`);
 
-    const ptyProcess = pty.spawn(shellPath, ['--login', '-i'], {
+    const ptyProcess = pty.spawn(shellPath, shellArgs, {
       name: 'xterm-256color',
       cols,
       rows,
       cwd: cwdPath,
-      env: {
-        ...baseEnv,
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
-        LANG: 'C.UTF-8',
-        LC_ALL: 'C.UTF-8',
-        LC_CTYPE: 'C.UTF-8',
-        LESSCHARSET: 'utf-8',
-        PROMPT_COMMAND: promptCommand,
-      },
+      env: { ...baseEnv, ...envOverrides },
     });
 
     const session: TerminalSession = {

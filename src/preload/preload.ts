@@ -111,6 +111,8 @@ contextBridge.exposeInMainWorld('api', {
   terminalWrite: (terminalId: string, data: string) => ipcRenderer.invoke('terminal-write', terminalId, data),
   terminalResize: (terminalId: string, cols: number, rows: number) => ipcRenderer.invoke('terminal-resize', terminalId, cols, rows),
   terminalKill: (terminalId: string) => ipcRenderer.invoke('terminal-kill', terminalId),
+  terminalRestart: (terminalId: string) => ipcRenderer.invoke('terminal-restart', terminalId),
+  browseForExecutable: () => ipcRenderer.invoke('browse-for-executable'),
   // Terminal event listener (for receiving data from main process)
   terminalOnData: (callback: (terminalId: string, data: string) => void) => {
     // Remove ALL existing listeners first to prevent duplicates

@@ -17,9 +17,21 @@ click on the section it will load the settings for that section in the settings 
 The settings tab should be labeled Settings with a gear icon.
 
 
-## Task 2 - building the Terminal Settings Tab
+## Task 2 - building the Terminal Settings Tab (and .novirc)
 
 
 The terminal settings needs to begin with the available terminals to 
 use with the terminal tab.  The terminal settings should contain four
 options as the intial settings.  The first option is to use cmd.exe, the second option is to use powershell.exe.  The third option is to use git bash, with a file dialog to select the location of bash.exe.
+
+
+If a user selects a different shell than the current, it updates the terminal on the home tab but does not close any existing terminal tabs 
+in other terminals.
+
+We are currently using Git bash, so please remove any hardcoded path to this and make it the default path in the settings. something like c:\program files\git\bash.exe.  
+
+Reconcilliate any settings in ~/.novirc.  The application should be able to
+be configured form this file as well.  ~/.novirc settings will override any
+settings saved for the users configuration.  The users current configuration does not save to this file.
+
+This is two tasks in one, build the terminal settings first then reconcillate our novirc implementation.

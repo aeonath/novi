@@ -150,6 +150,8 @@ declare global {
       terminalWrite: (terminalId: string, data: string) => Promise<{ success: boolean }>;
       terminalResize: (terminalId: string, cols: number, rows: number) => Promise<{ success: boolean }>;
       terminalKill: (terminalId: string) => Promise<{ success: boolean }>;
+      terminalRestart: (terminalId: string) => Promise<{ success: boolean }>;
+      browseForExecutable: () => Promise<string | null>;
       terminalOnData: (callback: (terminalId: string, data: string) => void) => void;
       terminalRemoveDataListener: () => void;
       terminalOnPwd: (callback: (terminalId: string, pwd: string) => void) => void;
