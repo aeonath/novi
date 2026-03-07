@@ -1039,15 +1039,20 @@ void app.whenReady().then(() => {
       // Batch PTY output into ~16ms frames to reduce IPC overhead.
       // Instead of sending every tiny PTY chunk as a separate IPC message,
       // we accumulate data and flush once per frame (~60fps).
+      // Buffer is capped at MAX_BUFFER_BYTES to prevent memory explosion
+      // when shell scripts produce high-throughput output (build tools, aws cli, etc.).
       let dataBuffer = '';
+      let dataBufferLen = 0;
       let flushTimer: ReturnType<typeof setTimeout> | null = null;
       const FLUSH_INTERVAL_MS = 16;
+      const MAX_BUFFER_BYTES = 128 * 1024; // 128KB — flush immediately if exceeded
 
       const flushBuffer = () => {
         flushTimer = null;
         if (dataBuffer && mainWindowRef && !mainWindowRef.isDestroyed()) {
           mainWindowRef.webContents.send('terminal-data', terminalId, dataBuffer);
           dataBuffer = '';
+          dataBufferLen = 0;
         }
       };
 
@@ -1074,7 +1079,12 @@ void app.whenReady().then(() => {
           }
           // Accumulate data and schedule flush on next frame boundary
           dataBuffer += data;
-          if (!flushTimer) {
+          dataBufferLen += data.length;
+          if (dataBufferLen >= MAX_BUFFER_BYTES) {
+            // Buffer is large — flush immediately to prevent memory buildup
+            if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+            flushBuffer();
+          } else if (!flushTimer) {
             flushTimer = setTimeout(flushBuffer, FLUSH_INTERVAL_MS);
           }
         }

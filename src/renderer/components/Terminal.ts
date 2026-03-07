@@ -184,7 +184,7 @@ export class Terminal extends Component {
       fontSize: this.fontSize,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
       cursorBlink: false, cursorStyle: 'underline', cursorWidth: 2,
-      lineHeight: 1.2, letterSpacing: 0, scrollback: 50000, windowsMode: false,
+      lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
     });
 
     const fitAddon = new FitAddon();

@@ -34,6 +34,7 @@ export class GitPanel extends Component {
   private credentialInput = '';
   private credentialPrompt = '';
   private currentCredentialRequest: any = null;
+  private changeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // DOM elements
   private containerEl: HTMLElement;
@@ -92,20 +93,28 @@ export class GitPanel extends Component {
     }, 100);
 
     window.api.gitOnChange(() => {
-      if (root && window.api?.gitManualRefresh) {
-        window.api.gitManualRefresh(root).then((status: GitStatus) => {
-          this.gitStatus = status;
-          this.error = null;
-          this.onRefreshStatus?.();
-          this.render();
-        }).catch(() => {
-          this.error = 'Failed to get Git status';
-          this.render();
-        });
-      }
+      // Debounce: many file changes fire rapidly — only refresh once they settle.
+      // Without this, N file changes trigger N concurrent statusMatrix() scans,
+      // each reading every file in the repo, causing massive native memory usage.
+      if (this.changeDebounceTimer) clearTimeout(this.changeDebounceTimer);
+      this.changeDebounceTimer = setTimeout(() => {
+        this.changeDebounceTimer = null;
+        if (root && window.api?.gitManualRefresh) {
+          window.api.gitManualRefresh(root).then((status: GitStatus) => {
+            this.gitStatus = status;
+            this.error = null;
+            this.onRefreshStatus?.();
+            this.render();
+          }).catch(() => {
+            this.error = 'Failed to get Git status';
+            this.render();
+          });
+        }
+      }, 1000);
     });
 
     this.addCleanup(() => {
+      if (this.changeDebounceTimer) { clearTimeout(this.changeDebounceTimer); this.changeDebounceTimer = null; }
       window.api?.gitRemoveChangeListener?.();
       window.api?.gitStopWatching?.().catch(() => {});
     });
