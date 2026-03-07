@@ -167,10 +167,14 @@ class TerminalService {
 
     this.sessions.set(id, session);
 
-    // Handle process exit
+    // Handle process exit — only delete if this is still the active session
+    // (a restart may have replaced it with a new session under the same ID)
     ptyProcess.onExit((e) => {
       logInfo(`[TerminalService] Terminal ${id} exited with code ${e.exitCode}, signal ${e.signal}`);
-      this.sessions.delete(id);
+      const current = this.sessions.get(id);
+      if (current && current.pty === ptyProcess) {
+        this.sessions.delete(id);
+      }
     });
 
     logInfo(`[TerminalService] PTY session ${id} created successfully (PID: ${ptyProcess.pid}, dimensions: ${cols}x${rows})`);
