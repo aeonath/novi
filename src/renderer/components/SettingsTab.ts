@@ -413,6 +413,11 @@ export class SettingsTab extends Component {
       await window.api?.setSetting('shellPath', this.currentShellPath);
       // Signal to App that this is a deliberate restart (not a user exit)
       (window as any).__restartingTerminalId = HOME_TERMINAL_ID;
+      // Clear xterm buffer BEFORE restart to avoid race condition where
+      // fast-starting shells (cmd.exe) send output before the old PTY's
+      // exit event arrives and triggers the reset
+      const termApi = (window as any).__terminalAPI?.[HOME_TERMINAL_ID];
+      if (termApi?.clear) termApi.clear();
       // Restart home terminal with new shell
       await window.api?.terminalRestart?.(HOME_TERMINAL_ID);
     } catch (error) {
