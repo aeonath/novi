@@ -11,7 +11,7 @@ import { Component } from '../core/component.js';
 import { el, clearChildren, setStyles } from '../core/dom.js';
 
 export type SettingsSection = 'terminal' | 'editor' | 'novi';
-export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl';
+export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
 const HOME_TERMINAL_ID = 'terminal-home';
 
@@ -19,20 +19,19 @@ interface ShellOption {
   type: ShellType;
   label: string;
   description: string;
+  hasPath?: boolean;
+  pathLabel?: string;
+  unavailableReason?: string;
 }
-
-const SHELL_OPTIONS: ShellOption[] = [
-  { type: 'gitbash', label: 'Git Bash', description: 'Git for Windows bash shell' },
-  { type: 'cmd', label: 'Command Prompt', description: 'Windows cmd.exe' },
-  { type: 'powershell', label: 'PowerShell', description: 'Windows PowerShell' },
-  { type: 'wsl', label: 'WSL Bash', description: 'Windows Subsystem for Linux' },
-];
 
 export class SettingsTab extends Component {
   private contentEl: HTMLElement;
   private activeSection: SettingsSection = 'terminal';
   private currentShellType: ShellType = 'gitbash';
   private currentShellPath = 'C:\\Program Files\\Git\\bin\\bash.exe';
+  private platform: string = 'win32';
+  private wslAvailable = false;
+  private linuxUseDefault = true;
 
   constructor() {
     super('div');
@@ -55,7 +54,7 @@ export class SettingsTab extends Component {
     });
 
     this.el.appendChild(this.contentEl);
-    this.loadShellSettings().then(() => this.render());
+    this.loadSettings().then(() => this.render());
   }
 
   get section(): SettingsSection { return this.activeSection; }
@@ -67,12 +66,21 @@ export class SettingsTab extends Component {
     }
   }
 
-  private async loadShellSettings(): Promise<void> {
+  private async loadSettings(): Promise<void> {
     try {
-      const st = await window.api?.getSetting<ShellType>('shellType', 'gitbash');
-      const sp = await window.api?.getSetting<string>('shellPath', 'C:\\Program Files\\Git\\bin\\bash.exe');
-      this.currentShellType = st || 'gitbash';
-      this.currentShellPath = sp || 'C:\\Program Files\\Git\\bin\\bash.exe';
+      this.platform = await window.api?.getPlatform?.() || 'win32';
+      this.wslAvailable = await window.api?.checkWslAvailable?.() || false;
+      const st = await window.api?.getSetting<ShellType>('shellType');
+      const sp = await window.api?.getSetting<string>('shellPath');
+      const ud = await window.api?.getSetting<boolean>('shellUseDefault');
+      if (this.platform === 'linux') {
+        this.currentShellType = st || 'linux';
+        this.currentShellPath = sp || '/bin/bash';
+        this.linuxUseDefault = ud !== false;
+      } else {
+        this.currentShellType = st || 'gitbash';
+        this.currentShellPath = sp || 'C:\\Program Files\\Git\\bin\\bash.exe';
+      }
     } catch { /* use defaults */ }
   }
 
@@ -105,12 +113,10 @@ export class SettingsTab extends Component {
   }
 
   private renderTerminalSettings(): void {
-    // Heading
     const heading = el('h2', {}, 'Terminal Settings');
     setStyles(heading, { margin: '0 0 24px 0', fontWeight: '400', fontSize: '1.3em' });
     this.contentEl.appendChild(heading);
 
-    // Shell selection
     const sectionLabel = el('div', {}, 'Default Shell');
     setStyles(sectionLabel, {
       fontSize: '14px',
@@ -129,20 +135,90 @@ export class SettingsTab extends Component {
     });
     this.contentEl.appendChild(description);
 
-    // Shell radio options
-    for (const option of SHELL_OPTIONS) {
-      const row = this.createShellOption(option);
-      this.contentEl.appendChild(row);
-    }
-
-    // Git Bash path selector (only shown when gitbash is selected)
-    if (this.currentShellType === 'gitbash') {
-      this.contentEl.appendChild(this.createPathSelector());
+    if (this.platform === 'linux') {
+      this.renderLinuxShellSettings();
+    } else {
+      this.renderWindowsShellSettings();
     }
   }
 
+  // ---- Windows shell options ----
+
+  private renderWindowsShellSettings(): void {
+    const options: ShellOption[] = [
+      { type: 'gitbash', label: 'Git Bash', description: 'Git for Windows bash shell', hasPath: true, pathLabel: 'Git Bash Path' },
+      { type: 'cmd', label: 'Command Prompt', description: 'Windows cmd.exe' },
+      { type: 'powershell', label: 'PowerShell', description: 'Windows PowerShell' },
+      {
+        type: 'wsl',
+        label: 'WSL Bash',
+        description: this.wslAvailable
+          ? 'Windows Subsystem for Linux'
+          : 'Windows Subsystem for Linux — not available',
+        unavailableReason: this.wslAvailable ? undefined : 'WSL is not installed on this system',
+      },
+    ];
+
+    for (const option of options) {
+      this.contentEl.appendChild(this.createShellOption(option));
+      // Inline path selector right after the selected radio that needs it
+      if (option.hasPath && this.currentShellType === option.type) {
+        this.contentEl.appendChild(this.createPathSelector(option.pathLabel || 'Path', this.currentShellPath));
+      }
+    }
+  }
+
+  // ---- Linux shell settings ----
+
+  private renderLinuxShellSettings(): void {
+    const option: ShellOption = {
+      type: 'linux',
+      label: 'Linux Shell',
+      description: 'System shell',
+    };
+    this.contentEl.appendChild(this.createShellOption(option));
+
+    // Use Default checkbox
+    const checkRow = el('div');
+    setStyles(checkRow, {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '8px 12px',
+      marginBottom: '4px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+
+    const checkbox = el('input', { type: 'checkbox' }) as HTMLInputElement;
+    checkbox.checked = this.linuxUseDefault;
+    setStyles(checkbox, { marginRight: '8px', cursor: 'pointer' });
+    checkbox.addEventListener('change', () => {
+      this.linuxUseDefault = checkbox.checked;
+      window.api?.setSetting('shellUseDefault', this.linuxUseDefault);
+      if (this.linuxUseDefault) {
+        this.applyShellChange();
+      }
+      this.render();
+    });
+
+    const cbLabel = el('label', {}, 'Use default shell ($SHELL)');
+    setStyles(cbLabel, { fontSize: '13px', cursor: 'pointer' });
+    cbLabel.addEventListener('click', () => { checkbox.click(); });
+
+    checkRow.appendChild(checkbox);
+    checkRow.appendChild(cbLabel);
+    this.contentEl.appendChild(checkRow);
+
+    // Show path input when not using default
+    if (!this.linuxUseDefault) {
+      this.contentEl.appendChild(this.createPathInput('Shell Path', this.currentShellPath, '/bin/bash'));
+    }
+  }
+
+  // ---- Shared UI builders ----
+
   private createShellOption(option: ShellOption): HTMLElement {
     const isSelected = this.currentShellType === option.type;
+    const isDisabled = !!option.unavailableReason;
 
     const row = el('div');
     setStyles(row, {
@@ -150,13 +226,13 @@ export class SettingsTab extends Component {
       alignItems: 'center',
       padding: '8px 12px',
       marginBottom: '4px',
-      cursor: 'pointer',
+      cursor: isDisabled ? 'not-allowed' : 'pointer',
       borderRadius: '4px',
       backgroundColor: isSelected ? '#37373d' : 'transparent',
+      opacity: isDisabled ? '0.4' : '1',
       fontFamily: "'Segoe UI', sans-serif",
     });
 
-    // Radio circle
     const radio = el('div');
     setStyles(radio, {
       width: '16px',
@@ -180,56 +256,64 @@ export class SettingsTab extends Component {
       radio.appendChild(dot);
     }
 
-    const textCol = el('div');
+    const textCol = el('div', {}, '');
     const label = el('div', {}, option.label);
     setStyles(label, { fontSize: '13px', fontWeight: '500' });
     const desc = el('div', {}, option.description);
     setStyles(desc, { fontSize: '11px', opacity: '0.6', marginTop: '2px' });
     textCol.appendChild(label);
     textCol.appendChild(desc);
+    if (isDisabled && option.unavailableReason) {
+      const warn = el('div', {}, option.unavailableReason);
+      setStyles(warn, { fontSize: '11px', color: '#d19a66', marginTop: '2px' });
+      textCol.appendChild(warn);
+    }
 
     row.appendChild(radio);
     row.appendChild(textCol);
 
-    row.addEventListener('mouseenter', () => {
-      if (!isSelected) row.style.backgroundColor = '#2a2d2e';
-    });
-    row.addEventListener('mouseleave', () => {
-      if (!isSelected) row.style.backgroundColor = 'transparent';
-    });
-    row.addEventListener('click', () => {
-      if (this.currentShellType !== option.type) {
-        this.currentShellType = option.type;
-        this.applyShellChange();
-      }
-    });
+    if (!isDisabled) {
+      row.addEventListener('mouseenter', () => {
+        if (!isSelected) row.style.backgroundColor = '#2a2d2e';
+      });
+      row.addEventListener('mouseleave', () => {
+        if (!isSelected) row.style.backgroundColor = 'transparent';
+      });
+      row.addEventListener('click', () => {
+        if (this.currentShellType !== option.type) {
+          this.currentShellType = option.type;
+          this.applyShellChange();
+        }
+      });
+    }
 
     return row;
   }
 
-  private createPathSelector(): HTMLElement {
+  private createPathSelector(label: string, currentPath: string): HTMLElement {
     const container = el('div');
     setStyles(container, {
-      marginTop: '16px',
+      marginLeft: '40px',
+      marginBottom: '8px',
       padding: '12px',
       backgroundColor: '#252526',
       borderRadius: '4px',
       border: '1px solid #3e3e42',
     });
 
-    const label = el('div', {}, 'Git Bash Path');
-    setStyles(label, {
+    const pathLabel = el('div', {}, label);
+    setStyles(pathLabel, {
       fontSize: '12px',
       fontWeight: '600',
       marginBottom: '8px',
       fontFamily: "'Segoe UI', sans-serif",
     });
-    container.appendChild(label);
+    container.appendChild(pathLabel);
 
     const inputRow = el('div');
     setStyles(inputRow, { display: 'flex', gap: '8px', alignItems: 'center' });
 
-    const input = el('input', { type: 'text', value: this.currentShellPath }) as HTMLInputElement;
+    const input = el('input', { type: 'text', value: currentPath }) as HTMLInputElement;
     setStyles(input, {
       flex: '1',
       padding: '6px 8px',
@@ -279,12 +363,56 @@ export class SettingsTab extends Component {
     return container;
   }
 
+  private createPathInput(label: string, currentPath: string, placeholder: string): HTMLElement {
+    const container = el('div');
+    setStyles(container, {
+      marginLeft: '40px',
+      marginBottom: '8px',
+      padding: '12px',
+      backgroundColor: '#252526',
+      borderRadius: '4px',
+      border: '1px solid #3e3e42',
+    });
+
+    const pathLabel = el('div', {}, label);
+    setStyles(pathLabel, {
+      fontSize: '12px',
+      fontWeight: '600',
+      marginBottom: '8px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    container.appendChild(pathLabel);
+
+    const input = el('input', { type: 'text', value: currentPath, placeholder }) as HTMLInputElement;
+    setStyles(input, {
+      width: '100%',
+      padding: '6px 8px',
+      fontSize: '12px',
+      backgroundColor: '#3c3c3c',
+      color: '#cccccc',
+      border: '1px solid #555',
+      borderRadius: '3px',
+      outline: 'none',
+      boxSizing: 'border-box',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    input.addEventListener('focus', () => { input.style.borderColor = '#007acc'; });
+    input.addEventListener('blur', () => {
+      input.style.borderColor = '#555';
+      if (input.value !== this.currentShellPath) {
+        this.currentShellPath = input.value;
+        this.applyShellChange();
+      }
+    });
+
+    container.appendChild(input);
+    return container;
+  }
+
   private async applyShellChange(): Promise<void> {
     try {
       await window.api?.setSetting('shellType', this.currentShellType);
-      if (this.currentShellType === 'gitbash') {
-        await window.api?.setSetting('shellPath', this.currentShellPath);
-      }
+      await window.api?.setSetting('shellPath', this.currentShellPath);
       // Signal to App that this is a deliberate restart (not a user exit)
       (window as any).__restartingTerminalId = HOME_TERMINAL_ID;
       // Restart home terminal with new shell
@@ -294,5 +422,4 @@ export class SettingsTab extends Component {
     }
     this.render();
   }
-
 }

@@ -240,6 +240,13 @@ void app.whenReady().then(() => {
   // IPC handler for command-line args
   ipcMain.handle('get-command-line-args', () => process.argv);
 
+  // Platform detection
+  ipcMain.handle('get-platform', () => process.platform);
+  ipcMain.handle('check-wsl-available', () => {
+    if (process.platform !== 'win32') return false;
+    return existsSync('C:\\Windows\\System32\\wsl.exe');
+  });
+
   // Generic settings IPC
   ipcMain.handle('get-setting', (_e, key: string, defaults?: unknown) => getSetting(key, defaults));
   ipcMain.handle('set-setting', (_e, key: string, value: unknown) => {

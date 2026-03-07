@@ -91,6 +91,8 @@ declare global {
     api: {
       getVersion: () => Promise<string>;
       getCommandLineArgs: () => Promise<string[]>;
+      getPlatform: () => Promise<string>;
+      checkWslAvailable: () => Promise<boolean>;
       ping: () => Promise<string>;
       getSetting: <T = unknown>(key: string, defaults?: T) => Promise<T | undefined>;
       setSetting: (key: string, value: unknown) => Promise<unknown>;

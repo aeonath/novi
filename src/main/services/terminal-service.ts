@@ -13,7 +13,7 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { logInfo, logError } from '../logger';
 
-export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl';
+export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
 export const DEFAULT_GITBASH_PATH = 'C:\\Program Files\\Git\\bin\\bash.exe';
 
@@ -55,13 +55,19 @@ class TerminalService {
   resolveShellPath(type?: ShellType, customPath?: string): string {
     const shellType = type || this.configuredShellType;
 
-    if (process.platform !== 'win32') {
+    if (process.platform !== 'win32' || shellType === 'linux') {
+      // Linux: use custom path if provided, otherwise detect
+      const linuxPath = customPath || this.configuredShellPath;
+      if (shellType === 'linux' && linuxPath && existsSync(linuxPath)) {
+        logInfo(`[TerminalService] Using configured Linux shell: ${linuxPath}`);
+        return linuxPath;
+      }
       const userShell = process.env.SHELL;
       if (userShell && existsSync(userShell)) {
         logInfo(`[TerminalService] Using user shell: ${userShell}`);
         return userShell;
       }
-      for (const sh of ['/bin/bash', '/usr/bin/bash', '/bin/sh']) {
+      for (const sh of ['/bin/bash', '/usr/bin/bash', '/bin/zsh', '/bin/sh']) {
         if (existsSync(sh)) {
           logInfo(`[TerminalService] Using fallback shell: ${sh}`);
           return sh;
@@ -107,6 +113,7 @@ class TerminalService {
       case 'cmd': return [];
       case 'powershell': return ['-NoLogo'];
       case 'wsl': return [];
+      case 'linux': return ['--login', '-i'];
       case 'gitbash':
       default: return ['--login', '-i'];
     }
@@ -127,7 +134,7 @@ class TerminalService {
     // silently consumes, unlike the old 'echo' approach which produced visible
     // text that had to be regex-stripped and left orphaned ConPTY cursor
     // sequences that corrupted vim/TUI screen restoration.
-    const isBashLike = shellType === 'gitbash' || shellType === 'wsl';
+    const isBashLike = shellType === 'gitbash' || shellType === 'wsl' || shellType === 'linux';
     const envOverrides: Record<string, string> = {
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor',

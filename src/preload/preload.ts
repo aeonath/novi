@@ -10,6 +10,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('api', {
   getVersion: () => ipcRenderer.invoke('get-version'),
   getCommandLineArgs: () => ipcRenderer.invoke('get-command-line-args'),
+  getPlatform: () => ipcRenderer.invoke('get-platform'),
+  checkWslAvailable: () => ipcRenderer.invoke('check-wsl-available'),
   ping: () => Promise.resolve('pong'),
   getSetting: <T = unknown>(key: string, defaults?: T) =>
     ipcRenderer.invoke('get-setting', key, defaults),
