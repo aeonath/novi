@@ -11,7 +11,7 @@ import { Component } from '../core/component.js';
 import { el, clearChildren, setStyles } from '../core/dom.js';
 
 export type SettingsSection = 'terminal' | 'editor' | 'novi';
-export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
+export type ShellType = 'gitbash' | 'powershell' | 'wsl' | 'linux';
 
 const HOME_TERMINAL_ID = 'terminal-home';
 
@@ -147,7 +147,6 @@ export class SettingsTab extends Component {
   private renderWindowsShellSettings(): void {
     const options: ShellOption[] = [
       { type: 'gitbash', label: 'Git Bash', description: 'Git for Windows bash shell', hasPath: true, pathLabel: 'Git Bash Path' },
-      { type: 'cmd', label: 'Command Prompt', description: 'Windows cmd.exe' },
       { type: 'powershell', label: 'PowerShell', description: 'Windows PowerShell' },
       {
         type: 'wsl',
@@ -155,7 +154,7 @@ export class SettingsTab extends Component {
         description: this.wslAvailable
           ? 'Windows Subsystem for Linux'
           : 'Windows Subsystem for Linux — not available',
-        unavailableReason: this.wslAvailable ? undefined : 'WSL is not installed on this system',
+        unavailableReason: this.wslAvailable ? undefined : 'WSL is not installed or has no distributions',
       },
     ];
 
@@ -293,7 +292,6 @@ export class SettingsTab extends Component {
   private createPathSelector(label: string, currentPath: string): HTMLElement {
     const container = el('div');
     setStyles(container, {
-      marginLeft: '40px',
       marginBottom: '8px',
       padding: '12px',
       backgroundColor: '#252526',
@@ -366,7 +364,6 @@ export class SettingsTab extends Component {
   private createPathInput(label: string, currentPath: string, placeholder: string): HTMLElement {
     const container = el('div');
     setStyles(container, {
-      marginLeft: '40px',
       marginBottom: '8px',
       padding: '12px',
       backgroundColor: '#252526',

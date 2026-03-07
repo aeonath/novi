@@ -17,10 +17,10 @@ describe('Terminal Shell Configuration', () => {
     expect(DEFAULT_GITBASH_PATH).toBe('C:\\Program Files\\Git\\bin\\bash.exe');
   });
 
-  it('should define all four shell types', () => {
+  it('should define all shell types', () => {
     // Type-level test: ensure ShellType covers all options
-    type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl';
-    const types: ShellType[] = ['gitbash', 'cmd', 'powershell', 'wsl'];
+    type ShellType = 'gitbash' | 'powershell' | 'wsl' | 'linux';
+    const types: ShellType[] = ['gitbash', 'powershell', 'wsl', 'linux'];
     expect(types).toHaveLength(4);
   });
 });

@@ -51,7 +51,6 @@ describe('SettingsTab', () => {
     const content = tab.getElement().querySelector('div');
     const text = content?.textContent || '';
     expect(text).toContain('Git Bash');
-    expect(text).toContain('Command Prompt');
     expect(text).toContain('PowerShell');
     expect(text).toContain('WSL Bash');
   });

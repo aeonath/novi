@@ -1,0 +1,43 @@
+# Changelog — 2026-03-07 12:38.1
+
+## Ad hoc: Remove cmd.exe, fix WSL detection, align path selector
+
+### Problem
+- Git Bash path selector was indented 40px from radio buttons instead of left-aligned
+- WSL detection used `existsSync('wsl.exe')` which returns true on all modern Windows
+  (wsl.exe is pre-installed) even when no WSL distributions are installed
+- cmd.exe shell option doesn't work properly with our xterm.js/node-pty terminal
+  (archaic, non-standard terminal semantics)
+
+### What Changed
+
+#### Path Selector Alignment (`SettingsTab.ts`)
+- Removed `marginLeft: '40px'` from both `createPathSelector` and `createPathInput`
+- Path input now left-aligns with radio buttons
+
+#### WSL Detection (`main.ts`)
+- `check-wsl-available` IPC handler now runs `wsl.exe --list --quiet` and checks
+  for installed distributions instead of just checking if `wsl.exe` exists
+- Uses `execFileSync` with utf16le encoding (WSL outputs UTF-16), 5s timeout
+- Returns `false` if no distros are installed or if the command fails
+
+#### cmd.exe Removed
+- Removed `'cmd'` from `ShellType` union in both `SettingsTab.ts` and `terminal-service.ts`
+- Removed cmd.exe from shell options UI (was "Command Prompt")
+- Removed cmd case from `resolveShellPath()` and `getShellArgs()`
+- Git Bash fallback now goes to PowerShell instead of cmd.exe
+- Shell options: Git Bash, PowerShell, WSL Bash (Windows) / Linux Shell (Linux)
+
+### Files Changed
+- `src/renderer/components/SettingsTab.ts` — path alignment, remove cmd option
+- `src/main/services/terminal-service.ts` — remove cmd from ShellType and switch cases
+- `src/main/main.ts` — WSL detection via `wsl --list --quiet`
+- `src/tests/core-0.8.0/terminal-shell.test.ts` — update type test
+- `src/tests/core-0.8.0/settings-tab.test.ts` — remove Command Prompt assertion
+- `src/tests/core-0.4.0/terminal-service.test.ts` — fallback now PowerShell
+
+### Tests
+- 646 passed, 0 failed (39 suites)
+
+### Commit
+`TBD`

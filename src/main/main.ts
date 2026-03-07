@@ -6,6 +6,7 @@
 import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
 import { join, normalize, dirname } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { readdir, stat, readFile, writeFile, mkdir, rm, rename as fsRename } from 'node:fs/promises';
 import { getSetting, setSetting } from './settings';
 import { logInfo, logError } from './logger';
@@ -244,7 +245,19 @@ void app.whenReady().then(() => {
   ipcMain.handle('get-platform', () => process.platform);
   ipcMain.handle('check-wsl-available', () => {
     if (process.platform !== 'win32') return false;
-    return existsSync('C:\\Windows\\System32\\wsl.exe');
+    if (!existsSync('C:\\Windows\\System32\\wsl.exe')) return false;
+    try {
+      const output = execFileSync('C:\\Windows\\System32\\wsl.exe', ['--list', '--quiet'], {
+        encoding: 'utf16le',
+        timeout: 5000,
+        windowsHide: true,
+      });
+      // Check if any non-empty lines exist (actual distro names)
+      const distros = output.split(/\r?\n/).filter(line => line.trim().length > 0);
+      return distros.length > 0;
+    } catch {
+      return false;
+    }
   });
 
   // Generic settings IPC

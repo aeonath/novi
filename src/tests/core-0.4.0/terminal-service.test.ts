@@ -72,12 +72,12 @@ describe('TerminalService', () => {
         );
       });
 
-      it('should fallback to cmd.exe if Git bash not found on Windows', () => {
+      it('should fallback to PowerShell if Git bash not found on Windows', () => {
         (existsSync as jest.Mock).mockReturnValue(false);
 
         terminalService.createSession();
         expect(pty.spawn).toHaveBeenCalledWith(
-          'C:\\Windows\\System32\\cmd.exe',
+          'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
           ['--login', '-i'],
           expect.objectContaining({ name: 'xterm-256color' })
         );

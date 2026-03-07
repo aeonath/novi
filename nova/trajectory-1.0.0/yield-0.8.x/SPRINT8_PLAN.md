@@ -35,3 +35,15 @@ be configured form this file as well.  ~/.novirc settings will override any
 settings saved for the users configuration.  The users current configuration does not save to this file.
 
 This is two tasks in one, build the terminal settings first then reconcillate our novirc implementation.
+
+## Task 3 - add ctrl+tab
+
+Description:
+Add CTRL+TAB keyboard shortcut to cycle through tabs
+
+Edit
+Additional Notes:
+doesn't currently acknowledge this common shortcut.
+
+## Task 4 - add msys2 option to the terminal settings
+
