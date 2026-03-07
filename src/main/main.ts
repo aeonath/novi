@@ -1052,6 +1052,13 @@ void app.whenReady().then(() => {
       // Send initial CWD so file tree can show it before first PWD from shell
       if (!mainWindowRef.isDestroyed()) {
         mainWindowRef.webContents.send('terminal-initial-cwd', terminalId, cwdPath);
+        // Shells without PROMPT_COMMAND (cmd, powershell) never emit OSC 7,
+        // so the file tree stays in loading state. Send terminal-pwd directly.
+        const shellType = terminalService.getShellType();
+        const isBashLike = shellType === 'gitbash' || shellType === 'wsl' || shellType === 'linux';
+        if (!isBashLike) {
+          mainWindowRef.webContents.send('terminal-pwd', terminalId, cwdPath);
+        }
       }
 
       // Forward PTY output to renderer
@@ -1188,7 +1195,15 @@ void app.whenReady().then(() => {
         return { success: false };
       }
       // Send initial CWD
-      mainWindowRef.webContents.send('terminal-initial-cwd', terminalId, cwd || process.cwd());
+      const resolvedCwd = cwd || process.cwd();
+      mainWindowRef.webContents.send('terminal-initial-cwd', terminalId, resolvedCwd);
+      // Shells without PROMPT_COMMAND (cmd, powershell) never emit OSC 7,
+      // so the file tree stays in loading state. Send terminal-pwd directly.
+      const shellType = terminalService.getShellType();
+      const isBashLike = shellType === 'gitbash' || shellType === 'wsl' || shellType === 'linux';
+      if (!isBashLike) {
+        mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedCwd);
+      }
       // Re-attach PTY output forwarding
       const OSC7_RE = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*)(?:\x07|\x1b\\)/;
       let dataBuffer = '';
