@@ -367,9 +367,12 @@ export class Terminal extends Component {
   protected onDestroy(): void {
     this.hideContextMenu();
     this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     if ((window as any).__terminalAPI) {
       delete (window as any).__terminalAPI[this.terminalId];
     }
-    // NOTE: terminal is NOT disposed here — it persists to preserve history
+    this.terminal?.dispose();
+    this.terminal = null;
+    this.fitAddon = null;
   }
 }

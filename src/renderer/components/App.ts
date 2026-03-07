@@ -345,6 +345,31 @@ export class App extends Component {
     return this.terminalInstances.get(terminalId)?.instance;
   }
 
+  /**
+   * Destroy and recreate the home terminal from scratch.
+   * Used when switching shells — ensures truly fresh state identical to first load.
+   */
+  async recreateHomeTerminal(): Promise<void> {
+    // Suppress exit handler quit for the deliberate kill
+    (window as any).__restartingTerminalId = HOME_TERMINAL_ID;
+    // Kill old PTY
+    await window.api?.terminalKill?.(HOME_TERMINAL_ID);
+    // Clear buffers and API for old instance
+    this.earlyTerminalData.delete(HOME_TERMINAL_ID);
+    if ((window as any).__terminalAPI) {
+      delete (window as any).__terminalAPI[HOME_TERMINAL_ID];
+    }
+    // Destroy old Terminal component and remove its DOM
+    const old = this.terminalInstances.get(HOME_TERMINAL_ID);
+    if (old) {
+      old.instance.destroy();
+      old.container.remove();
+      this.terminalInstances.delete(HOME_TERMINAL_ID);
+    }
+    // syncTerminalInstances creates a fresh Terminal for the existing tab entry
+    this.syncTerminalInstances();
+  }
+
   /** Flush any buffered terminal data that arrived before xterm was ready */
   flushEarlyTerminalData(terminalId: string): void {
     const buffer = this.earlyTerminalData.get(terminalId);

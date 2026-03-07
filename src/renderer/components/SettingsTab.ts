@@ -13,8 +13,6 @@ import { el, clearChildren, setStyles } from '../core/dom.js';
 export type SettingsSection = 'terminal' | 'editor' | 'novi';
 export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
-const HOME_TERMINAL_ID = 'terminal-home';
-
 interface ShellOption {
   type: ShellType;
   label: string;
@@ -413,13 +411,8 @@ export class SettingsTab extends Component {
       await window.api?.setSetting('shellPath', this.currentShellPath);
       // Update status bar shell label
       (window as any).__appInstance?.updateShellLabel?.(this.currentShellType);
-      // Signal to App that this is a deliberate restart (not a user exit)
-      (window as any).__restartingTerminalId = HOME_TERMINAL_ID;
-      // Full restart: kill PTY, dispose xterm, reinit from scratch
-      const terminal = (window as any).__appInstance?.getTerminalInstance?.(HOME_TERMINAL_ID);
-      if (terminal?.restartTerminal) {
-        await terminal.restartTerminal();
-      }
+      // Destroy and recreate home terminal from scratch (truly fresh, like first load)
+      await (window as any).__appInstance?.recreateHomeTerminal?.();
     } catch (error) {
       console.error('[SettingsTab] Failed to apply shell change:', error);
     }
