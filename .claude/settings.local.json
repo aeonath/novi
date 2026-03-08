@@ -18,7 +18,9 @@
       "Bash(node -e \":*)",
       "Bash(npx --yes jimp-cli --help)",
       "Bash(xxd c:/Work/novi/build/installer-icon.ico)",
-      "Bash(node -e \"console.log\\(process.platform\\)\")"
+      "Bash(node -e \"console.log\\(process.platform\\)\")",
+      "Bash(ls:*)",
+      "Bash(fc-match monospace:*)"
     ]
   }
 }

@@ -139,7 +139,7 @@ export class Terminal extends Component {
     // Measure with temp terminal
     const tempTerminal = new XTerm({
       fontSize: this.fontSize,
-      fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
+      fontFamily: "'DejaVu Sans Mono', monospace",
       lineHeight: 1.2,
     });
     const tempFitAddon = new FitAddon();
@@ -185,7 +185,7 @@ export class Terminal extends Component {
         brightBlue: '#3b8eea', brightMagenta: '#d670d6', brightCyan: '#29b8db', brightWhite: '#e5e5e5',
       },
       fontSize: this.fontSize,
-      fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
+      fontFamily: "'DejaVu Sans Mono', monospace",
       cursorBlink: false, cursorStyle: 'underline', cursorWidth: 2,
       lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
     });

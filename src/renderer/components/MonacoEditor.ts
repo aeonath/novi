@@ -161,7 +161,7 @@ export class MonacoEditor extends Component {
         value: '', language: 'typescript',
         theme: theme?.name === 'light' ? 'novi-light' : 'novi-dark',
         fontSize: this._fontSize,
-        fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace",
+        fontFamily: "'DejaVu Sans Mono', monospace",
         wordWrap: this._wordWrap, wrappingStrategy: 'advanced', wrappingIndent: 'same',
         lineHeight: this._fontSize + 8,
         minimap: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false,

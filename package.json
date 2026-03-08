@@ -70,7 +70,7 @@
       }
     ],
     "linux": {
-      "icon": "build/icons",
+      "icon": "build/icon.png",
       "category": "Development",
       "target": [
         {
