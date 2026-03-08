@@ -53,13 +53,15 @@ export class TabBar extends Component {
     this.config = config;
     Object.assign(this.el.style, {
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'stretch',
       backgroundColor: '#252526',
       borderBottom: '1px solid #3e3e42',
-      minHeight: '35px',
+      height: '35px',
       overflowX: 'auto',
       overflowY: 'hidden',
       userSelect: 'none',
+      padding: '0',
+      margin: '0',
     });
     this.render();
   }
@@ -204,7 +206,7 @@ export class TabBar extends Component {
 
     const tabEl = el('div', {
       style: [
-        'display: flex', 'align-items: center', 'padding: 8px 12px',
+        'display: flex', 'align-items: center', 'padding: 0 12px',
         'font-size: 13px', 'cursor: pointer', 'border-right: 1px solid #3e3e42',
         'transition: background-color 0.15s ease', 'min-width: 100px', 'max-width: 200px',
         `background-color: ${isActive ? '#3e3e40' : '#2d2d30'}`,
