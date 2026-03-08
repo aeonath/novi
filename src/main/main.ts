@@ -1119,6 +1119,9 @@ void app.whenReady().then(() => {
               const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
               if (norm(resolvedPath) !== norm(targetPath)) {
                 session.pty.write(`cd "${targetPath.replace(/\\/g, '/')}" && clear\r`);
+              } else {
+                // Already in the right directory — notify renderer so the file tree loads
+                mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedPath);
               }
             } else {
               mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedPath);
