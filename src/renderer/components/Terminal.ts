@@ -246,36 +246,20 @@ export class Terminal extends Component {
   }
 
   /**
-   * Restart after the PTY has already exited (e.g. user typed `exit`).
-   * Synchronously cleans up old xterm, then creates a new PTY and xterm.
-   * No kill needed since the process is already dead.
+   * Respawn the shell after the PTY has already exited (e.g. user typed `exit`).
+   * The xterm and Terminal component stay alive — only a new PTY is created.
    */
-  restartAfterExit(): void {
-    const savedCols = this.terminal?.cols || 120;
-    const savedRows = this.terminal?.rows || 30;
-    // Synchronously dispose old xterm and state
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    if ((window as any).__terminalAPI) {
-      delete (window as any).__terminalAPI[this.terminalId];
-    }
-    this.terminal?.dispose();
-    this.terminal = null;
-    this.fitAddon = null;
-    this.isReady = false;
-    this.hasInitialFit = false;
-    this.ptyCreated = false;
-    this.container.style.opacity = '0';
-    // Create new PTY — the only async part (IPC). When it resolves, build new xterm.
-    (window as any).api?.terminalCreate(this.workspaceRoot, savedCols, savedRows, this.terminalId)
+  respawnShell(): void {
+    const cols = this.terminal?.cols || 120;
+    const rows = this.terminal?.rows || 30;
+    this.terminal?.reset();
+    (window as any).api?.terminalCreate(this.workspaceRoot, cols, rows, this.terminalId)
       .then(() => {
         this.ptyCreated = true;
-        if (this._isActive) {
-          this.initPhase2();
-        }
+        if (this._isActive) this.terminal?.focus();
       })
       .catch((err: unknown) => {
-        console.error('[Terminal] Failed to restart after exit:', err);
+        console.error('[Terminal] Failed to respawn shell:', err);
       });
   }
 

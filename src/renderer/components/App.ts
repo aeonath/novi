@@ -382,10 +382,10 @@ export class App extends Component {
     this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
     const tabBarAPI = (window as any).__tabBarAPI;
     if (tabBarAPI) tabBarAPI.switchTab(HOME_TERMINAL_ID);
-    // Restart the existing Terminal in-place (PTY already dead, no kill needed)
+    // Spawn a new shell in the existing home terminal (PTY already dead)
     const existing = this.terminalInstances.get(HOME_TERMINAL_ID);
     if (existing) {
-      existing.instance.restartAfterExit();
+      existing.instance.respawnShell();
     }
   }
 
