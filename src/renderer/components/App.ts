@@ -376,20 +376,17 @@ export class App extends Component {
    * Unlike recreateHomeTerminal(), this skips terminalKill since the process is already dead.
    */
   private restartDeadHomeTerminal(): void {
-    // Clear buffers and API for old instance
     this.earlyTerminalData.delete(HOME_TERMINAL_ID);
-    if ((window as any).__terminalAPI) {
-      delete (window as any).__terminalAPI[HOME_TERMINAL_ID];
+    // Switch to home tab
+    this.showWelcome = false;
+    this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+    const tabBarAPI = (window as any).__tabBarAPI;
+    if (tabBarAPI) tabBarAPI.switchTab(HOME_TERMINAL_ID);
+    // Restart the existing Terminal in-place (PTY already dead, no kill needed)
+    const existing = this.terminalInstances.get(HOME_TERMINAL_ID);
+    if (existing) {
+      existing.instance.restartAfterExit();
     }
-    // Destroy old Terminal component and remove its DOM
-    const old = this.terminalInstances.get(HOME_TERMINAL_ID);
-    if (old) {
-      old.instance.destroy();
-      old.container.remove();
-      this.terminalInstances.delete(HOME_TERMINAL_ID);
-    }
-    // syncTerminalInstances creates a fresh Terminal for the existing tab entry
-    this.syncTerminalInstances();
   }
 
   /** Flush any buffered terminal data that arrived before xterm was ready */

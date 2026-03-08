@@ -246,6 +246,40 @@ export class Terminal extends Component {
   }
 
   /**
+   * Restart after the PTY has already exited (e.g. user typed `exit`).
+   * Synchronously cleans up old xterm, then creates a new PTY and xterm.
+   * No kill needed since the process is already dead.
+   */
+  restartAfterExit(): void {
+    const savedCols = this.terminal?.cols || 120;
+    const savedRows = this.terminal?.rows || 30;
+    // Synchronously dispose old xterm and state
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    if ((window as any).__terminalAPI) {
+      delete (window as any).__terminalAPI[this.terminalId];
+    }
+    this.terminal?.dispose();
+    this.terminal = null;
+    this.fitAddon = null;
+    this.isReady = false;
+    this.hasInitialFit = false;
+    this.ptyCreated = false;
+    this.container.style.opacity = '0';
+    // Create new PTY — the only async part (IPC). When it resolves, build new xterm.
+    (window as any).api?.terminalCreate(this.workspaceRoot, savedCols, savedRows, this.terminalId)
+      .then(() => {
+        this.ptyCreated = true;
+        if (this._isActive) {
+          this.initPhase2();
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('[Terminal] Failed to restart after exit:', err);
+      });
+  }
+
+  /**
    * Full restart: kill PTY, dispose xterm, reinitialize from scratch.
    * Used when switching shells — ensures clean state like a fresh tab.
    */
