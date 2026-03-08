@@ -423,6 +423,8 @@ export class App extends Component {
       window.api.terminalRemoveExitListener();
       window.api.terminalOnExit((terminalId: string, exitCode: number) => {
         console.log('[App] Terminal', terminalId, 'exited with code', exitCode);
+        const inst = this.terminalInstances.get(terminalId);
+        if (inst) inst.instance.markPtyExited();
         if (terminalId === HOME_TERMINAL_ID) {
           if ((window as any).__restartingTerminalId === terminalId) {
             (window as any).__restartingTerminalId = null;

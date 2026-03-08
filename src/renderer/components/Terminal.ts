@@ -90,7 +90,7 @@ export class Terminal extends Component {
               this.fitAddon.fit();
               const newCols = this.terminal.cols;
               const newRows = this.terminal.rows;
-              if (this.onResize && (newCols !== oldCols || newRows !== oldRows) && newCols > 0 && newRows > 0) {
+              if (this.ptyCreated && this.onResize && (newCols !== oldCols || newRows !== oldRows) && newCols > 0 && newRows > 0) {
                 this.onResize(newCols, newRows);
               }
               this.terminal.scrollToBottom();
@@ -233,7 +233,7 @@ export class Terminal extends Component {
     this.resizeObserver = new ResizeObserver(() => {
       if (this.fitAddon && this.terminal) {
         this.fitAddon.fit();
-        if (this.onResize && this.terminal.cols && this.terminal.rows) {
+        if (this.ptyCreated && this.onResize && this.terminal.cols && this.terminal.rows) {
           this.onResize(this.terminal.cols, this.terminal.rows);
         }
       }
@@ -243,6 +243,11 @@ export class Terminal extends Component {
 
   resetTerminal(): void {
     this.terminal?.reset();
+  }
+
+  /** Mark the PTY as dead so resize events are not forwarded */
+  markPtyExited(): void {
+    this.ptyCreated = false;
   }
 
   /**
