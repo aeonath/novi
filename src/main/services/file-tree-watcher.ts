@@ -55,7 +55,7 @@ export class FileTreeWatcher extends EventEmitter {
             '/.git/',
             '/dist/',
             '/build/',
-            '/.nova/',
+            '/.novi/',
           ];
           const ignoredFiles = ['.DS_Store', '.swp', '.swo'];
           for (const pattern of ignoredPatterns) {

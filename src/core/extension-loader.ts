@@ -6,7 +6,7 @@
 /**
  * Extension Loader - Loads syntax extensions for Monaco Editor
  * 
- * This module loads TextMate grammars from Nova extensions and registers
+ * This module loads TextMate grammars from Novi extensions and registers
  * them with Monaco Editor for syntax highlighting support.
  */
 
@@ -73,11 +73,11 @@ interface SingleExtensionResult {
 }
 
 /**
- * Get the Nova extensions directory path
+ * Get the Novi extensions directory path
  */
 export function getExtensionsDir(): string {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(homeDir, '.nova', 'extensions');
+  return path.join(homeDir, '.novi', 'extensions');
 }
 
 /**
@@ -182,10 +182,10 @@ async function loadSingleExtension(extensionDir: string, extensionName: string):
 }
 
 /**
- * Load all syntax extensions from ~/.nova/extensions/*
+ * Load all syntax extensions from ~/.novi/extensions/*
  * 
  * This function:
- * 1. Scans all folders under ~/.nova/extensions/
+ * 1. Scans all folders under ~/.novi/extensions/
  * 2. Reads package.json from each folder
  * 3. Filters by activationEvents (only onLanguage:*)
  * 4. Validates language and grammar contributions
@@ -257,7 +257,7 @@ export async function loadAllExtensions(): Promise<ExtensionLoadResult> {
 }
 
 /**
- * Load the Lyric language extension from ~/.nova/extensions/lyric-lang
+ * Load the Lyric language extension from ~/.novi/extensions/lyric-lang
  * 
  * This function:
  * 1. Reads the extension manifest (package.json)

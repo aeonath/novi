@@ -9,7 +9,7 @@
  */
 
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync, copyFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -44,9 +44,29 @@ export class WorkspaceManager {
   private workspaceFile: string;
 
   constructor() {
-    // Store workspace in user's home directory under .nova
-    this.configDir = join(homedir(), '.nova');
-    this.workspaceFile = join(this.configDir, 'workspacerc.json');
+    // Store workspace in user's home directory under .novi
+    this.configDir = join(homedir(), '.novi');
+    this.workspaceFile = join(this.configDir, 'workspacerc');
+    this.migrateFromLegacy();
+  }
+
+  /**
+   * Migrate from legacy ~/.nova/workspacerc.json to ~/.novi/workspacerc
+   */
+  private migrateFromLegacy(): void {
+    const legacyDir = join(homedir(), '.nova');
+    const legacyFile = join(legacyDir, 'workspacerc.json');
+    if (existsSync(legacyFile) && !existsSync(this.workspaceFile)) {
+      try {
+        if (!existsSync(this.configDir)) {
+          mkdirSync(this.configDir, { recursive: true });
+        }
+        copyFileSync(legacyFile, this.workspaceFile);
+        console.log('[WorkspaceManager] Migrated workspace from ~/.nova/workspacerc.json to ~/.novi/workspacerc');
+      } catch (err) {
+        console.error('[WorkspaceManager] Migration failed:', err);
+      }
+    }
   }
 
   /**

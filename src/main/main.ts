@@ -309,7 +309,7 @@ void app.whenReady().then(() => {
         const { join: pathJoin } = await import('node:path');
         const { homedir } = await import('node:os');
         
-        const extensionsDir = pathJoin(homedir(), '.nova', 'extensions');
+        const extensionsDir = pathJoin(homedir(), '.novi', 'extensions');
         const manifestPath = pathJoin(extensionsDir, 'lyric-lang', 'package.json');
         const manifest = JSON.parse(await fsReadFile(manifestPath, 'utf-8'));
         

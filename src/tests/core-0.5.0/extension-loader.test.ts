@@ -34,7 +34,7 @@ describe('extension-loader', () => {
     it('should return the extensions directory path', () => {
       const extensionsDir = getExtensionsDir();
       expect(extensionsDir).toBeDefined();
-      expect(extensionsDir).toContain('.nova');
+      expect(extensionsDir).toContain('.novi');
       expect(extensionsDir).toContain('extensions');
     });
 

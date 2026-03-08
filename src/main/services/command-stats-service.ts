@@ -5,7 +5,7 @@
 
 /**
  * command-stats-service.ts - Track command execution frequency
- * Stores command usage statistics in ~/.nova/action-hud-stats
+ * Stores command usage statistics in ~/.novi/action-hud-stats
  */
 
 import { homedir } from 'node:os';
@@ -33,7 +33,7 @@ class CommandStatsService {
   private saveTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
-    this.configDir = join(homedir(), '.nova');
+    this.configDir = join(homedir(), '.novi');
     this.statsFile = join(this.configDir, 'action-hud-stats');
   }
 

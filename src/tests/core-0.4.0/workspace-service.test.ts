@@ -204,8 +204,8 @@ openNoviPrompts=`;
       const path = workspaceManager.getWorkspaceFilePath();
       
       expect(path).toBeDefined();
-      expect(path).toContain('.nova');
-      expect(path).toContain('workspacerc.json');
+      expect(path).toContain('.novi');
+      expect(path).toContain('workspacerc');
     });
   });
 
