@@ -371,6 +371,27 @@ export class App extends Component {
     this.syncTerminalInstances();
   }
 
+  /**
+   * Restart the home terminal after the PTY has already exited.
+   * Unlike recreateHomeTerminal(), this skips terminalKill since the process is already dead.
+   */
+  private restartDeadHomeTerminal(): void {
+    // Clear buffers and API for old instance
+    this.earlyTerminalData.delete(HOME_TERMINAL_ID);
+    if ((window as any).__terminalAPI) {
+      delete (window as any).__terminalAPI[HOME_TERMINAL_ID];
+    }
+    // Destroy old Terminal component and remove its DOM
+    const old = this.terminalInstances.get(HOME_TERMINAL_ID);
+    if (old) {
+      old.instance.destroy();
+      old.container.remove();
+      this.terminalInstances.delete(HOME_TERMINAL_ID);
+    }
+    // syncTerminalInstances creates a fresh Terminal for the existing tab entry
+    this.syncTerminalInstances();
+  }
+
   /** Flush any buffered terminal data that arrived before xterm was ready */
   flushEarlyTerminalData(terminalId: string): void {
     const buffer = this.earlyTerminalData.get(terminalId);
@@ -1489,7 +1510,7 @@ export class App extends Component {
     }, 'No');
     noBtn.addEventListener('click', () => {
       this.hideExitConfirmDialog();
-      this.recreateHomeTerminal();
+      this.restartDeadHomeTerminal();
     });
     noBtn.addEventListener('mouseenter', () => noBtn.style.backgroundColor = '#005a9e');
     noBtn.addEventListener('mouseleave', () => noBtn.style.backgroundColor = '#007acc');
