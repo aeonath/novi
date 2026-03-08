@@ -44,7 +44,8 @@ applyDebugMode(!!getSetting<boolean>('debug', false));
 
 // Load shell settings at startup
 {
-  const shellType = getSetting<ShellType>('shellType', 'gitbash') || 'gitbash';
+  const defaultShellType: ShellType = process.platform === 'win32' ? 'gitbash' : 'linux';
+  const shellType = getSetting<ShellType>('shellType', defaultShellType) || defaultShellType;
   const shellPath = getSetting<string>('shellPath', DEFAULT_GITBASH_PATH) || DEFAULT_GITBASH_PATH;
   terminalService.setShell(shellType, shellPath);
 }
@@ -279,7 +280,8 @@ void app.whenReady().then(() => {
     setSetting(key, value);
     if (key === 'debug') applyDebugMode(!!value);
     if (key === 'shellType' || key === 'shellPath') {
-      const st = getSetting<ShellType>('shellType', 'gitbash') || 'gitbash';
+      const defaultSt: ShellType = process.platform === 'win32' ? 'gitbash' : 'linux';
+      const st = getSetting<ShellType>('shellType', defaultSt) || defaultSt;
       const sp = getSetting<string>('shellPath', DEFAULT_GITBASH_PATH) || DEFAULT_GITBASH_PATH;
       terminalService.setShell(st, sp);
     }

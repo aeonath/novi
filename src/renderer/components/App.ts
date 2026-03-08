@@ -68,7 +68,7 @@ export class App extends Component {
   private previousActiveTabId: string | null = null;
   private lastFileTreeRoot: string | null = null;
   private welcomeContextMenu: { x: number; y: number } | null = null;
-  private shellLabel = 'git-bash';
+  private shellLabel = 'Terminal';
   // restartingTerminalId tracked via (window as any).__restartingTerminalId
 
   // ---- DOM refs ----
@@ -589,8 +589,9 @@ export class App extends Component {
       case 'cmd': return 'cmd.exe';
       case 'powershell': return 'powershell.exe';
       case 'wsl': return 'WSL';
-      case 'linux': return 'linux';
-      default: return 'git-bash';
+      case 'linux': return 'Linux';
+      case 'gitbash': return 'Git Bash';
+      default: return 'Terminal';
     }
   }
 
@@ -999,10 +1000,13 @@ export class App extends Component {
       }
       (window as any).__statusBarAPI?.setStatus(`Editing: ${tab.fileName}`);
     } else if (tab.type === 'image') {
+      (window as any).__statusBarAPI?.removeItem?.('editor-position');
       (window as any).__statusBarAPI?.setStatus(`Viewing: ${tab.fileName}`);
     } else if (tab.type === 'terminal') {
+      (window as any).__statusBarAPI?.removeItem?.('editor-position');
       (window as any).__statusBarAPI?.setStatus(`${this.shellLabel} Terminal: ${tab.fileName}`);
     } else if (tab.type === 'settings') {
+      (window as any).__statusBarAPI?.removeItem?.('editor-position');
       (window as any).__statusBarAPI?.setStatus('Settings');
     }
 
