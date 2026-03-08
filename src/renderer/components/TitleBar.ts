@@ -80,6 +80,7 @@ const MENUS: Record<string, MenuItem[]> = {
 const FONT_COMMANDS = ['increase-font-size', 'decrease-font-size', 'reset-font-size'];
 const SAVE_COMMANDS = ['save', 'save-as'];
 const EDITOR_ONLY_COMMANDS = ['command-palette'];
+const SETTINGS_DISABLED_COMMANDS = ['show-hidden-files'];
 
 export class TitleBar extends Component {
   private config: TitleBarConfig;
@@ -318,7 +319,8 @@ export class TitleBar extends Component {
       const disabled = item.disabled === true ||
         ((tabType === 'novi-prompt' || tabType === 'settings') && item.command && FONT_COMMANDS.includes(item.command)) ||
         (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command)) ||
-        (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command));
+        (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command)) ||
+        (tabType === 'settings' && item.command && SETTINGS_DISABLED_COMMANDS.includes(item.command));
 
       const menuItem = el('div', {
         style: [
