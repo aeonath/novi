@@ -71,8 +71,9 @@
       }
     ],
     "linux": {
-      "icon": "build/icon.png",
+      "icon": "build/icons",
       "category": "Development",
+      "executableName": "novi",
       "target": [
         {
           "target": "deb",
@@ -80,7 +81,10 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "desktop": {
+        "StartupWMClass": "novi"
+      }
     },
     "win": {
       "icon": "build/icon.ico",

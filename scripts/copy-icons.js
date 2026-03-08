@@ -19,14 +19,19 @@ fs.copyFileSync(appIcon, path.join(buildDir, 'icon.png'));
 const isLinux = process.platform === 'linux';
 
 if (isLinux) {
-  // Generate Linux icon sizes with ImageMagick
-  try {
-    for (const s of [16, 32, 48, 64, 128, 256, 512]) {
-      execSync(`convert ${appIcon} -resize ${s}x${s} ${path.join(iconsDir, `${s}x${s}.png`)}`);
-    }
-  } catch (e) {
-    console.log('ImageMagick not found, skipping Linux icon sizes');
-  }
+  // Generate Linux icon sizes with sharp
+  const sharp = require('sharp');
+  const sizes = [16, 32, 48, 64, 128, 256, 512];
+  Promise.all(
+    sizes.map(s =>
+      sharp(appIcon)
+        .resize(s, s)
+        .png()
+        .toFile(path.join(iconsDir, `${s}x${s}.png`))
+        .then(() => console.log(`Generated icons/${s}x${s}.png`))
+    )
+  ).then(() => console.log('All Linux icon sizes generated'))
+   .catch(e => console.error('Failed to generate Linux icon sizes: ' + e.message));
 } else {
   // Generate app .ico (for Windows exe)
   try {

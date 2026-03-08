@@ -23,7 +23,13 @@
       "Bash(fc-match monospace:*)",
       "Bash(python3:*)",
       "Bash(npm install:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "Bash(node:*)",
+      "Bash(npm run:*)",
+      "Bash(dpkg-deb:*)",
+      "Bash(tar -xf - --to-stdout ./usr/share/applications/novi.desktop)",
+      "Bash(sudo dpkg:*)"
     ]
   }
 }
