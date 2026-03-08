@@ -145,7 +145,7 @@ function createWindow(): void {
     frame: false, // Enable frameless window for custom title bar
     show: false, // Don't show until ready to prevent white screen
     backgroundColor: '#1e1e1e', // Match app background color
-    icon: join(__dirname, '../../build/icon.png'),
+    icon: join(__dirname, '../renderer/assets/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,

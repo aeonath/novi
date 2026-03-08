@@ -20,7 +20,10 @@
       "Bash(xxd c:/Work/novi/build/installer-icon.ico)",
       "Bash(node -e \"console.log\\(process.platform\\)\")",
       "Bash(ls:*)",
-      "Bash(fc-match monospace:*)"
+      "Bash(fc-match monospace:*)",
+      "Bash(python3:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
