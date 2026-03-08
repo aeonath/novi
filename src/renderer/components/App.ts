@@ -68,7 +68,7 @@ export class App extends Component {
   private previousActiveTabId: string | null = null;
   private lastFileTreeRoot: string | null = null;
   private welcomeContextMenu: { x: number; y: number } | null = null;
-  private shellLabel = 'Terminal';
+  private shellLabel = 'Linux Terminal';
   // restartingTerminalId tracked via (window as any).__restartingTerminalId
 
   // ---- DOM refs ----
@@ -589,11 +589,11 @@ export class App extends Component {
   private shellTypeToLabel(shellType?: string | null): string {
     switch (shellType) {
       case 'cmd': return 'cmd.exe';
-      case 'powershell': return 'powershell.exe';
+      case 'powershell': return 'PowerShell';
       case 'wsl': return 'WSL';
-      case 'linux': return 'Linux';
+      case 'linux': return 'Linux Terminal';
       case 'gitbash': return 'Git Bash';
-      default: return 'Terminal';
+      default: return 'Linux Terminal';
     }
   }
 
@@ -1006,7 +1006,7 @@ export class App extends Component {
       (window as any).__statusBarAPI?.setStatus(`Viewing: ${tab.fileName}`);
     } else if (tab.type === 'terminal') {
       (window as any).__statusBarAPI?.removeItem?.('editor-position');
-      (window as any).__statusBarAPI?.setStatus(`${this.shellLabel} Terminal: ${tab.fileName}`);
+      (window as any).__statusBarAPI?.setStatus(`${this.shellLabel}: ${tab.fileName}`);
     } else if (tab.type === 'settings') {
       (window as any).__statusBarAPI?.removeItem?.('editor-position');
       (window as any).__statusBarAPI?.setStatus('Settings');
@@ -1265,7 +1265,7 @@ export class App extends Component {
           this.syncTerminalInstances();
           this.updateContentVisibility();
         }
-        (window as any).__statusBarAPI?.setStatus(`${this.shellLabel} Terminal`);
+        (window as any).__statusBarAPI?.setStatus(`${this.shellLabel}`);
       },
       onOpenSettings: async () => {
         const tabBarAPI = (window as any).__tabBarAPI;
