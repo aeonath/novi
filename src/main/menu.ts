@@ -9,6 +9,7 @@
 
 import { Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron';
 import { logInfo } from './logger';
+import { getSetting } from './settings';
 
 export type MenuCommand = 
   | 'new-file'
@@ -39,7 +40,8 @@ export type MenuCommand =
   | 'documentation'
   | 'report-issue'
   | 'check-updates'
-  | 'settings';
+  | 'settings'
+  | 'show-hidden-files';
 
 let commandHandler: ((command: MenuCommand, window: BrowserWindow) => void) | null = null;
 
@@ -161,6 +163,13 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           label: 'Reset Zoom',
           accelerator: 'CmdOrCtrl+0',
           click: () => executeCommand('zoom-reset', mainWindow),
+        },
+        { type: 'separator' },
+        {
+          label: 'Show Hidden Files',
+          type: 'checkbox',
+          checked: !!getSetting<boolean>('showhiddenfiles', false),
+          click: () => executeCommand('show-hidden-files', mainWindow),
         },
         { type: 'separator' },
         {

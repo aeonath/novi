@@ -16,6 +16,9 @@ interface MenuItem {
   shortcut?: string;
   separator?: boolean;
   disabled?: boolean;
+  checkbox?: boolean;
+  settingKey?: string;
+  settingDefault?: boolean;
 }
 
 export interface TitleBarConfig {
@@ -53,6 +56,8 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Increase Font Size', command: 'increase-font-size', shortcut: 'Ctrl+Plus' },
     { label: 'Decrease Font Size', command: 'decrease-font-size', shortcut: 'Ctrl+-' },
     { label: 'Reset Font Size', command: 'reset-font-size', shortcut: 'Ctrl+0' },
+    { separator: true },
+    { label: 'Show Hidden Files', command: 'show-hidden-files', checkbox: true, settingKey: 'showhiddenfiles', settingDefault: false },
   ],
   Novi: [
     { label: 'Settings', command: 'settings', shortcut: 'Ctrl+,' },
@@ -300,6 +305,7 @@ export class TitleBar extends Component {
     });
 
     const items = MENUS[menuName];
+    const checkboxPromises: { item: MenuItem; checkEl: HTMLElement }[] = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.separator) {
@@ -323,7 +329,18 @@ export class TitleBar extends Component {
         ].join(';'),
       });
 
-      menuItem.appendChild(el('span', {}, item.label));
+      // Checkbox indicator for checkbox items
+      let checkEl: HTMLElement | null = null;
+      if (item.checkbox) {
+        checkEl = el('span', { style: 'margin-right: 6px; width: 14px; display: inline-block; font-size: 12px;' }, '');
+        const labelWrap = el('span', { style: 'display: flex; align-items: center;' });
+        labelWrap.appendChild(checkEl);
+        labelWrap.appendChild(el('span', {}, item.label));
+        menuItem.appendChild(labelWrap);
+        checkboxPromises.push({ item, checkEl });
+      } else {
+        menuItem.appendChild(el('span', {}, item.label));
+      }
       if (item.shortcut) {
         menuItem.appendChild(el('span', {
           style: 'margin-left: 40px; font-size: 11px; color: #858585;',
@@ -338,7 +355,16 @@ export class TitleBar extends Component {
           menuItem.style.backgroundColor = 'transparent';
         });
         menuItem.addEventListener('click', () => {
-          if (item.command && this.config.onCommand) {
+          if (item.checkbox && item.settingKey) {
+            // Toggle the setting and update checkmark
+            window.api?.getSetting<boolean>(item.settingKey, item.settingDefault ?? false).then((current) => {
+              const newVal = !current;
+              window.api?.setSetting(item.settingKey!, newVal);
+              if (item.command && this.config.onCommand) {
+                this.config.onCommand(item.command);
+              }
+            });
+          } else if (item.command && this.config.onCommand) {
             this.config.onCommand(item.command);
           }
           this.closeMenu();
@@ -346,6 +372,15 @@ export class TitleBar extends Component {
       }
 
       dropdown.appendChild(menuItem);
+    }
+
+    // Resolve checkbox states asynchronously
+    for (const { item, checkEl: ce } of checkboxPromises) {
+      if (item.settingKey) {
+        window.api?.getSetting<boolean>(item.settingKey, item.settingDefault ?? false).then((val) => {
+          ce.textContent = val ? '\u2713' : '';
+        });
+      }
     }
 
     document.body.appendChild(dropdown);

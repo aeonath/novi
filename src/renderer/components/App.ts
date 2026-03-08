@@ -488,6 +488,14 @@ export class App extends Component {
     window.addEventListener('novi-singlefiletree-changed', sftHandler);
     this.addCleanup(() => window.removeEventListener('novi-singlefiletree-changed', sftHandler));
 
+    // showhiddenfiles setting changes
+    const shfHandler = () => {
+      const ftApi = (window as any).__fileTreeAPI;
+      if (ftApi?.refresh) ftApi.refresh();
+    };
+    window.addEventListener('novi-showhiddenfiles-changed', shfHandler);
+    this.addCleanup(() => window.removeEventListener('novi-showhiddenfiles-changed', shfHandler));
+
     // gitenabled setting changes
     const geHandler = () => {
       window.api?.getSetting<boolean>('gitenabled', true).then((v) => {
@@ -1331,6 +1339,9 @@ export class App extends Component {
       case 'zoom-out': window.api?.zoomOut?.(); break;
       case 'zoom-reset': window.api?.zoomReset?.(); break;
       case 'toggle-devtools': window.api?.toggleDevTools?.(); break;
+      case 'show-hidden-files':
+        window.dispatchEvent(new CustomEvent('novi-showhiddenfiles-changed'));
+        break;
       case 'about': this.showAboutDialog(); break;
       case 'documentation': window.open('https://lyric-lang.org/novi.html', '_blank'); break;
       case 'check-updates': this.showCheckUpdatesDialog(); break;

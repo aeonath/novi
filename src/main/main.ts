@@ -3,7 +3,7 @@
  * See the LICENSE file in the project root for full license text.
  */
 
-import { app, BrowserWindow, ipcMain, clipboard, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, dialog, Menu } from 'electron';
 import { join, normalize, dirname } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -21,7 +21,7 @@ import type { ShellType } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
 import { editorFileWatcher } from './services/editor-file-watcher';
-import { initializeMenu, setMenuCommandHandler, MenuCommand } from './menu';
+import { initializeMenu, setMenuCommandHandler, MenuCommand, buildMenu } from './menu';
 import { commandStatsService } from './services/command-stats-service';
 import { loadLyricExtension, loadAllExtensions } from '../core/extension-loader';
 
@@ -126,7 +126,19 @@ async function handleMenuCommand(command: MenuCommand, window: BrowserWindow): P
     logInfo('[Menu] DevTools toggled');
     return;
   }
-  
+
+  // Handle show-hidden-files toggle in main process
+  if (command === 'show-hidden-files') {
+    const current = !!getSetting<boolean>('showhiddenfiles', false);
+    setSetting('showhiddenfiles', !current);
+    // Rebuild menu to update checkbox state
+    const menu = buildMenu(window);
+    Menu.setApplicationMenu(menu);
+    // Forward to renderer so file tree refreshes
+    window.webContents.send('menu-command', command);
+    return;
+  }
+
   // Send other commands to renderer
   window.webContents.send('menu-command', command);
 }
@@ -554,9 +566,11 @@ void app.whenReady().then(() => {
       const entries = await readdir(dirPath, { withFileTypes: true });
       const isDriveRoot = /^[A-Za-z]:[\/\\]?$/.test(dirPath.replace(/\\/g, '/'));
 
+      const showHidden = !!getSetting<boolean>('showhiddenfiles', false);
       const filtered: { name: string; path: string; type: string; isDirectory: boolean; size: number }[] = [];
       for (const entry of entries) {
         if (isDriveRoot && WINDOWS_SYSTEM_NAMES.has(entry.name)) continue;
+        if (!showHidden && entry.name.startsWith('.')) continue;
         const fullPath = join(dirPath, entry.name);
         const isDir = entry.isDirectory();
         filtered.push({
