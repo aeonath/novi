@@ -170,11 +170,9 @@ export class App extends Component {
       this.settingsSidebarContainerEl,
     );
 
-    // Resize divider
-    this.dividerEl = el('div', { style: 'width: 4px; cursor: col-resize; background-color: transparent; transition: background-color 0.2s;' });
+    // Resize divider — invisible, only shows col-resize cursor
+    this.dividerEl = el('div', { style: 'width: 0; padding: 0 2px; cursor: col-resize; background-color: transparent; margin: 0 -2px; position: relative; z-index: 1;' });
     this.dividerEl.addEventListener('mousedown', (e) => { e.preventDefault(); this.startResize(); });
-    this.dividerEl.addEventListener('mouseenter', () => { if (!this.isResizing) this.dividerEl.style.backgroundColor = '#3e3e42'; });
-    this.dividerEl.addEventListener('mouseleave', () => { if (!this.isResizing) this.dividerEl.style.backgroundColor = 'transparent'; });
 
     // Editor area
     const tabBarContainer = el('div', { style: 'display: contents;' });
@@ -1719,8 +1717,6 @@ export class App extends Component {
 
   private startResize(): void {
     this.isResizing = true;
-    this.dividerEl.style.backgroundColor = '#007acc';
-    this.dividerEl.style.transition = 'none';
 
     const onMove = (e: MouseEvent) => {
       this.sidebarWidth = Math.max(150, Math.min(600, e.clientX));
@@ -1728,8 +1724,6 @@ export class App extends Component {
     };
     const onUp = () => {
       this.isResizing = false;
-      this.dividerEl.style.backgroundColor = 'transparent';
-      this.dividerEl.style.transition = 'background-color 0.2s';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
