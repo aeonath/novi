@@ -29,7 +29,9 @@
       "Bash(npm run:*)",
       "Bash(dpkg-deb:*)",
       "Bash(tar -xf - --to-stdout ./usr/share/applications/novi.desktop)",
-      "Bash(sudo dpkg:*)"
+      "Bash(sudo dpkg:*)",
+      "Bash(tar -t)",
+      "Read(//tmp/**)"
     ]
   }
 }
