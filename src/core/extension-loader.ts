@@ -197,15 +197,9 @@ export async function loadAllExtensions(): Promise<ExtensionLoadResult> {
   try {
     const extensionsDir = getExtensionsDir();
 
-    // Check if extensions directory exists
+    // Ensure extensions directory exists
     if (!fs.existsSync(extensionsDir)) {
-      console.log(`[Novi] Extensions directory not found: ${extensionsDir}`);
-      return {
-        success: true,
-        loaded: 0,
-        discarded: 0,
-        languages: [],
-      };
+      fs.mkdirSync(extensionsDir, { recursive: true });
     }
 
     // Get all directories in extensions folder

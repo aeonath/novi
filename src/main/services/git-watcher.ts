@@ -19,6 +19,7 @@
 import { watch, FSWatcher } from 'chokidar';
 import { EventEmitter } from 'events';
 import { appendFile, mkdir } from 'fs/promises';
+import { homedir } from 'os';
 import { join, relative } from 'path';
 
 // Debug flag - set to true to enable verbose git operation logging
@@ -90,13 +91,13 @@ export class GitWatcher extends EventEmitter {
   constructor() {
     super();
     this.queue = new AsyncQueue();
-    this.logPath = join(process.cwd(), 'logs', 'git-watcher.log');
+    this.logPath = join(homedir(), '.novi', 'logs', 'git-watcher.log');
     this.ensureLogDir();
   }
 
   private async ensureLogDir(): Promise<void> {
     try {
-      await mkdir(join(process.cwd(), 'logs'), { recursive: true });
+      await mkdir(join(homedir(), '.novi', 'logs'), { recursive: true });
     } catch (error) {
       console.error('[GitWatcher] Failed to create logs directory:', error);
     }

@@ -11,6 +11,7 @@ import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node';
 import * as fs from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { appendFile, mkdir } from 'fs/promises';
 import { gitCredentialHelper } from './git-credential-helper.js';
 
@@ -35,13 +36,13 @@ class GitService {
   private logPath: string;
 
   constructor() {
-    this.logPath = join(process.cwd(), 'logs', 'git.log');
+    this.logPath = join(homedir(), '.novi', 'logs', 'git.log');
     this.ensureLogDir();
   }
 
   private async ensureLogDir(): Promise<void> {
     try {
-      await mkdir(join(process.cwd(), 'logs'), { recursive: true });
+      await mkdir(join(homedir(), '.novi', 'logs'), { recursive: true });
     } catch (error) {
       console.error('[GitService] Failed to create logs directory:', error);
     }

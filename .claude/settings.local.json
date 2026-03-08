@@ -31,7 +31,10 @@
       "Bash(tar -xf - --to-stdout ./usr/share/applications/novi.desktop)",
       "Bash(sudo dpkg:*)",
       "Bash(tar -t)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Read(//home/aeonath/**)",
+      "Bash(npx jest src/tests/core-0.1.0/settings.test.ts)",
+      "Bash(npx jest --verbose)"
     ]
   }
 }
