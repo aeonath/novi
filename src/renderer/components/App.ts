@@ -88,6 +88,7 @@ export class App extends Component {
   private settingsSidebarContainerEl!: HTMLElement;
   private aboutOverlay: HTMLElement | null = null;
   private checkUpdatesOverlay: HTMLElement | null = null;
+  private exitConfirmOverlay: HTMLElement | null = null;
   private welcomeContextMenuEl: HTMLElement | null = null;
 
   // ---- Component instances ----
@@ -411,7 +412,7 @@ export class App extends Component {
             // Do NOT resetTerminal() here: it races with the new PTY's output.
             return;
           }
-          window.api?.quit?.();
+          this.showExitConfirmDialog();
           return;
         }
         const tabBarAPI = (window as any).__tabBarAPI;
@@ -1468,6 +1469,52 @@ export class App extends Component {
 
   private hideCheckUpdatesDialog(): void {
     if (this.checkUpdatesOverlay) { this.checkUpdatesOverlay.remove(); this.checkUpdatesOverlay = null; }
+  }
+
+  private showExitConfirmDialog(): void {
+    if (this.exitConfirmOverlay) return;
+    const overlay = el('div', {
+      style: 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;',
+    });
+    const dialog = el('div', {
+      style: 'background-color: #252526; border: 1px solid #3e3e42; border-radius: 8px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); min-width: 400px; text-align: center;',
+    });
+    dialog.appendChild(el('h2', { style: 'margin: 0 0 16px 0; color: #cccccc; font-size: 20px;' }, 'Exit Novi'));
+    dialog.appendChild(el('p', { style: 'margin: 16px 0 24px 0; color: #cccccc; font-size: 14px;' }, 'Do you really want to exit?'));
+
+    const btnRow = el('div', { style: 'display: flex; justify-content: center; gap: 12px;' });
+
+    const noBtn = el('button', {
+      style: "background-color: #007acc; border: none; border-radius: 4px; padding: 8px 24px; color: #ffffff; cursor: pointer; font-size: 14px; font-family: 'Segoe UI', sans-serif;",
+    }, 'No');
+    noBtn.addEventListener('click', () => {
+      this.hideExitConfirmDialog();
+      this.recreateHomeTerminal();
+    });
+    noBtn.addEventListener('mouseenter', () => noBtn.style.backgroundColor = '#005a9e');
+    noBtn.addEventListener('mouseleave', () => noBtn.style.backgroundColor = '#007acc');
+
+    const yesBtn = el('button', {
+      style: "background-color: #a01c1c; border: none; border-radius: 4px; padding: 8px 24px; color: #ffffff; cursor: pointer; font-size: 14px; font-family: 'Segoe UI', sans-serif;",
+    }, 'Yes');
+    yesBtn.addEventListener('click', () => {
+      this.hideExitConfirmDialog();
+      window.api?.quit?.();
+    });
+    yesBtn.addEventListener('mouseenter', () => yesBtn.style.backgroundColor = '#801616');
+    yesBtn.addEventListener('mouseleave', () => yesBtn.style.backgroundColor = '#a01c1c');
+
+    btnRow.appendChild(noBtn);
+    btnRow.appendChild(yesBtn);
+    dialog.appendChild(btnRow);
+    dialog.addEventListener('click', (e) => e.stopPropagation());
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    this.exitConfirmOverlay = overlay;
+  }
+
+  private hideExitConfirmDialog(): void {
+    if (this.exitConfirmOverlay) { this.exitConfirmOverlay.remove(); this.exitConfirmOverlay = null; }
   }
 
   private showWelcomeContextMenu(e: MouseEvent): void {
