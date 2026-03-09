@@ -211,7 +211,9 @@ export class FileTree extends Component {
   set displayRoot(path: string | null) {
     if (path && path !== this.rootPath) {
       this.rootPath = path;
+      this.expandedDirs.clear(); // Old expanded paths are stale for the new root
       this.loadDirectory(path);
+      this.setupFileWatcher(); // Restart watcher for the new root
       this.config.onRootChange?.(this.rootPath);
     }
   }
@@ -284,8 +286,9 @@ export class FileTree extends Component {
   private async loadDirectoryProgrammatically(dirPath: string): Promise<void> {
     try {
       this.rootPath = dirPath;
+      this.expandedDirs.clear();
       await this.loadDirectory(dirPath);
-      this.setupFileWatcher(); // Restart watcher for the new root
+      this.setupFileWatcher();
       this.config.onDirectoryOpen?.(dirPath);
       this.config.onRootChange?.(dirPath);
     } catch (err) {
