@@ -687,33 +687,41 @@ export class App extends Component {
         }
       }
 
-      // Restore terminals
+      // Restore terminals — build a map from old saved IDs to new IDs
+      const oldToNewTabId: Record<string, string> = {};
       if (workspace.openTerminals?.length) {
         const tabBarAPI = (window as any).__tabBarAPI;
-        for (const ti of workspace.openTerminals) {
-          const tid = `terminal-${Date.now()}-${Math.random()}`;
+        for (let i = 0; i < workspace.openTerminals.length; i++) {
+          const ti = workspace.openTerminals[i];
+          const tid = `terminal-${Date.now()}-restore-${i}`;
+          oldToNewTabId[ti.id] = tid;
           tabBarAPI.addTab({ id: tid, type: 'terminal', filePath: tid, fileName: ti.name || 'bash', isDirty: false, content: '', language: 'terminal' });
           const cwd = ti.cwd || workspace.workspaceRoot || '';
           this.terminalTabs = [...this.terminalTabs, { id: tid, fileName: ti.name || 'bash', workspaceRoot: cwd || this.workspaceRoot }];
           this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [tid]: { cwd, overriddenRoot: undefined } };
-          this.syncTerminalInstances();
         }
+        this.syncTerminalInstances();
       }
 
       // Restore novi prompts
       if (workspace.openNoviPrompts?.length) {
         const tabBarAPI = (window as any).__tabBarAPI;
-        for (const pi of workspace.openNoviPrompts) {
-          const pid = `novi-prompt-${Date.now()}-${Math.random()}`;
+        for (let i = 0; i < workspace.openNoviPrompts.length; i++) {
+          const pi = workspace.openNoviPrompts[i];
+          const pid = `novi-prompt-${Date.now()}-restore-${i}`;
+          oldToNewTabId[pi.id] = pid;
           tabBarAPI.addTab({ id: pid, type: 'novi-prompt', filePath: pid, fileName: pi.name || '\u2699 novi>', isDirty: false, content: '', language: 'plaintext' });
           this.noviPromptTabs = [...this.noviPromptTabs, { id: pid, fileName: pi.name || '\u2699 novi>' }];
-          this.syncNoviShellInstances();
         }
+        this.syncNoviShellInstances();
       }
 
-      // Restore active tab for non-file types
+      // Restore active tab for non-file types, mapping old ID to new ID
       if (workspace.activeTabId && workspace.activeTabType !== 'file') {
-        this.setActiveTab({ id: workspace.activeTabId, type: workspace.activeTabType || 'file' });
+        const newId = oldToNewTabId[workspace.activeTabId] || workspace.activeTabId;
+        this.setActiveTab({ id: newId, type: workspace.activeTabType || 'file' });
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (tabBarAPI) tabBarAPI.switchTab(newId);
       }
 
       // Focus after restoration
