@@ -225,6 +225,7 @@ export class FileTree extends Component {
       if (!dirPath) return;
       this.rootPath = dirPath;
       await this.loadDirectory(dirPath);
+      this.setupFileWatcher(); // Restart watcher for the new root
       this.config.onDirectoryOpen?.(dirPath);
       this.config.onRootChange?.(dirPath);
     } catch (err) {
@@ -284,6 +285,7 @@ export class FileTree extends Component {
     try {
       this.rootPath = dirPath;
       await this.loadDirectory(dirPath);
+      this.setupFileWatcher(); // Restart watcher for the new root
       this.config.onDirectoryOpen?.(dirPath);
       this.config.onRootChange?.(dirPath);
     } catch (err) {

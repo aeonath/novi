@@ -34,7 +34,8 @@
       "Read(//tmp/**)",
       "Read(//home/aeonath/**)",
       "Bash(npx jest src/tests/core-0.1.0/settings.test.ts)",
-      "Bash(npx jest --verbose)"
+      "Bash(npx jest --verbose)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
     ]
   }
 }
