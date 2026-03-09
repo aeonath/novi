@@ -195,6 +195,12 @@ export class Terminal extends Component {
       lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
     });
 
+    // Let Ctrl+Tab / Ctrl+Shift+Tab bubble up to the document for tab cycling
+    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'Tab') return false;
+      return true;
+    });
+
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
 

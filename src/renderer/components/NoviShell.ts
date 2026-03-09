@@ -91,6 +91,12 @@ export class NoviShell extends Component {
       convertEol: true, scrollback: 1000, windowsMode: false,
     });
 
+    // Let Ctrl+Tab / Ctrl+Shift+Tab bubble up to the document for tab cycling
+    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'Tab') return false;
+      return true;
+    });
+
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
 
