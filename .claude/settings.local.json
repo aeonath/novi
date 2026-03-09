@@ -35,7 +35,9 @@
       "Read(//home/aeonath/**)",
       "Bash(npx jest src/tests/core-0.1.0/settings.test.ts)",
       "Bash(npx jest --verbose)",
-      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(mkdir -p ~/.novi/extensions)",
+      "Bash(cp -r /home/aeonath/work/lyric-lang-syntax ~/.novi/extensions/lyric-lang-syntax)"
     ]
   }
 }

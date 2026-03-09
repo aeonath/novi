@@ -172,6 +172,8 @@ declare global {
       commandStatsGetTop: (limit?: number) => Promise<CommandStat[]>;
       commandStatsGetAll: () => Promise<CommandStats>;
       commandStatsClear: () => Promise<{ success: boolean }>;
+      // Extension loading
+      loadAllExtensions: () => Promise<any>;
     };
   }
 }

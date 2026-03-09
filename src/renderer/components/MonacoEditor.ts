@@ -12,6 +12,7 @@ import { appState } from '../core/app-state.js';
 import { bus } from '../core/event-bus.js';
 import { EditorService } from '../services/editor-service.js';
 import { markReady } from '../utils/ready-events.js';
+import { convertTmToMonarch } from '../../core/tm-to-monarch.js';
 
 declare const monaco: typeof import('monaco-editor');
 
@@ -306,13 +307,17 @@ export class MonacoEditor extends Component {
   private loadExtensions(): void {
     if (window.api?.loadAllExtensions) {
       window.api.loadAllExtensions().then((result: any) => {
-        if (result.success && result.languages?.length > 0) {
-          result.languages.forEach((lang: any) => {
+        if (result.success && result.extensions?.length > 0) {
+          for (const ext of result.extensions) {
             try {
-              monaco.languages.register({ id: lang.languageId, extensions: lang.extensions, aliases: lang.aliases || [] });
-              if (lang.grammar) monaco.languages.setMonarchTokensProvider(lang.languageId, lang.grammar);
+              monaco.languages.register({ id: ext.languageId, extensions: ext.fileExtensions, aliases: ext.aliases || [] });
+              if (ext.tmGrammar) {
+                const monarchGrammar = convertTmToMonarch(ext.tmGrammar);
+                monaco.languages.setMonarchTokensProvider(ext.languageId, monarchGrammar);
+              }
+              console.log(`[MonacoEditor] Registered extension language: ${ext.languageId}`);
             } catch (_) {}
-          });
+          }
         }
       }).catch(() => {});
     }
@@ -524,7 +529,7 @@ function detectLanguage(filePath: string): string {
     md: 'markdown', py: 'python', pyw: 'python', rs: 'rust', go: 'go', java: 'java',
     c: 'c', h: 'c', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp', hxx: 'cpp',
     cs: 'csharp', php: 'php', rb: 'ruby', sh: 'shell', bash: 'shell', zsh: 'shell',
-    xml: 'xml', yaml: 'yaml', yml: 'yaml', sql: 'sql', ly: 'lyric',
+    xml: 'xml', yaml: 'yaml', yml: 'yaml', sql: 'sql',
   };
   return map[ext] ?? 'plaintext';
 }

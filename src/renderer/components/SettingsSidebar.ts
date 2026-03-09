@@ -22,9 +22,10 @@ interface SectionDef {
 }
 
 const SECTIONS: SectionDef[] = [
-  { id: 'terminal', label: 'Terminal', icon: '\u{1F4BB}' },
-  { id: 'editor',   label: 'Editor',   icon: '\u{1F4DD}' },
-  { id: 'novi',     label: 'Novi',     icon: '\u2699\uFE0F' },
+  { id: 'terminal',    label: 'Terminal',    icon: '\u{1F4BB}' },
+  { id: 'editor',      label: 'Editor',      icon: '\u{1F4DD}' },
+  { id: 'extensions',  label: 'Extensions',  icon: '\u{1F9E9}' },
+  { id: 'novi',        label: 'Novi',        icon: '\u2699\uFE0F' },
 ];
 
 export class SettingsSidebar extends Component {

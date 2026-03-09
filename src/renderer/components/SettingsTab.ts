@@ -10,7 +10,7 @@
 import { Component } from '../core/component.js';
 import { el, clearChildren, setStyles } from '../core/dom.js';
 
-export type SettingsSection = 'terminal' | 'editor' | 'novi';
+export type SettingsSection = 'terminal' | 'editor' | 'extensions' | 'novi';
 export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
 interface ShellOption {
@@ -22,6 +22,16 @@ interface ShellOption {
   unavailableReason?: string;
 }
 
+interface ExtensionInfo {
+  name: string;
+  displayName: string;
+  version: string;
+  description: string;
+  publisher: string;
+  languageId: string;
+  fileExtensions: string[];
+}
+
 export class SettingsTab extends Component {
   private contentEl: HTMLElement;
   private activeSection: SettingsSection = 'terminal';
@@ -30,6 +40,8 @@ export class SettingsTab extends Component {
   private platform: string = 'win32';
   private wslAvailable = false;
   private linuxUseDefault = true;
+  private loadedExtensions: ExtensionInfo[] = [];
+  private extensionsLoaded = false;
 
   constructor() {
     super('div');
@@ -87,6 +99,7 @@ export class SettingsTab extends Component {
     switch (this.activeSection) {
       case 'terminal': this.renderTerminalSettings(); break;
       case 'editor': this.renderPlaceholder('Editor'); break;
+      case 'extensions': this.renderExtensionsSettings(); break;
       case 'novi': this.renderPlaceholder('Novi'); break;
     }
   }
@@ -108,6 +121,97 @@ export class SettingsTab extends Component {
     wrapper.appendChild(heading);
     wrapper.appendChild(message);
     this.contentEl.appendChild(wrapper);
+  }
+
+  private renderExtensionsSettings(): void {
+    const heading = el('h2', {}, 'Extensions');
+    setStyles(heading, { margin: '0 0 8px 0', fontWeight: '400', fontSize: '1.3em' });
+    this.contentEl.appendChild(heading);
+
+    const description = el('div', {}, 'Syntax extensions loaded from ~/.novi/extensions/');
+    setStyles(description, {
+      fontSize: '12px',
+      opacity: '0.6',
+      marginBottom: '20px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(description);
+
+    if (!this.extensionsLoaded) {
+      this.extensionsLoaded = true;
+      const loading = el('div', {}, 'Loading...');
+      setStyles(loading, { opacity: '0.5', fontSize: '13px', fontFamily: "'Segoe UI', sans-serif" });
+      this.contentEl.appendChild(loading);
+      window.api?.loadAllExtensions?.().then((result: any) => {
+        if (result.success && result.extensions) {
+          this.loadedExtensions = result.extensions;
+        }
+        this.render();
+      }).catch(() => this.render());
+      return;
+    }
+
+    if (this.loadedExtensions.length === 0) {
+      const empty = el('div');
+      setStyles(empty, {
+        padding: '24px',
+        textAlign: 'center',
+        opacity: '0.5',
+        fontSize: '13px',
+        fontFamily: "'Segoe UI', sans-serif",
+      });
+      empty.appendChild(el('div', {}, 'No extensions installed.'));
+      const hint = el('div', {}, 'Drop VSCode language extensions into ~/.novi/extensions/ to add syntax highlighting.');
+      setStyles(hint, { marginTop: '8px', fontSize: '12px' });
+      empty.appendChild(hint);
+      this.contentEl.appendChild(empty);
+      return;
+    }
+
+    for (const ext of this.loadedExtensions) {
+      const card = el('div');
+      setStyles(card, {
+        padding: '12px 16px',
+        marginBottom: '8px',
+        backgroundColor: '#252526',
+        borderRadius: '4px',
+        border: '1px solid #3e3e42',
+        fontFamily: "'Segoe UI', sans-serif",
+      });
+
+      const titleRow = el('div');
+      setStyles(titleRow, { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' });
+
+      const name = el('div', {}, ext.displayName);
+      setStyles(name, { fontSize: '14px', fontWeight: '500' });
+      titleRow.appendChild(name);
+
+      const version = el('div', {}, `v${ext.version}`);
+      setStyles(version, { fontSize: '11px', opacity: '0.5' });
+      titleRow.appendChild(version);
+
+      card.appendChild(titleRow);
+
+      if (ext.description) {
+        const desc = el('div', {}, ext.description);
+        setStyles(desc, { fontSize: '12px', opacity: '0.6', marginBottom: '6px' });
+        card.appendChild(desc);
+      }
+
+      const details = el('div');
+      setStyles(details, { fontSize: '12px', opacity: '0.5', display: 'flex', gap: '16px' });
+
+      details.appendChild(el('span', {}, `Language: ${ext.languageId}`));
+      if (ext.fileExtensions?.length) {
+        details.appendChild(el('span', {}, `Files: ${ext.fileExtensions.join(', ')}`));
+      }
+      if (ext.publisher) {
+        details.appendChild(el('span', {}, `Publisher: ${ext.publisher}`));
+      }
+
+      card.appendChild(details);
+      this.contentEl.appendChild(card);
+    }
   }
 
   private renderTerminalSettings(): void {
