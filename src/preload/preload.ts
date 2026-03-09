@@ -9,6 +9,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('api', {
   getVersion: () => ipcRenderer.invoke('get-version'),
+  toggleDevTools: () => ipcRenderer.invoke('toggle-devtools'),
   getCommandLineArgs: () => ipcRenderer.invoke('get-command-line-args'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),
   checkWslAvailable: () => ipcRenderer.invoke('check-wsl-available'),

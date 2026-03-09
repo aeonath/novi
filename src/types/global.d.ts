@@ -90,6 +90,7 @@ declare global {
   interface Window {
     api: {
       getVersion: () => Promise<string>;
+      toggleDevTools: () => Promise<void>;
       getCommandLineArgs: () => Promise<string[]>;
       getPlatform: () => Promise<string>;
       checkWslAvailable: () => Promise<boolean>;

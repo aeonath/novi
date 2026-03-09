@@ -1,17 +1,26 @@
-# Changelog — 20260308.2038
+# Changelog — 20260308.2038 (updated 2055)
 
-## Ad hoc: Move Developer Tools to Help menu with Enable/Disable toggle
+## Ad hoc: Add Developer Tools toggle to Help menu with checkbox
 
 ### Problem
-The Developer Tools option was in the View menu as a simple toggle. The user wanted it in the Help menu with clear Enable/Disable labeling, and for the Ctrl+Shift+I shortcut to respect the current state.
+The Developer Tools option was only in the native Electron menu (View menu), but Novi uses a custom CSS title bar with its own menu system. The custom Help menu had no Developer Tools entry, so users couldn't toggle devtools from the UI.
+
+### Root Cause
+The custom title bar (`TitleBar.ts`) has its own `MENUS` definition separate from the native Electron menu (`menu.ts`). The devtools entry was only in the native menu, which is not visible when `frame: false`.
 
 ### Fix
-- **`src/main/menu.ts`**: Moved Developer Tools from View menu to Help menu. Label dynamically shows "Enable Developer Tools" or "Disable Developer Tools" based on the `devToolsEnabled` setting. Keeps Ctrl+Shift+I accelerator.
-- **`src/main/main.ts`**: Updated `handleMenuCommand` to use `openDevTools()`/`closeDevTools()` instead of `toggleDevTools()`, persists state via `devToolsEnabled` setting, and rebuilds the menu to update the label. Added `devtools-opened`/`devtools-closed` event listeners to sync the setting and menu when devtools are opened or closed externally (e.g., closing the devtools window with its X button).
+- **`src/renderer/components/TitleBar.ts`**: Added "Developer Tools" checkbox entry to Help menu with `Ctrl+Shift+I` shortcut. Uses `settingKey: 'devToolsEnabled'` for checkmark state and `mainManaged: true` flag so the renderer doesn't double-toggle the setting. Added `mainManaged` field to `MenuItem` interface. Also added "Report Issue" entry that was missing.
+- **`src/main/main.ts`**: Added `ipcMain.handle('toggle-devtools')` IPC handler so the renderer can trigger devtools toggle. Added `devtools-opened`/`devtools-closed` event listeners to sync the setting and native menu when devtools are opened/closed externally.
+- **`src/main/menu.ts`**: Moved Developer Tools from View menu to Help menu in the native menu (backup for when native menu is used). Dynamic label based on `devToolsEnabled` setting.
+- **`src/preload/preload.ts`**: Added `toggleDevTools` bridge to expose the IPC handler to the renderer.
+- **`src/types/global.d.ts`**: Added `toggleDevTools` to Window.api type.
 
 ### Files Changed
-- `src/main/menu.ts`
+- `src/renderer/components/TitleBar.ts`
 - `src/main/main.ts`
+- `src/main/menu.ts`
+- `src/preload/preload.ts`
+- `src/types/global.d.ts`
 
 ### Test Results
 - 39 suites, 638 tests — all passing

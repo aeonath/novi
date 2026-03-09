@@ -19,6 +19,7 @@ interface MenuItem {
   checkbox?: boolean;
   settingKey?: string;
   settingDefault?: boolean;
+  mainManaged?: boolean; // Setting is toggled by main process, not renderer
 }
 
 export interface TitleBarConfig {
@@ -70,9 +71,12 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Clear Workspace', command: 'reset-workspace' },
   ],
   Help: [
-    { label: 'About Novi', command: 'about' },
     { label: 'Documentation', command: 'documentation' },
+    { label: 'Report Issue', command: 'report-issue' },
     { separator: true },
+    { label: 'Developer Tools', command: 'toggle-devtools', shortcut: 'Ctrl+Shift+I', checkbox: true, settingKey: 'devToolsEnabled', settingDefault: false, mainManaged: true },
+    { separator: true },
+    { label: 'About Novi', command: 'about' },
     { label: 'Check for Updates', command: 'check-updates' },
   ],
 };
@@ -357,8 +361,8 @@ export class TitleBar extends Component {
           menuItem.style.backgroundColor = 'transparent';
         });
         menuItem.addEventListener('click', () => {
-          if (item.checkbox && item.settingKey) {
-            // Toggle the setting and update checkmark
+          if (item.checkbox && item.settingKey && !item.mainManaged) {
+            // Toggle the setting and update checkmark (renderer-managed)
             window.api?.getSetting<boolean>(item.settingKey, item.settingDefault ?? false).then((current) => {
               const newVal = !current;
               window.api?.setSetting(item.settingKey!, newVal);

@@ -314,7 +314,23 @@ void app.whenReady().then(() => {
     saveCrashReport('rendererError', new Error(payload.message), payload.stack);
   });
   
-  // Native menu IPC handlers removed - using custom CSS menu bar in renderer
+  // Developer Tools toggle — called from renderer's custom title bar menu
+  ipcMain.handle('toggle-devtools', () => {
+    if (!mainWindowRef) return;
+    const isOpen = mainWindowRef.webContents.isDevToolsOpened();
+    if (isOpen) {
+      mainWindowRef.webContents.closeDevTools();
+      setSetting('devToolsEnabled', false);
+      logInfo('[Menu] DevTools disabled');
+    } else {
+      mainWindowRef.webContents.openDevTools();
+      setSetting('devToolsEnabled', true);
+      logInfo('[Menu] DevTools enabled');
+    }
+    // Rebuild native menu to update label
+    const menu = buildMenu(mainWindowRef);
+    Menu.setApplicationMenu(menu);
+  });
   
   // Crash reporting and diagnostics IPC
   ipcMain.handle('copy-diagnostics', () => {
