@@ -1,0 +1,28 @@
+# Changelog — 20260308.1914.2
+
+## Ad hoc: Fix duplicated/chopped prompt on restored terminal tab switch
+
+### Problem
+When switching to a restored terminal tab, the prompt would appear duplicated or chopped because:
+1. Phase 1 creates the PTY with measured dimensions — the shell sends its prompt (buffered)
+2. Phase 2 creates xterm, then in a `requestAnimationFrame`:
+   - `fitAddon.fit()` measures slightly different dimensions
+   - `onResize()` sends new dimensions to PTY → shell gets SIGWINCH → redraws prompt
+   - `registerAPI()` flushes the buffered original prompt to xterm
+3. Result: xterm shows the buffered prompt, then the SIGWINCH redraw arrives → duplicate
+
+### Fix
+In `Terminal.ts` `initPhase2()`:
+- **Flush buffered data first** (`registerAPI()` moved before resize) so the prompt is written to xterm before any resize can trigger a shell redraw
+- **Track PTY creation dimensions** (`ptyCols`/`ptyRows`) and skip sending resize if dimensions haven't changed from what the PTY was created with
+- Updated `restartTerminal()` to also track PTY dimensions consistently
+
+### Files Changed
+- `src/renderer/components/Terminal.ts`
+
+### Test Results
+- 39 suites, 646 tests — all passing
+- Build compiles successfully
+
+### Commit
+TBD

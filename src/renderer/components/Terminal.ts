@@ -38,6 +38,8 @@ export class Terminal extends Component {
   private ptyCreated = false;
   private hasInitialFit = false;
   private _isActive = false;
+  private ptyCols = 0;
+  private ptyRows = 0;
 
   constructor(config: TerminalConfig) {
     super('div');
@@ -157,10 +159,13 @@ export class Terminal extends Component {
       tempTerminal.dispose();
 
       if (cols < 40 || rows < 10) {
-        await (window as any).api?.terminalCreate(this.workspaceRoot, 100, 30, this.terminalId);
+        this.ptyCols = 100;
+        this.ptyRows = 30;
       } else {
-        await (window as any).api?.terminalCreate(this.workspaceRoot, cols, rows, this.terminalId);
+        this.ptyCols = cols;
+        this.ptyRows = rows;
       }
+      await (window as any).api?.terminalCreate(this.workspaceRoot, this.ptyCols, this.ptyRows, this.terminalId);
 
       this.ptyCreated = true;
       this.initPhase2();
@@ -207,13 +212,23 @@ export class Terminal extends Component {
 
       requestAnimationFrame(() => {
         fitAddon.fit();
-        if (this.onResize) this.onResize(terminal.cols, terminal.rows);
-        requestAnimationFrame(() => terminal.scrollToBottom());
+        // Register API and flush buffered data BEFORE sending resize to PTY.
+        // This prevents the shell's SIGWINCH redraw from duplicating the prompt
+        // that was already buffered while xterm wasn't ready.
         this.hasInitialFit = true;
         this.isReady = true;
+        this.registerAPI();
+        // Only send resize if dimensions actually changed from what the PTY was created with
+        const newCols = terminal.cols;
+        const newRows = terminal.rows;
+        if (this.onResize && (newCols !== this.ptyCols || newRows !== this.ptyRows) && newCols > 0 && newRows > 0) {
+          this.onResize(newCols, newRows);
+        }
+        this.ptyCols = newCols;
+        this.ptyRows = newRows;
         this.container.style.opacity = '1';
         if (this._isActive) terminal.focus();
-        this.registerAPI();
+        requestAnimationFrame(() => terminal.scrollToBottom());
       });
 
       terminal.onData((data) => this.onData?.(data));
@@ -293,6 +308,8 @@ export class Terminal extends Component {
     this.container.style.opacity = '0';
     // Create PTY immediately with saved dimensions — don't wait for container
     // visibility (initPhase1 would deadlock if the terminal tab is hidden)
+    this.ptyCols = savedCols;
+    this.ptyRows = savedRows;
     await (window as any).api?.terminalCreate(this.workspaceRoot, savedCols, savedRows, this.terminalId);
     this.ptyCreated = true;
     // Create xterm display immediately if visible, otherwise defer to isActive setter
