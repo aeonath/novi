@@ -123,8 +123,19 @@ async function handleMenuCommand(command: MenuCommand, window: BrowserWindow): P
   
   // Handle DevTools toggle in main process
   if (command === 'toggle-devtools') {
-    window.webContents.toggleDevTools();
-    logInfo('[Menu] DevTools toggled');
+    const isOpen = window.webContents.isDevToolsOpened();
+    if (isOpen) {
+      window.webContents.closeDevTools();
+      setSetting('devToolsEnabled', false);
+      logInfo('[Menu] DevTools disabled');
+    } else {
+      window.webContents.openDevTools();
+      setSetting('devToolsEnabled', true);
+      logInfo('[Menu] DevTools enabled');
+    }
+    // Rebuild menu to update label
+    const menu = buildMenu(window);
+    Menu.setApplicationMenu(menu);
     return;
   }
 
@@ -231,6 +242,18 @@ function createWindow(): void {
   mainWindow.on('close', saveBounds);
   mainWindow.on('move', saveBounds);
   mainWindow.on('resize', saveBounds);
+
+  // Sync devtools setting and menu label when devtools are opened/closed externally
+  mainWindow.webContents.on('devtools-opened', () => {
+    setSetting('devToolsEnabled', true);
+    const menu = buildMenu(mainWindow);
+    Menu.setApplicationMenu(menu);
+  });
+  mainWindow.webContents.on('devtools-closed', () => {
+    setSetting('devToolsEnabled', false);
+    const menu = buildMenu(mainWindow);
+    Menu.setApplicationMenu(menu);
+  });
 
   mainWindowRef = mainWindow;
   

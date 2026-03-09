@@ -171,12 +171,6 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           checked: !!getSetting<boolean>('showhiddenfiles', false),
           click: () => executeCommand('show-hidden-files', mainWindow),
         },
-        { type: 'separator' },
-        {
-          label: 'Toggle Developer Tools',
-          accelerator: 'CmdOrCtrl+Shift+I',
-          click: () => executeCommand('toggle-devtools', mainWindow),
-        },
       ],
     },
     {
@@ -225,6 +219,12 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         {
           label: 'Report Issue',
           click: () => executeCommand('report-issue', mainWindow),
+        },
+        { type: 'separator' },
+        {
+          label: !!getSetting<boolean>('devToolsEnabled', false) ? 'Disable Developer Tools' : 'Enable Developer Tools',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          click: () => executeCommand('toggle-devtools', mainWindow),
         },
         { type: 'separator' },
         {
