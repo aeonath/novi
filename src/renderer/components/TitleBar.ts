@@ -74,7 +74,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Documentation', command: 'documentation' },
     { label: 'Report Issue', command: 'report-issue' },
     { separator: true },
-    { label: 'Developer Tools', command: 'toggle-devtools', shortcut: 'Ctrl+Shift+I', checkbox: true, settingKey: 'devToolsEnabled', settingDefault: false, mainManaged: true },
+    { label: 'Show Developer Tools', command: 'toggle-devtools', shortcut: 'Ctrl+Shift+I', checkbox: true, settingKey: 'devToolsEnabled', settingDefault: false, mainManaged: true },
     { separator: true },
     { label: 'About Novi', command: 'about' },
     { label: 'Check for Updates', command: 'check-updates' },
@@ -335,23 +335,24 @@ export class TitleBar extends Component {
         ].join(';'),
       });
 
-      // Checkbox indicator for checkbox items
+      // Label — always left-justified
+      menuItem.appendChild(el('span', {}, item.label));
+
+      // Right side: checkmark (for checkbox items) and/or shortcut
       let checkEl: HTMLElement | null = null;
+      const rightSide = el('span', { style: 'display: flex; align-items: center; gap: 8px; margin-left: 40px;' });
+      let hasRight = false;
       if (item.checkbox) {
-        checkEl = el('span', { style: 'margin-right: 6px; width: 14px; display: inline-block; font-size: 12px;' }, '');
-        const labelWrap = el('span', { style: 'display: flex; align-items: center;' });
-        labelWrap.appendChild(checkEl);
-        labelWrap.appendChild(el('span', {}, item.label));
-        menuItem.appendChild(labelWrap);
+        checkEl = el('span', { style: 'font-size: 12px; min-width: 14px; text-align: center;' }, '');
+        rightSide.appendChild(checkEl);
         checkboxPromises.push({ item, checkEl });
-      } else {
-        menuItem.appendChild(el('span', {}, item.label));
+        hasRight = true;
       }
       if (item.shortcut) {
-        menuItem.appendChild(el('span', {
-          style: 'margin-left: 40px; font-size: 11px; color: #858585;',
-        }, item.shortcut));
+        rightSide.appendChild(el('span', { style: 'font-size: 11px; color: #858585;' }, item.shortcut));
+        hasRight = true;
       }
+      if (hasRight) menuItem.appendChild(rightSide);
 
       if (!disabled) {
         menuItem.addEventListener('mouseenter', () => {
