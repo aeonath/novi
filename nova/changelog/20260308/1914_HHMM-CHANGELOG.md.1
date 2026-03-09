@@ -1,0 +1,21 @@
+# Changelog — 20260308.1914.1
+
+## Ad hoc: Home terminal always starts focused at home directory
+
+### Problem
+On workspace restore, the home terminal could inherit a saved CWD from the previous session and a different tab could steal focus.
+
+### Changes
+- **`src/renderer/components/App.ts`** — `loadWorkspace()`:
+  - Removed `workspace.homeTerminalCwd` from `createHomeTerminal()` call — home terminal always starts fresh at `~`
+  - Replaced saved active tab restoration with always focusing the home terminal after restore
+
+### Files Changed
+- `src/renderer/components/App.ts`
+
+### Test Results
+- 39 suites, 646 tests — all passing
+- Build compiles successfully
+
+### Commit
+TBD

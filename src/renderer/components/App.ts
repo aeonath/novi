@@ -645,7 +645,7 @@ export class App extends Component {
       if (workspace.layout) this.showGitPanel = workspace.layout.showGitPanel;
 
       await ensureReady('tabbar-ready');
-      this.createHomeTerminal(workspace.homeTerminalCwd);
+      this.createHomeTerminal();
 
       // Restore files
       if (workspace.openFiles?.length) {
@@ -716,15 +716,10 @@ export class App extends Component {
         this.syncNoviShellInstances();
       }
 
-      // Restore active tab for non-file types, mapping old ID to new ID
-      if (workspace.activeTabId && workspace.activeTabType !== 'file') {
-        const newId = oldToNewTabId[workspace.activeTabId] || workspace.activeTabId;
-        this.setActiveTab({ id: newId, type: workspace.activeTabType || 'file' });
-        const tabBarAPI = (window as any).__tabBarAPI;
-        if (tabBarAPI) tabBarAPI.switchTab(newId);
-      }
-
-      // Focus after restoration
+      // Always focus the home terminal after restoration
+      this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+      const tabBarAPI2 = (window as any).__tabBarAPI;
+      if (tabBarAPI2) tabBarAPI2.switchTab(HOME_TERMINAL_ID);
       setTimeout(() => this.focusActiveTab(), 300);
 
     } catch (error) {
