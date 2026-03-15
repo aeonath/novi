@@ -11,6 +11,7 @@
 import * as pty from '@lydell/node-pty';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { basename } from 'node:path';
 import { logInfo, logError } from '../logger';
 
 export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
@@ -126,7 +127,20 @@ class TerminalService {
     const id = customId || `terminal-${this.nextId++}`;
     const shellType = options?.shellType || this.configuredShellType;
     const shellPath = this.resolveShellPath(shellType, options?.shellPath);
-    const shellArgs = this.getShellArgs(shellType);
+    // If resolveShellPath returned a different executable than the requested
+    // shell type (e.g. gitbash requested but PowerShell returned as fallback),
+    // choose shell args based on the actual executable to avoid passing
+    // bash-specific args to PowerShell which will cause parse errors.
+    let effectiveShellType = shellType;
+    const shellBase = basename(shellPath).toLowerCase();
+    if (shellBase.includes('powershell') || shellBase === 'pwsh.exe') {
+      effectiveShellType = 'powershell';
+    } else if (shellBase === 'bash.exe' || shellBase === 'sh' || shellBase === 'bash') {
+      // keep as bash-like
+      effectiveShellType = shellType === 'wsl' ? 'wsl' : 'gitbash';
+    }
+
+    const shellArgs = this.getShellArgs(effectiveShellType);
     const cwdPath = cwd || homedir();
 
     const baseEnv = { ...process.env };

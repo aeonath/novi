@@ -78,7 +78,7 @@ describe('TerminalService', () => {
         terminalService.createSession();
         expect(pty.spawn).toHaveBeenCalledWith(
           'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
-          ['--login', '-i'],
+          ['-NoLogo'],
           expect.objectContaining({ name: 'xterm-256color' })
         );
       });
