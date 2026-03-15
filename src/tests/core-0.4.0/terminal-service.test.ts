@@ -36,7 +36,7 @@ describe('TerminalService', () => {
     
     // Reset terminal service state
     terminalService.cleanup();
-    terminalService.setShell('gitbash');
+    terminalService.setShell('gitbash', 'C:\\Program Files\\Git\\bin\\bash.exe');
 
     // Setup mock PTY
     mockPty = {
@@ -81,6 +81,34 @@ describe('TerminalService', () => {
           ['-NoLogo'],
           expect.objectContaining({ name: 'xterm-256color' })
         );
+      });
+
+      it('should update shellType to powershell after git bash fallback', () => {
+        (existsSync as jest.Mock).mockReturnValue(false);
+
+        terminalService.createSession();
+        expect(terminalService.getShellType()).toBe('powershell');
+      });
+
+      it('should invoke onShellFallback callback when falling back to PowerShell', () => {
+        (existsSync as jest.Mock).mockReturnValue(false);
+        const cb = jest.fn();
+        terminalService.onShellFallback(cb);
+
+        terminalService.createSession();
+        expect(cb).toHaveBeenCalledWith(
+          'powershell',
+          'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+        );
+      });
+
+      it('should not set PROMPT_COMMAND env when falling back to PowerShell', () => {
+        (existsSync as jest.Mock).mockReturnValue(false);
+
+        terminalService.createSession();
+        const spawnCall = pty.spawn.mock.calls[0];
+        const env = spawnCall[2].env;
+        expect(env.PROMPT_COMMAND).toBeUndefined();
       });
 
       it('should use WSL bash when shell type is wsl', () => {

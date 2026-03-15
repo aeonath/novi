@@ -48,6 +48,11 @@ applyDebugMode(!!getSetting<boolean>('debug', false));
   const shellType = getSetting<ShellType>('shellType', defaultShellType) || defaultShellType;
   const shellPath = getSetting<string>('shellPath', DEFAULT_GITBASH_PATH) || DEFAULT_GITBASH_PATH;
   terminalService.setShell(shellType, shellPath);
+  terminalService.onShellFallback((type, path) => {
+    setSetting('shellType', type);
+    setSetting('shellPath', path);
+    logInfo(`[main] Shell settings updated after fallback: type=${type}, path=${path}`);
+  });
 }
 
 // --- MSYS / Git-bash path conversion ---

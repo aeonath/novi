@@ -37,6 +37,7 @@ class TerminalService {
   private nextId = 1;
   private configuredShellType: ShellType = 'gitbash';
   private configuredShellPath: string = DEFAULT_GITBASH_PATH;
+  private shellFallbackCallback?: (type: ShellType, path: string) => void;
 
   /**
    * Set the configured shell for new terminals
@@ -45,6 +46,15 @@ class TerminalService {
     this.configuredShellType = type;
     if (path) this.configuredShellPath = path;
     logInfo(`[TerminalService] Shell configured: type=${type}, path=${path || '(default)'}`);
+  }
+
+  /**
+   * Register a callback invoked when the shell falls back to a different type
+   * (e.g. git bash not found → PowerShell). Allows the caller to persist the
+   * effective shell settings so subsequent sessions use the correct type.
+   */
+  onShellFallback(cb: (type: ShellType, path: string) => void): void {
+    this.shellFallbackCallback = cb;
   }
 
   getShellType(): ShellType { return this.configuredShellType; }
@@ -100,8 +110,14 @@ class TerminalService {
             return fb;
           }
         }
+        const fallbackPath = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
         logInfo('[TerminalService] Git bash not found, falling back to PowerShell');
-        return 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
+        this.configuredShellType = 'powershell';
+        this.configuredShellPath = fallbackPath;
+        if (this.shellFallbackCallback) {
+          this.shellFallbackCallback('powershell', fallbackPath);
+        }
+        return fallbackPath;
       }
     }
   }
@@ -148,7 +164,7 @@ class TerminalService {
     // silently consumes, unlike the old 'echo' approach which produced visible
     // text that had to be regex-stripped and left orphaned ConPTY cursor
     // sequences that corrupted vim/TUI screen restoration.
-    const isBashLike = shellType === 'gitbash' || shellType === 'wsl' || shellType === 'linux';
+    const isBashLike = effectiveShellType === 'gitbash' || effectiveShellType === 'wsl' || effectiveShellType === 'linux';
     const envOverrides: Record<string, string> = {
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor',
