@@ -241,6 +241,10 @@ class TerminalService {
     }
 
     try {
+      // Skip if dimensions are unchanged — avoids unnecessary SIGWINCH
+      if (session.cols === cols && session.rows === rows) {
+        return true;
+      }
       // Resize the PTY (sends SIGWINCH to shell)
       session.pty.resize(cols, rows);
       session.cols = cols;

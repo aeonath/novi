@@ -387,6 +387,11 @@ export class App extends Component {
     }
   }
 
+  /** Discard buffered terminal data (e.g. stale prompt before a resize) */
+  clearEarlyTerminalData(terminalId: string): void {
+    this.earlyTerminalData.delete(terminalId);
+  }
+
   /** Flush any buffered terminal data that arrived before xterm was ready */
   flushEarlyTerminalData(terminalId: string): void {
     const buffer = this.earlyTerminalData.get(terminalId);

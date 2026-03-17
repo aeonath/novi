@@ -36,6 +36,7 @@ export class Terminal extends Component {
   private resizeObserver: ResizeObserver | null = null;
   private isReady = false;
   private ptyCreated = false;
+  private initInProgress = false;
   private hasInitialFit = false;
   private _isActive = false;
   private ptyCols = 0;
@@ -78,7 +79,7 @@ export class Terminal extends Component {
       this.initPhase1();
     } else if (active && this.ptyCreated && !this.terminal) {
       // PTY exists but xterm not yet created (restart while tab was hidden)
-      this.initPhase2();
+      this.initDisplay();
     }
 
     // Refit on tab switch (after initial mount)
@@ -121,7 +122,8 @@ export class Terminal extends Component {
   }
 
   private async initPhase1(): Promise<void> {
-    if (this.ptyCreated || !this._isActive) return;
+    if (this.ptyCreated || this.initInProgress || !this._isActive) return;
+    this.initInProgress = true;
 
     console.log('[Terminal] PHASE 1: Container is active, measuring and creating PTY...');
 
@@ -168,98 +170,12 @@ export class Terminal extends Component {
       await (window as any).api?.terminalCreate(this.workspaceRoot, this.ptyCols, this.ptyRows, this.terminalId);
 
       this.ptyCreated = true;
-      this.initPhase2();
+      this.initDisplay();
     } catch (error) {
       console.error('[Terminal] Failed to measure and create PTY:', error);
+      this.initInProgress = false;
       tempTerminal.dispose();
     }
-  }
-
-  private initPhase2(): void {
-    if (!this.ptyCreated || this.terminal) return;
-
-    console.log('[Terminal] PHASE 2: Opening xterm for display...');
-
-    const terminal = new XTerm({
-      theme: {
-        background: '#1e1e1e', foreground: '#cccccc', cursor: '#ffffff', cursorAccent: '#000000',
-        selectionBackground: 'rgba(0, 122, 204, 0.3)',
-        black: '#000000', red: '#cd3131', green: '#0dbc79', yellow: '#e5e510',
-        blue: '#2472c8', magenta: '#bc3fbc', cyan: '#11a8cd', white: '#e5e5e5',
-        brightBlack: '#666666', brightRed: '#f14c4c', brightGreen: '#23d18b', brightYellow: '#f5f543',
-        brightBlue: '#3b8eea', brightMagenta: '#d670d6', brightCyan: '#29b8db', brightWhite: '#e5e5e5',
-      },
-      fontSize: this.fontSize,
-      fontFamily: "'DejaVu Sans Mono', monospace",
-      cursorBlink: false, cursorStyle: 'underline', cursorWidth: 2,
-      lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
-    });
-
-    // Let Ctrl+Tab / Ctrl+Shift+Tab bubble up to the document for tab cycling
-    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'Tab') return false;
-      return true;
-    });
-
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-
-    try {
-      terminal.open(this.container);
-
-      try {
-        const webglAddon = new WebglAddon();
-        webglAddon.onContextLoss(() => { webglAddon.dispose(); });
-        terminal.loadAddon(webglAddon);
-      } catch (_) {}
-
-      this.terminal = terminal;
-      this.fitAddon = fitAddon;
-
-      requestAnimationFrame(() => {
-        fitAddon.fit();
-        // Register API and flush buffered data BEFORE sending resize to PTY.
-        // This prevents the shell's SIGWINCH redraw from duplicating the prompt
-        // that was already buffered while xterm wasn't ready.
-        this.hasInitialFit = true;
-        this.isReady = true;
-        this.registerAPI();
-        // Only send resize if dimensions actually changed from what the PTY was created with
-        const newCols = terminal.cols;
-        const newRows = terminal.rows;
-        if (this.onResize && (newCols !== this.ptyCols || newRows !== this.ptyRows) && newCols > 0 && newRows > 0) {
-          this.onResize(newCols, newRows);
-        }
-        this.ptyCols = newCols;
-        this.ptyRows = newRows;
-        this.container.style.opacity = '1';
-        if (this._isActive) terminal.focus();
-        requestAnimationFrame(() => terminal.scrollToBottom());
-      });
-
-      terminal.onData((data) => this.onData?.(data));
-
-      if (typeof terminal.onSelectionChange === 'function') {
-        terminal.onSelectionChange(async () => {
-          const s = terminal.getSelection();
-          if (s && (window as any).api?.clipboardWriteText) {
-            try { await (window as any).api.clipboardWriteText(s); } catch (_) {}
-          }
-        });
-      }
-    } catch (error) {
-      console.error('[Terminal] Failed to open terminal:', error);
-    }
-
-    this.resizeObserver = new ResizeObserver(() => {
-      if (this.fitAddon && this.terminal) {
-        this.fitAddon.fit();
-        if (this.ptyCreated && this.onResize && this.terminal.cols && this.terminal.rows) {
-          this.onResize(this.terminal.cols, this.terminal.rows);
-        }
-      }
-    });
-    this.resizeObserver.observe(this.container);
   }
 
   resetTerminal(): void {
@@ -308,9 +224,10 @@ export class Terminal extends Component {
     this.terminal?.dispose();
     this.terminal = null;
     this.fitAddon = null;
-    // Reset flags so initPhase2 can run
+    // Reset flags so initDisplay can run
     this.isReady = false;
     this.hasInitialFit = false;
+    this.initInProgress = false;
     this.container.style.opacity = '0';
     // Create PTY immediately with saved dimensions — don't wait for container
     // visibility (initPhase1 would deadlock if the terminal tab is hidden)
@@ -320,7 +237,112 @@ export class Terminal extends Component {
     this.ptyCreated = true;
     // Create xterm display immediately if visible, otherwise defer to isActive setter
     if (this._isActive) {
-      this.initPhase2();
+      this.initDisplay();
+    }
+  }
+
+  /**
+   * Create xterm display when PTY already exists (restart while tab was hidden).
+   * Unlike initPhase1 which creates both xterm and PTY together, this only
+   * sets up the display layer for an existing PTY session.
+   */
+  private initDisplay(): void {
+    if (!this.ptyCreated || this.terminal) return;
+
+    console.log('[Terminal] initDisplay: Opening xterm for existing PTY...');
+
+    const terminal = new XTerm({
+      theme: {
+        background: '#1e1e1e', foreground: '#cccccc', cursor: '#ffffff', cursorAccent: '#000000',
+        selectionBackground: 'rgba(0, 122, 204, 0.3)',
+        black: '#000000', red: '#cd3131', green: '#0dbc79', yellow: '#e5e510',
+        blue: '#2472c8', magenta: '#bc3fbc', cyan: '#11a8cd', white: '#e5e5e5',
+        brightBlack: '#666666', brightRed: '#f14c4c', brightGreen: '#23d18b', brightYellow: '#f5f543',
+        brightBlue: '#3b8eea', brightMagenta: '#d670d6', brightCyan: '#29b8db', brightWhite: '#e5e5e5',
+      },
+      fontSize: this.fontSize,
+      fontFamily: "'DejaVu Sans Mono', monospace",
+      cursorBlink: false, cursorStyle: 'underline', cursorWidth: 2,
+      lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
+    });
+
+    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'Tab') return false;
+      return true;
+    });
+
+    const fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+
+    try {
+      terminal.open(this.container);
+
+      try {
+        const webglAddon = new WebglAddon();
+        webglAddon.onContextLoss(() => { webglAddon.dispose(); });
+        terminal.loadAddon(webglAddon);
+      } catch (_) {}
+
+      this.terminal = terminal;
+      this.fitAddon = fitAddon;
+
+      requestAnimationFrame(() => {
+        fitAddon.fit();
+        const newCols = terminal.cols;
+        const newRows = terminal.rows;
+        const dimensionsChanged = (newCols !== this.ptyCols || newRows !== this.ptyRows) && newCols > 0 && newRows > 0;
+        if (dimensionsChanged) {
+          // Dimensions differ from what PTY was created with.  Discard the
+          // stale buffered prompt — the resize will SIGWINCH the shell, which
+          // redraws a fresh prompt with the correct column width.
+          (window as any).__appInstance?.clearEarlyTerminalData?.(this.terminalId);
+        }
+        this.registerAPI();
+        if (dimensionsChanged && this.onResize) {
+          this.onResize(newCols, newRows);
+        }
+        this.ptyCols = newCols;
+        this.ptyRows = newRows;
+        this.container.style.opacity = '1';
+        if (this._isActive) terminal.focus();
+
+        // Attach the persistent ResizeObserver AFTER the initial fit so it
+        // only reacts to genuine future container size changes, not the
+        // initial layout settling (which would cause a duplicate SIGWINCH).
+        this.resizeObserver = new ResizeObserver(() => {
+          if (this.fitAddon && this.terminal) {
+            const oldC = this.terminal.cols;
+            const oldR = this.terminal.rows;
+            this.fitAddon.fit();
+            const newC = this.terminal.cols;
+            const newR = this.terminal.rows;
+            if (this.ptyCreated && this.onResize && (newC !== oldC || newR !== oldR) && newC > 0 && newR > 0) {
+              this.onResize(newC, newR);
+            }
+          }
+        });
+        this.resizeObserver.observe(this.container);
+
+        // Mark ready AFTER ResizeObserver is attached, so the isActive
+        // setter's refit block does not fire during this same init cycle.
+        this.hasInitialFit = true;
+        this.isReady = true;
+
+        requestAnimationFrame(() => terminal.scrollToBottom());
+      });
+
+      terminal.onData((data) => this.onData?.(data));
+
+      if (typeof terminal.onSelectionChange === 'function') {
+        terminal.onSelectionChange(async () => {
+          const s = terminal.getSelection();
+          if (s && (window as any).api?.clipboardWriteText) {
+            try { await (window as any).api.clipboardWriteText(s); } catch (_) {}
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[Terminal] Failed to open terminal display:', error);
     }
   }
 
