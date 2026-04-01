@@ -31,8 +31,6 @@ import type { ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
 
-const HOME_TERMINAL_ID = 'terminal-home';
-const homeTerminalPinnedSet = new Set([HOME_TERMINAL_ID]);
 
 interface ActiveTab {
   id: string;
@@ -88,7 +86,6 @@ export class App extends Component {
   private settingsSidebarContainerEl!: HTMLElement;
   private aboutOverlay: HTMLElement | null = null;
   private checkUpdatesOverlay: HTMLElement | null = null;
-  private exitConfirmOverlay: HTMLElement | null = null;
   private welcomeContextMenuEl: HTMLElement | null = null;
 
   // ---- Component instances ----
@@ -220,13 +217,10 @@ export class App extends Component {
 
     // Mount TabBar
     this.tabBar = new TabBar({
-      pinnedTabIds: homeTerminalPinnedSet,
       getPreferredNextTabId: () => this.previousActiveTabId,
       onAllTabsClosed: () => {
-        this.showWelcome = false;
-        this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
-        const api = (window as any).__tabBarAPI;
-        if (api) api.switchTab(HOME_TERMINAL_ID);
+        this.showWelcome = true;
+        this.setActiveTab(null);
       },
       onTabSwitch: (tab) => this.onTabSwitch(tab),
       onTabClose: (tabId) => this.onTabClose(tabId),
@@ -268,10 +262,8 @@ export class App extends Component {
     this.statusBar = new StatusBar();
     this.statusBar.mount(this.statusBarContainerEl);
     this.statusBar.onHomeClick = () => {
-      const api = (window as any).__tabBarAPI;
-      if (api) api.switchTab(HOME_TERMINAL_ID);
-      this.showWelcome = false;
-      this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+      this.showWelcome = true;
+      this.setActiveTab(null);
     };
 
     // FileTree
@@ -345,46 +337,28 @@ export class App extends Component {
   }
 
   /**
-   * Destroy and recreate the home terminal from scratch.
-   * Used when switching shells — ensures truly fresh state identical to first load.
+   * Destroy and recreate the first open terminal from scratch.
+   * Used when switching shells — ensures a truly fresh PTY with the new shell.
    */
   async recreateHomeTerminal(): Promise<void> {
-    // Suppress exit handler quit for the deliberate kill
-    (window as any).__restartingTerminalId = HOME_TERMINAL_ID;
-    // Kill old PTY
-    await window.api?.terminalKill?.(HOME_TERMINAL_ID);
-    // Clear buffers and API for old instance
-    this.earlyTerminalData.delete(HOME_TERMINAL_ID);
+    const firstTerminal = this.terminalTabs[0];
+    if (!firstTerminal) return;
+    const terminalId = firstTerminal.id;
+    // Suppress exit handler tab-close for the deliberate kill
+    (window as any).__restartingTerminalId = terminalId;
+    await window.api?.terminalKill?.(terminalId);
+    this.earlyTerminalData.delete(terminalId);
     if ((window as any).__terminalAPI) {
-      delete (window as any).__terminalAPI[HOME_TERMINAL_ID];
+      delete (window as any).__terminalAPI[terminalId];
     }
-    // Destroy old Terminal component and remove its DOM
-    const old = this.terminalInstances.get(HOME_TERMINAL_ID);
+    const old = this.terminalInstances.get(terminalId);
     if (old) {
       old.instance.destroy();
       old.container.remove();
-      this.terminalInstances.delete(HOME_TERMINAL_ID);
+      this.terminalInstances.delete(terminalId);
     }
     // syncTerminalInstances creates a fresh Terminal for the existing tab entry
     this.syncTerminalInstances();
-  }
-
-  /**
-   * Restart the home terminal after the PTY has already exited.
-   * Unlike recreateHomeTerminal(), this skips terminalKill since the process is already dead.
-   */
-  private restartDeadHomeTerminal(): void {
-    this.earlyTerminalData.delete(HOME_TERMINAL_ID);
-    // Switch to home tab
-    this.showWelcome = false;
-    this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
-    const tabBarAPI = (window as any).__tabBarAPI;
-    if (tabBarAPI) tabBarAPI.switchTab(HOME_TERMINAL_ID);
-    // Spawn a new shell in the existing home terminal (PTY already dead)
-    const existing = this.terminalInstances.get(HOME_TERMINAL_ID);
-    if (existing) {
-      existing.instance.respawnShell();
-    }
   }
 
   /** Discard buffered terminal data (e.g. stale prompt before a resize) */
@@ -428,14 +402,9 @@ export class App extends Component {
         console.log('[App] Terminal', terminalId, 'exited with code', exitCode);
         const inst = this.terminalInstances.get(terminalId);
         if (inst) inst.instance.markPtyExited();
-        if (terminalId === HOME_TERMINAL_ID) {
-          if ((window as any).__restartingTerminalId === terminalId) {
-            (window as any).__restartingTerminalId = null;
-            // Deliberate restart — xterm was already cleared before restart.
-            // Do NOT resetTerminal() here: it races with the new PTY's output.
-            return;
-          }
-          this.showExitConfirmDialog();
+        if ((window as any).__restartingTerminalId === terminalId) {
+          (window as any).__restartingTerminalId = null;
+          // Deliberate restart — do NOT close the tab.
           return;
         }
         const tabBarAPI = (window as any).__tabBarAPI;
@@ -467,7 +436,7 @@ export class App extends Component {
         const dirName = segments[segments.length - 1] || pwd;
         const tabBarAPI = (window as any).__tabBarAPI;
         if (tabBarAPI) {
-          const icon = terminalId === HOME_TERMINAL_ID ? '\u{1F5A5}\uFE0F' : '\u{1F4BB}';
+          const icon = '\u{1F4BB}';
           tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
         }
         if (window.api?.gitGetStatus) {
@@ -612,7 +581,7 @@ export class App extends Component {
   private async loadWorkspace(): Promise<void> {
     if (!window.api?.workspaceLoad || !window.api?.getCommandLineArgs) {
       ensureReady('tabbar-ready').then(() => {
-        this.createHomeTerminal();
+        this.createInitialTerminal();
       }).catch(() => {});
       return;
     }
@@ -622,7 +591,7 @@ export class App extends Component {
     if (args.includes('--clean') || !keeptabs) {
       console.log('[App] Skipping workspace restoration');
       await ensureReady('tabbar-ready');
-      this.createHomeTerminal();
+      this.createInitialTerminal();
       return;
     }
 
@@ -630,7 +599,7 @@ export class App extends Component {
       const workspace = await window.api.workspaceLoad();
       if (!workspace) {
         await ensureReady('tabbar-ready');
-        this.createHomeTerminal();
+        this.createInitialTerminal();
         return;
       }
 
@@ -650,7 +619,11 @@ export class App extends Component {
       if (workspace.layout) this.showGitPanel = workspace.layout.showGitPanel;
 
       await ensureReady('tabbar-ready');
-      this.createHomeTerminal();
+
+      // Only create an initial terminal if there are no saved terminals to restore
+      if (!workspace.openTerminals?.length) {
+        this.createInitialTerminal();
+      }
 
       // Restore files
       if (workspace.openFiles?.length) {
@@ -721,33 +694,34 @@ export class App extends Component {
         this.syncNoviShellInstances();
       }
 
-      // Always focus the home terminal after restoration
-      this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
-      const tabBarAPI2 = (window as any).__tabBarAPI;
-      if (tabBarAPI2) tabBarAPI2.switchTab(HOME_TERMINAL_ID);
+      // Focus the first restored terminal, or let file restoration handle focus
+      if (workspace.openTerminals?.length) {
+        const firstNewId = Object.values(oldToNewTabId)[0];
+        if (firstNewId) {
+          this.setActiveTab({ id: firstNewId, type: 'terminal' });
+          const tabBarAPI2 = (window as any).__tabBarAPI;
+          if (tabBarAPI2) tabBarAPI2.switchTab(firstNewId);
+        }
+      }
       setTimeout(() => this.focusActiveTab(), 300);
 
     } catch (error) {
       console.error('[App] Failed to load workspace:', error);
-      this.createHomeTerminal();
+      this.createInitialTerminal();
     }
   }
 
-  private createHomeTerminal(savedCwd?: string): void {
+  private createInitialTerminal(): void {
     const tabBarAPI = (window as any).__tabBarAPI;
     if (!tabBarAPI) return;
-    const existing = tabBarAPI.getTabs();
-    if (existing.some((t: any) => t.id === HOME_TERMINAL_ID)) return;
-
-    tabBarAPI.addTab({ id: HOME_TERMINAL_ID, type: 'terminal', filePath: HOME_TERMINAL_ID, fileName: '\u{1F5A5}\uFE0F ~', isDirty: false, content: '', language: 'terminal' });
-    if (!this.terminalTabs.some(t => t.id === HOME_TERMINAL_ID)) {
-      this.terminalTabs = [{ id: HOME_TERMINAL_ID, fileName: '\u{1F5A5}\uFE0F ~', workspaceRoot: savedCwd || null }, ...this.terminalTabs];
-    }
-    this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [HOME_TERMINAL_ID]: { cwd: savedCwd || '', overriddenRoot: undefined } };
+    const tid = `terminal-${Date.now()}`;
+    tabBarAPI.addTab({ id: tid, type: 'terminal', filePath: tid, fileName: '\u{1F4BB} ~', isDirty: false, content: '', language: 'terminal' });
+    this.terminalTabs = [{ id: tid, fileName: '\u{1F4BB} ~', workspaceRoot: null }, ...this.terminalTabs];
+    this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [tid]: { cwd: '', overriddenRoot: undefined } };
     this.showWelcome = false;
-    this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+    this.setActiveTab({ id: tid, type: 'terminal' });
     this.syncTerminalInstances();
-    console.log('[App] Home terminal tab created', savedCwd ? `with CWD: ${savedCwd}` : '(default home)');
+    console.log('[App] Initial terminal tab created');
   }
 
   private saveWorkspaceDebounced = this.debounce(() => this.saveWorkspace(), 1000);
@@ -764,13 +738,12 @@ export class App extends Component {
       const openFiles = fileTabs.map((t: any) => ({ filePath: t.filePath, content: t.content, isDirty: t.isDirty }));
       const activeFileIndex = this.activeTab?.type === 'file' ? fileTabs.findIndex((t: any) => t.id === this.activeTab!.id) : -1;
       const openImages = tabs.filter((t: any) => t.type === 'image').map((t: any) => ({ filePath: t.filePath, fileName: t.fileName }));
-      const openTerminals = this.terminalTabs.filter(t => t.id !== HOME_TERMINAL_ID).map(t => ({ id: t.id, name: t.fileName, cwd: this.terminalFileTreeRoots[t.id]?.cwd || '' }));
-      const homeTerminalCwd = this.terminalFileTreeRoots[HOME_TERMINAL_ID]?.cwd || '';
+      const openTerminals = this.terminalTabs.map(t => ({ id: t.id, name: t.fileName, cwd: this.terminalFileTreeRoots[t.id]?.cwd || '' }));
       const openNoviPrompts = this.noviPromptTabs.map(t => ({ id: t.id, name: t.fileName }));
 
       await window.api.workspaceSave({
         workspaceRoot: this.workspaceRoot,
-        openFiles, openImages, openTerminals, openNoviPrompts, homeTerminalCwd,
+        openFiles, openImages, openTerminals, openNoviPrompts, homeTerminalCwd: '',
         activeTabId: this.activeTab?.id || null,
         activeTabType: this.activeTab?.type || null,
         activeFileIndex,
@@ -837,7 +810,7 @@ export class App extends Component {
         this.welcomeEl.appendChild(el('p', {}, 'Loading editor...'));
       } else {
         this.welcomeEl.appendChild(el('h1', {}, 'Novi'));
-        this.welcomeEl.appendChild(el('p', {}, 'Open a file to start editing'));
+        this.welcomeEl.appendChild(el('p', {}, 'Open a terminal or file to get started'));
         this.welcomeEl.appendChild(el('p', { style: 'font-size: 0.85em; opacity: 0.5; margin-top: 20px;' }, 'Right-click for options'));
       }
     }
@@ -1022,7 +995,6 @@ export class App extends Component {
   }
 
   private async onTabClose(tabId: string): Promise<boolean> {
-    if (tabId === HOME_TERMINAL_ID) return false;
     if (this.forceCloseTabId === tabId) { this.forceCloseTabId = null; return true; }
 
     const tabBarAPI = (window as any).__tabBarAPI;
@@ -1423,17 +1395,18 @@ export class App extends Component {
       }
     }
     for (const tab of allTabs) {
-      if (tab.type === 'terminal' && tab.id !== HOME_TERMINAL_ID) {
+      if (tab.type === 'terminal') {
         try { await window.api?.terminalKill?.(tab.id); } catch { /* */ }
       }
     }
     for (const tab of allTabs) {
-      if (tab.id !== HOME_TERMINAL_ID) tabBarAPI.removeTab(tab.id);
+      tabBarAPI.removeTab(tab.id);
     }
-    this.terminalTabs = this.terminalTabs.filter(t => t.id === HOME_TERMINAL_ID);
+    this.terminalTabs = [];
     this.noviPromptTabs = [];
     this.showGitPanel = false;
-    this.setActiveTab({ id: HOME_TERMINAL_ID, type: 'terminal' });
+    this.showWelcome = true;
+    this.setActiveTab(null);
     this.syncTerminalInstances();
     this.syncNoviShellInstances();
     this.updateSidebarVisibility();
@@ -1499,52 +1472,6 @@ export class App extends Component {
 
   private hideCheckUpdatesDialog(): void {
     if (this.checkUpdatesOverlay) { this.checkUpdatesOverlay.remove(); this.checkUpdatesOverlay = null; }
-  }
-
-  private showExitConfirmDialog(): void {
-    if (this.exitConfirmOverlay) return;
-    const overlay = el('div', {
-      style: 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;',
-    });
-    const dialog = el('div', {
-      style: 'background-color: #252526; border: 1px solid #3e3e42; border-radius: 8px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); min-width: 400px; text-align: center;',
-    });
-    dialog.appendChild(el('h2', { style: 'margin: 0 0 16px 0; color: #cccccc; font-size: 20px;' }, 'Exit Novi'));
-    dialog.appendChild(el('p', { style: 'margin: 16px 0 24px 0; color: #cccccc; font-size: 14px;' }, 'Do you really want to exit?'));
-
-    const btnRow = el('div', { style: 'display: flex; justify-content: center; gap: 12px;' });
-
-    const noBtn = el('button', {
-      style: "background-color: #007acc; border: none; border-radius: 4px; padding: 8px 24px; color: #ffffff; cursor: pointer; font-size: 14px; font-family: 'Segoe UI', sans-serif;",
-    }, 'No');
-    noBtn.addEventListener('click', () => {
-      this.hideExitConfirmDialog();
-      this.restartDeadHomeTerminal();
-    });
-    noBtn.addEventListener('mouseenter', () => noBtn.style.backgroundColor = '#005a9e');
-    noBtn.addEventListener('mouseleave', () => noBtn.style.backgroundColor = '#007acc');
-
-    const yesBtn = el('button', {
-      style: "background-color: #a01c1c; border: none; border-radius: 4px; padding: 8px 24px; color: #ffffff; cursor: pointer; font-size: 14px; font-family: 'Segoe UI', sans-serif;",
-    }, 'Yes');
-    yesBtn.addEventListener('click', () => {
-      this.hideExitConfirmDialog();
-      window.api?.quit?.();
-    });
-    yesBtn.addEventListener('mouseenter', () => yesBtn.style.backgroundColor = '#801616');
-    yesBtn.addEventListener('mouseleave', () => yesBtn.style.backgroundColor = '#a01c1c');
-
-    btnRow.appendChild(noBtn);
-    btnRow.appendChild(yesBtn);
-    dialog.appendChild(btnRow);
-    dialog.addEventListener('click', (e) => e.stopPropagation());
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
-    this.exitConfirmOverlay = overlay;
-  }
-
-  private hideExitConfirmDialog(): void {
-    if (this.exitConfirmOverlay) { this.exitConfirmOverlay.remove(); this.exitConfirmOverlay = null; }
   }
 
   private showWelcomeContextMenu(e: MouseEvent): void {

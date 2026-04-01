@@ -74,7 +74,7 @@ export class StatusBar extends Component {
       cursor: 'pointer',
       borderRadius: '2px',
     });
-    this.homeBtn.title = 'Go to Home terminal';
+    this.homeBtn.title = 'Go to home screen';
     this.homeBtn.addEventListener('click', () => this._onHomeClick?.());
     this.homeBtn.style.display = 'none';
 
