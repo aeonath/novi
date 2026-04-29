@@ -470,6 +470,16 @@ export class App extends Component {
       this.addCleanup(() => window.api?.removeMenuCommandListener?.());
     }
 
+    // CLI open commands (from novi CLI tool or startup flags)
+    if (window.api?.onOpenFromCli) {
+      window.api.onOpenFromCli((payload) => {
+        if (payload.filePath) void this.openFileFromPath(payload.filePath);
+        else if (payload.openTerminal) void this.createTerminalTab(payload.cwd);
+        else if (payload.newFile) this.createNewFileTab();
+      });
+      this.addCleanup(() => window.api?.removeOpenFromCliListener?.());
+    }
+
     // singlefiletree setting changes
     const sftHandler = () => {
       window.api?.getSetting<boolean>('singlefiletree', false).then((v) => {
@@ -1112,6 +1122,83 @@ export class App extends Component {
   }
 
   // ============================================================
+  // CLI commands
+  // ============================================================
+
+  private async openFileFromPath(filePath: string): Promise<void> {
+    const tabBarAPI = (window as any).__tabBarAPI;
+    if (!tabBarAPI) return;
+    // Switch to existing tab rather than opening a duplicate
+    const existing = tabBarAPI.getTabs?.().find((t: any) => t.filePath === filePath);
+    if (existing) {
+      tabBarAPI.switchTab(existing.id);
+      this.setActiveTab({ id: existing.id, type: existing.type });
+      this.showWelcome = false;
+      this.updateContentVisibility();
+      return;
+    }
+    this.showWelcome = false;
+    this.updateContentVisibility();
+    if (isImageFile(filePath)) {
+      const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+      const tabId = `tab-${Date.now()}`;
+      tabBarAPI.addTab({ id: tabId, type: 'image', filePath, fileName, isDirty: false, content: '' });
+      const root = this.currentFileTreeDisplayRoot;
+      if (root) this.fileTabToTreeRoot = { ...this.fileTabToTreeRoot, [tabId]: root };
+      this.setActiveTab({ id: tabId, type: 'image' });
+      return;
+    }
+    try {
+      const fileData = await window.api.readFile(filePath);
+      (window as any).__monacoEditorAPI?.loadFile(filePath, fileData.content);
+      const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
+      const tabId = `tab-${Date.now()}`;
+      tabBarAPI.addTab({ id: tabId, type: 'file', filePath, fileName, isDirty: false, content: fileData.content, language: 'typescript' });
+      const root = this.currentFileTreeDisplayRoot;
+      if (root) this.fileTabToTreeRoot = { ...this.fileTabToTreeRoot, [tabId]: root };
+      this.setActiveTab({ id: tabId, type: 'file' });
+    } catch (error) {
+      console.error('[App] Failed to open file from CLI:', error);
+    }
+  }
+
+  async createTerminalTab(cwd?: string): Promise<void> {
+    if (!window.api?.terminalCreate) return;
+    const terminalId = `terminal-${Date.now()}`;
+    this.showWelcome = false;
+    const tabBarAPI = (window as any).__tabBarAPI;
+    if (!tabBarAPI) return;
+    tabBarAPI.addTab({ id: terminalId, type: 'terminal', filePath: terminalId, fileName: '\u{1F4BB} bash', isDirty: false, content: '', language: 'terminal' });
+    // Use the provided cwd if given; otherwise inherit from the active terminal or workspace root
+    let startCwd: string | null | undefined = cwd;
+    if (!startCwd) {
+      const currentTab = tabBarAPI.getActiveTab?.();
+      const activeCwd = currentTab?.type === 'terminal' && currentTab.id
+        ? (this.terminalFileTreeRoots[currentTab.id]?.overriddenRoot ?? this.terminalFileTreeRoots[currentTab.id]?.cwd)
+        : null;
+      startCwd = activeCwd || this.workspaceRoot;
+    }
+    this.terminalTabs = [...this.terminalTabs, { id: terminalId, fileName: '\u{1F4BB} bash', workspaceRoot: startCwd }];
+    this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [terminalId]: { cwd: startCwd || '', overriddenRoot: undefined } };
+    this.setActiveTab({ id: terminalId, type: 'terminal' });
+    this.syncTerminalInstances();
+    this.updateContentVisibility();
+    (window as any).__statusBarAPI?.setStatus(`${this.shellLabel}`);
+  }
+
+  createNewFileTab(): void {
+    const tabBarAPI = (window as any).__tabBarAPI;
+    if (!tabBarAPI) return;
+    const fileName = `Untitled-${this.untitledCounter}`;
+    const tabId = `untitled-${this.untitledCounter}-${Date.now()}`;
+    this.showWelcome = false;
+    tabBarAPI.addTab({ id: tabId, type: 'file', filePath: '', fileName, isDirty: true, content: '', language: 'plaintext' });
+    this.setActiveTab({ id: tabId, type: 'file', filePath: '', fileName });
+    this.untitledCounter++;
+    this.updateContentVisibility();
+  }
+
+  // ============================================================
   // Action context
   // ============================================================
 
@@ -1225,26 +1312,7 @@ export class App extends Component {
         this.updateContentVisibility();
         (window as any).__statusBarAPI?.setStatus('Novi Shell ready');
       },
-      onNewTerminal: async () => {
-        if (!window.api?.terminalCreate) return;
-        const terminalId = `terminal-${Date.now()}`;
-        this.showWelcome = false;
-        const tabBarAPI = (window as any).__tabBarAPI;
-        if (tabBarAPI) {
-          tabBarAPI.addTab({ id: terminalId, type: 'terminal', filePath: terminalId, fileName: '\u{1F4BB} bash', isDirty: false, content: '', language: 'terminal' });
-          const currentTab = tabBarAPI.getActiveTab?.();
-          const activeCwd = currentTab?.type === 'terminal' && currentTab.id
-            ? (this.terminalFileTreeRoots[currentTab.id]?.overriddenRoot ?? this.terminalFileTreeRoots[currentTab.id]?.cwd)
-            : null;
-          const startCwd = activeCwd || this.workspaceRoot;
-          this.terminalTabs = [...this.terminalTabs, { id: terminalId, fileName: '\u{1F4BB} bash', workspaceRoot: startCwd }];
-          this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [terminalId]: { cwd: startCwd || '', overriddenRoot: undefined } };
-          this.setActiveTab({ id: terminalId, type: 'terminal' });
-          this.syncTerminalInstances();
-          this.updateContentVisibility();
-        }
-        (window as any).__statusBarAPI?.setStatus(`${this.shellLabel}`);
-      },
+      onNewTerminal: async () => { void this.createTerminalTab(); },
       onOpenSettings: async () => {
         const tabBarAPI = (window as any).__tabBarAPI;
         if (!tabBarAPI) return;
@@ -1291,16 +1359,7 @@ export class App extends Component {
     console.log('[App] Handling menu command:', command);
     switch (command) {
       case 'new-file': {
-        const fileName = `Untitled-${this.untitledCounter}`;
-        const tabId = `untitled-${this.untitledCounter}-${Date.now()}`;
-        this.showWelcome = false;
-        const tabBarAPI = (window as any).__tabBarAPI;
-        if (tabBarAPI) {
-          tabBarAPI.addTab({ id: tabId, type: 'file', filePath: '', fileName, isDirty: true, content: '', language: 'plaintext' });
-          this.setActiveTab({ id: tabId, type: 'file', filePath: '', fileName });
-        }
-        this.untitledCounter++;
-        this.updateContentVisibility();
+        this.createNewFileTab();
         break;
       }
       case 'open-file': await this.actionContext.onOpenFile?.(); break;
