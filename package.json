@@ -20,7 +20,8 @@
     "fmt:check": "prettier --check \"src/**/*.{ts,html,css}\"",
     "pack:deb": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux deb",
     "pack:win": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win portable",
-    "pack:win:installer": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis"
+    "pack:win:installer": "npm run clean && npm run build && npm run copy:icon && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false ELECTRON_BUILDER_NSIS_SKIP_SIGNING=true electron-builder --win nsis",
+    "novi": "sh scripts/novi-dev.sh"
   },
   "repository": {
     "type": "git",
@@ -92,6 +93,7 @@
     },
     "win": {
       "icon": "build/icon.ico",
+      "executableName": "NoviEditor",
       "signAndEditExecutable": false,
       "compression": "store",
       "target": [

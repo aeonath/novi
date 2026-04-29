@@ -118,7 +118,7 @@ describe('Windows Installer Configuration', () => {
       const content = readFileSync(nshPath, 'utf-8');
       expect(content).toContain('customInit');
       expect(content).toContain('customUnInit');
-      expect(content).toContain('Novi.exe');
+      expect(content).toContain('NoviEditor.exe');
       expect(content).toContain('taskkill');
     });
   });
