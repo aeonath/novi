@@ -172,6 +172,15 @@ contextBridge.exposeInMainWorld('api', {
   removeMenuCommandListener: () => {
     ipcRenderer.removeAllListeners('menu-command');
   },
+  // CLI open command listener
+  onOpenFromCli: (callback: (payload: any) => void) => {
+    ipcRenderer.on('open-from-cli', (_event, payload) => {
+      callback(payload);
+    });
+  },
+  removeOpenFromCliListener: () => {
+    ipcRenderer.removeAllListeners('open-from-cli');
+  },
   // Command stats operations
   commandStatsRecord: (command: string) => ipcRenderer.invoke('command-stats-record', command),
   commandStatsGetTop: (limit?: number) => ipcRenderer.invoke('command-stats-get-top', limit),

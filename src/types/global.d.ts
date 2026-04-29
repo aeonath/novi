@@ -168,6 +168,9 @@ declare global {
       // Menu command listener
       onMenuCommand: (callback: (command: string) => void) => void;
       removeMenuCommandListener: () => void;
+      // CLI open command listener
+      onOpenFromCli: (callback: (payload: OpenFromCliPayload) => void) => void;
+      removeOpenFromCliListener: () => void;
       // Command stats operations
       commandStatsRecord: (command: string) => Promise<{ success: boolean }>;
       commandStatsGetTop: (limit?: number) => Promise<CommandStat[]>;
@@ -177,6 +180,13 @@ declare global {
       loadAllExtensions: () => Promise<any>;
     };
   }
+}
+
+export interface OpenFromCliPayload {
+  newFile?: boolean;
+  filePath?: string;
+  openTerminal?: boolean;
+  cwd?: string;
 }
 
 export interface CommandStat {
