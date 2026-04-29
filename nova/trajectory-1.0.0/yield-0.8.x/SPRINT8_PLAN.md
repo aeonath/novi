@@ -39,11 +39,32 @@ This is two tasks in one, build the terminal settings first then reconcillate ou
 ## Task 3 - add ctrl+tab
 
 Description:
-Add CTRL+TAB keyboard shortcut to cycle through tabs
 
-Edit
+- Add CTRL+TAB keyboard shortcut to cycle through tabs
+- Add CTRL+SHIFT+TAB to cycle in reverse order.
+
 Additional Notes:
 doesn't currently acknowledge this common shortcut.
 
-## Task 4 - add msys2 option to the terminal settings
+## Task 4 - change the default app behavior
+
+Currently the App has a main terminal opened by default and if you exit 
+that terminal you will exit the app.  We need to change the default
+behavior here.
+
+First of all we need the terminal to open only if there is not another
+terminal open from the previous session.
+
+The should be no longer the main terminal tab and will have an
+x to close it like any other tab.
+
+The home screen needs to come back (I think it is still in the codebase). Closing all tabs will show the home screen.
+
+The home button in the bottom right should now show the homescreen again
+instead of the main terminal (which will no longer exist)
+
+So if you open the app and no previous terminals are open, it will automatically open a terminal tab.  but closing this tab will no 
+longer exit the app.
+
+s
 
