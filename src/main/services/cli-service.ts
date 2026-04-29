@@ -17,8 +17,41 @@ type CliCommand =
 
 type CliResponse = { ok: true } | { ok: false; error: string };
 
+export interface OpenFromCliPayload {
+  newFile?: boolean;
+  filePath?: string;
+  openTerminal?: boolean;
+  cwd?: string;
+}
+
 export function getPipePath(): string {
   return path.join(os.homedir(), '.novi', 'novi-editor.sock');
+}
+
+export function parseStartupArgs(argv: string[]): OpenFromCliPayload | null {
+  // Never process startup flags when running as the CLI client
+  if (argv.includes('--novi-cli')) return null;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+
+    if (arg === '--novi-new-file') {
+      return { newFile: true };
+    }
+
+    if (arg.startsWith('--novi-open-file=')) {
+      const filePath = arg.slice('--novi-open-file='.length);
+      return filePath ? { filePath } : null;
+    }
+
+    if (arg === '--novi-open-terminal') {
+      const cwdArg = argv.find((a) => a.startsWith('--novi-cwd='));
+      const cwd = cwdArg ? cwdArg.slice('--novi-cwd='.length) : undefined;
+      return { openTerminal: true, ...(cwd ? { cwd } : {}) };
+    }
+  }
+
+  return null;
 }
 
 class CliService {

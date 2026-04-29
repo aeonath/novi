@@ -23,7 +23,7 @@ import { fileTreeWatcher } from './services/file-tree-watcher';
 import { editorFileWatcher } from './services/editor-file-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand, buildMenu } from './menu';
 import { commandStatsService } from './services/command-stats-service';
-import { cliService } from './services/cli-service';
+import { cliService, parseStartupArgs } from './services/cli-service';
 import { loadAllExtensions } from '../core/extension-loader';
 
 let mainWindowRef: BrowserWindow | null = null;
@@ -261,8 +261,16 @@ function createWindow(): void {
     Menu.setApplicationMenu(menu);
   });
 
+  // Forward startup CLI args to renderer once it has fully loaded
+  mainWindow.webContents.once('did-finish-load', () => {
+    const payload = parseStartupArgs(process.argv);
+    if (payload) {
+      mainWindow.webContents.send('open-from-cli', payload);
+    }
+  });
+
   mainWindowRef = mainWindow;
-  
+
   // Set main window for credential helper
   gitCredentialHelper.setMainWindow(mainWindow);
 }
