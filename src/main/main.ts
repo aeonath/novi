@@ -23,6 +23,7 @@ import { fileTreeWatcher } from './services/file-tree-watcher';
 import { editorFileWatcher } from './services/editor-file-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand, buildMenu } from './menu';
 import { commandStatsService } from './services/command-stats-service';
+import { cliService } from './services/cli-service';
 import { loadAllExtensions } from '../core/extension-loader';
 
 let mainWindowRef: BrowserWindow | null = null;
@@ -1074,6 +1075,7 @@ void app.whenReady().then(() => {
   });
   
   createWindow();
+  cliService.start(() => mainWindowRef);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1087,6 +1089,7 @@ app.on('window-all-closed', () => {
   logInfo('All windows closed');
   // Cleanup terminal sessions
   terminalService.cleanup();
+  cliService.stop();
   if (mainWindowRef && !mainWindowRef.isDestroyed()) {
     const b = mainWindowRef.getBounds();
     setSetting('windowBounds', { width: b.width, height: b.height, x: b.x, y: b.y });
