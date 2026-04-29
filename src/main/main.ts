@@ -24,6 +24,7 @@ import { editorFileWatcher } from './services/editor-file-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand, buildMenu } from './menu';
 import { commandStatsService } from './services/command-stats-service';
 import { cliService, parseStartupArgs } from './services/cli-service';
+import { runCliMode } from './cli-mode';
 import { loadAllExtensions } from '../core/extension-loader';
 
 let mainWindowRef: BrowserWindow | null = null;
@@ -277,6 +278,10 @@ function createWindow(): void {
 
 app.setName('NoviEditor');
 app.setAppUserModelId('studio.miranova.novi');
+
+if (process.argv.includes('--novi-cli')) {
+  void runCliMode(process.argv, process.cwd());
+} else {
 
 void app.whenReady().then(() => {
   logInfo('App ready');
@@ -1124,6 +1129,8 @@ process.on('SIGTERM', () => {
   }
   process.exit(0);
 });
+
+} // end of GUI-mode block
 
 // Crash reporting
 process.on('uncaughtException', (err) => {
