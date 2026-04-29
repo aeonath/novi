@@ -266,6 +266,7 @@ function createWindow(): void {
   gitCredentialHelper.setMainWindow(mainWindow);
 }
 
+app.setName('NoviEditor');
 app.setAppUserModelId('studio.miranova.novi');
 
 void app.whenReady().then(() => {

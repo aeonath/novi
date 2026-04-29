@@ -73,7 +73,7 @@
     "linux": {
       "icon": "build/icons",
       "category": "Development",
-      "executableName": "novi",
+      "executableName": "NoviEditor",
       "target": [
         {
           "target": "deb",
@@ -83,7 +83,7 @@
         }
       ],
       "desktop": {
-        "StartupWMClass": "novi"
+        "StartupWMClass": "NoviEditor"
       }
     },
     "deb": {
