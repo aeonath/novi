@@ -43,6 +43,7 @@ export class SettingsTab extends Component {
   private loadedExtensions: ExtensionInfo[] = [];
   private extensionsLoaded = false;
   private vimodeEnabled = false;
+  private singlefiletreeEnabled = false;
 
   constructor() {
     super('div');
@@ -93,6 +94,7 @@ export class SettingsTab extends Component {
         this.currentShellPath = sp || 'C:\\Program Files\\Git\\bin\\bash.exe';
       }
       this.vimodeEnabled = !!(await window.api?.getSetting<boolean>('vimode', false));
+      this.singlefiletreeEnabled = !!(await window.api?.getSetting<boolean>('singlefiletree', false));
     } catch { /* use defaults */ }
   }
 
@@ -102,27 +104,8 @@ export class SettingsTab extends Component {
       case 'terminal': this.renderTerminalSettings(); break;
       case 'editor': this.renderEditorSettings(); break;
       case 'extensions': this.renderExtensionsSettings(); break;
-      case 'novi': this.renderPlaceholder('Novi'); break;
+      case 'novi': this.renderNoviSettings(); break;
     }
-  }
-
-  private renderPlaceholder(label: string): void {
-    const wrapper = el('div');
-    setStyles(wrapper, {
-      flex: '1',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      textAlign: 'center',
-    });
-    const heading = el('h2', {}, `${label} Settings`);
-    setStyles(heading, { margin: '0 0 12px 0', fontWeight: '400', fontSize: '1.3em' });
-    const message = el('p', {}, 'Settings coming.');
-    setStyles(message, { opacity: '0.5', margin: '0' });
-    wrapper.appendChild(heading);
-    wrapper.appendChild(message);
-    this.contentEl.appendChild(wrapper);
   }
 
   private renderExtensionsSettings(): void {
@@ -214,6 +197,32 @@ export class SettingsTab extends Component {
       card.appendChild(details);
       this.contentEl.appendChild(card);
     }
+  }
+
+  private renderNoviSettings(): void {
+    const heading = el('h2', {}, 'Novi Settings');
+    setStyles(heading, { margin: '0 0 24px 0', fontWeight: '400', fontSize: '1.3em' });
+    this.contentEl.appendChild(heading);
+
+    const sectionLabel = el('div', {}, 'File Tree');
+    setStyles(sectionLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(sectionLabel);
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Single File Tree',
+      'When unchecked, the file tree follows the active terminal — each terminal tab tracks its own working directory and the tree updates as you switch tabs. When checked, a single static file tree is shared across all tabs and never changes automatically.',
+      this.singlefiletreeEnabled,
+      async (enabled) => {
+        this.singlefiletreeEnabled = enabled;
+        await window.api?.setSetting('singlefiletree', enabled);
+        window.dispatchEvent(new CustomEvent('novi-singlefiletree-changed'));
+      },
+    ));
   }
 
   private renderEditorSettings(): void {

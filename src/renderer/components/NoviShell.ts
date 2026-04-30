@@ -204,11 +204,9 @@ export class NoviShell extends Component {
     const t = this.terminal!;
     if (args.length === 0) {
       try {
-        const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
         const keeptabs = await window.api.getSetting<boolean>('keeptabs', true);
         const gitenabled = await window.api.getSetting<boolean>('gitenabled', true);
         t.writeln('\x1b[36mCurrent settings:\x1b[0m');
-        t.writeln(`  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  keeptabs      ${keeptabs ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  gitenabled     ${gitenabled ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
       } catch (_) { t.writeln('\x1b[31mFailed to read settings\x1b[0m'); }
@@ -216,10 +214,10 @@ export class NoviShell extends Component {
     }
     const option = args[0].toLowerCase();
     const value = args[1]?.toLowerCase();
-    const validOptions = ['singlefiletree', 'keeptabs', 'gitenabled', 'showhiddenfiles'];
+    const validOptions = ['keeptabs', 'gitenabled', 'showhiddenfiles'];
     if (!validOptions.includes(option)) {
       t.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
-      t.writeln('Supported: singlefiletree, keeptabs, gitenabled, showhiddenfiles');
+      t.writeln('Supported: keeptabs, gitenabled, showhiddenfiles');
       return;
     }
     if (value === undefined || value === '') {
@@ -237,12 +235,11 @@ export class NoviShell extends Component {
     try {
       await window.api.setSetting(option, value === 'on');
       const eventMap: Record<string, string> = {
-        singlefiletree: 'novi-singlefiletree-changed',
         gitenabled: 'novi-gitenabled-changed',
         showhiddenfiles: 'novi-showhiddenfiles-changed',
       };
       if (eventMap[option]) {
-        const detail = option === 'singlefiletree' ? {} : { enabled: value === 'on' };
+        const detail = { enabled: value === 'on' };
         window.dispatchEvent(new CustomEvent(eventMap[option], { detail }));
       }
       t.writeln(value === 'on' ? `\x1b[32m${option} on\x1b[0m` : `\x1b[33m${option} off\x1b[0m`);
