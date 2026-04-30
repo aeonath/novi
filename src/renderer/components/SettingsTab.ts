@@ -45,6 +45,7 @@ export class SettingsTab extends Component {
   private vimodeEnabled = false;
   private singlefiletreeEnabled = false;
   private keeptabsEnabled = true;
+  private gitenabledEnabled = true;
 
   constructor() {
     super('div');
@@ -97,6 +98,7 @@ export class SettingsTab extends Component {
       this.vimodeEnabled = !!(await window.api?.getSetting<boolean>('vimode', false));
       this.singlefiletreeEnabled = !!(await window.api?.getSetting<boolean>('singlefiletree', false));
       this.keeptabsEnabled = (await window.api?.getSetting<boolean>('keeptabs', true)) !== false;
+      this.gitenabledEnabled = (await window.api?.getSetting<boolean>('gitenabled', true)) !== false;
     } catch { /* use defaults */ }
   }
 
@@ -243,6 +245,27 @@ export class SettingsTab extends Component {
       async (enabled) => {
         this.keeptabsEnabled = enabled;
         await window.api?.setSetting('keeptabs', enabled);
+      },
+    ));
+
+    const gitLabel = el('div', {}, 'Git');
+    setStyles(gitLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginTop: '20px',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(gitLabel);
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Built-in Git Support',
+      'Enables Novi\'s built-in Git integration — the Git panel, status indicators in the file tree, and branch information in the status bar. Disable if you prefer to manage Git entirely from the terminal.',
+      this.gitenabledEnabled,
+      async (enabled) => {
+        this.gitenabledEnabled = enabled;
+        await window.api?.setSetting('gitenabled', enabled);
+        window.dispatchEvent(new CustomEvent('novi-gitenabled-changed', { detail: { enabled } }));
       },
     ));
   }
