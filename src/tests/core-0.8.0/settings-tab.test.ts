@@ -70,16 +70,17 @@ describe('SettingsTab', () => {
     expect(checkbox.checked).toBe(false);
   });
 
-  it('should render novi settings with Single File Tree toggle', () => {
+  it('should render novi settings with Single File Tree and Restore Previous Session toggles', () => {
     tab.section = 'novi';
     const h2 = tab.getElement().querySelector('h2');
     expect(h2?.textContent).toBe('Novi Settings');
     const text = tab.getElement().textContent || '';
     expect(text).toContain('Single File Tree');
     expect(text).toContain('file tree follows the active terminal');
-    const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
-    expect(checkbox).not.toBeNull();
-    expect(checkbox.checked).toBe(false);
+    expect(text).toContain('Restore Previous Session');
+    expect(text).toContain('restores them on next launch');
+    const checkboxes = tab.getElement().querySelectorAll('input[type="checkbox"]');
+    expect(checkboxes.length).toBe(2);
   });
 
   it('should switch sections correctly', () => {

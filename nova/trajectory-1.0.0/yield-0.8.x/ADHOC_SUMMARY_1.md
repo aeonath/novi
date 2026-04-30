@@ -24,7 +24,7 @@ Each row is one ad hoc task. Complete them in order — the Novi Shell is remove
 | 1 | VI Mode | `set vimode on/off` | Editor | ✅ Done |
 | 2 | Compat mode | `set compat on/off` | Editor | ⬜ Pending |
 | 3 | Single file tree | `set singlefiletree on/off` | Novi | ✅ Done |
-| 4 | Keep tabs | `set keeptabs on/off` | Novi | ⬜ Pending |
+| 4 | Keep tabs | `set keeptabs on/off` | Novi | ✅ Done |
 | 5 | Git enabled | `set gitenabled on/off` | Novi | ⬜ Pending |
 | 6 | Show hidden files | `set showhiddenfiles on/off` | Editor or Novi | ⬜ Pending |
 | 7 | Remove Novi Shell | — | — | ⬜ Pending (after all above) |

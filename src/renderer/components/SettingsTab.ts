@@ -44,6 +44,7 @@ export class SettingsTab extends Component {
   private extensionsLoaded = false;
   private vimodeEnabled = false;
   private singlefiletreeEnabled = false;
+  private keeptabsEnabled = true;
 
   constructor() {
     super('div');
@@ -95,6 +96,7 @@ export class SettingsTab extends Component {
       }
       this.vimodeEnabled = !!(await window.api?.getSetting<boolean>('vimode', false));
       this.singlefiletreeEnabled = !!(await window.api?.getSetting<boolean>('singlefiletree', false));
+      this.keeptabsEnabled = (await window.api?.getSetting<boolean>('keeptabs', true)) !== false;
     } catch { /* use defaults */ }
   }
 
@@ -221,6 +223,26 @@ export class SettingsTab extends Component {
         this.singlefiletreeEnabled = enabled;
         await window.api?.setSetting('singlefiletree', enabled);
         window.dispatchEvent(new CustomEvent('novi-singlefiletree-changed'));
+      },
+    ));
+
+    const sessionLabel = el('div', {}, 'Session');
+    setStyles(sessionLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginTop: '20px',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(sessionLabel);
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Restore Previous Session',
+      'When enabled, Novi saves your open tabs on exit and restores them on next launch. When disabled, every launch starts fresh with only a new terminal tab.',
+      this.keeptabsEnabled,
+      async (enabled) => {
+        this.keeptabsEnabled = enabled;
+        await window.api?.setSetting('keeptabs', enabled);
       },
     ));
   }

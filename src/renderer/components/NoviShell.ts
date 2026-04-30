@@ -204,25 +204,23 @@ export class NoviShell extends Component {
     const t = this.terminal!;
     if (args.length === 0) {
       try {
-        const keeptabs = await window.api.getSetting<boolean>('keeptabs', true);
         const gitenabled = await window.api.getSetting<boolean>('gitenabled', true);
         t.writeln('\x1b[36mCurrent settings:\x1b[0m');
-        t.writeln(`  keeptabs      ${keeptabs ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  gitenabled     ${gitenabled ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
       } catch (_) { t.writeln('\x1b[31mFailed to read settings\x1b[0m'); }
       return;
     }
     const option = args[0].toLowerCase();
     const value = args[1]?.toLowerCase();
-    const validOptions = ['keeptabs', 'gitenabled', 'showhiddenfiles'];
+    const validOptions = ['gitenabled', 'showhiddenfiles'];
     if (!validOptions.includes(option)) {
       t.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
-      t.writeln('Supported: keeptabs, gitenabled, showhiddenfiles');
+      t.writeln('Supported: gitenabled, showhiddenfiles');
       return;
     }
     if (value === undefined || value === '') {
       try {
-        const defaultVal = (option === 'keeptabs' || option === 'gitenabled') ? true : false;
+        const defaultVal = option === 'gitenabled' ? true : false;
         const on = await window.api.getSetting<boolean>(option, defaultVal);
         t.writeln(on ? `\x1b[32m${option} is on\x1b[0m` : `\x1b[33m${option} is off\x1b[0m`);
       } catch (_) { t.writeln('\x1b[31mFailed to read setting\x1b[0m'); }
