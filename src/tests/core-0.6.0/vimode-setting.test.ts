@@ -77,20 +77,6 @@ describe('vimode setting (core-0.6.0)', () => {
     });
   });
 
-  describe('compat setting (Sprint 6 Task 5)', () => {
-    it('should return false when compat is unset and default false is provided', () => {
-      const value = getSetting<boolean>('compat', false);
-      expect(value).toBe(false);
-    });
-
-    it('should persist compat on and off', () => {
-      setSetting('compat', true);
-      expect(getSetting<boolean>('compat', false)).toBe(true);
-      setSetting('compat', false);
-      expect(getSetting<boolean>('compat', true)).toBe(false);
-    });
-  });
-
   describe('singlefiletree setting (Sprint 6 Task 7)', () => {
     it('should return false when singlefiletree is unset and default false is provided', () => {
       const value = getSetting<boolean>('singlefiletree', false);

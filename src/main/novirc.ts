@@ -8,8 +8,8 @@
  * The user's settings.json is never written to from .novirc values.
  *
  * Format: KEY=VALUE (one per line), # comments, blank lines ignored.
- * Supported keys: shellType, shellPath, vimode, compat, singlefiletree,
- *   debug, keeptabs, gitenabled, fontSize, terminalFontSize, theme
+ * Supported keys: shellType, shellPath, vimode, singlefiletree,
+ *   keeptabs, gitenabled, fontSize, terminalFontSize, theme
  */
 
 import { existsSync, readFileSync } from 'node:fs';
