@@ -204,13 +204,11 @@ export class NoviShell extends Component {
     const t = this.terminal!;
     if (args.length === 0) {
       try {
-        const vimode = await window.api.getSetting<boolean>('vimode', false);
         const compat = await window.api.getSetting<boolean>('compat', false);
         const singlefiletree = await window.api.getSetting<boolean>('singlefiletree', false);
         const keeptabs = await window.api.getSetting<boolean>('keeptabs', true);
         const gitenabled = await window.api.getSetting<boolean>('gitenabled', true);
         t.writeln('\x1b[36mCurrent settings:\x1b[0m');
-        t.writeln(`  vimode         ${vimode ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  compat         ${compat ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  singlefiletree ${singlefiletree ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
         t.writeln(`  keeptabs      ${keeptabs ? '\x1b[32mon\x1b[0m' : '\x1b[33moff\x1b[0m'}`);
@@ -220,10 +218,10 @@ export class NoviShell extends Component {
     }
     const option = args[0].toLowerCase();
     const value = args[1]?.toLowerCase();
-    const validOptions = ['vimode', 'compat', 'singlefiletree', 'keeptabs', 'gitenabled', 'showhiddenfiles'];
+    const validOptions = ['compat', 'singlefiletree', 'keeptabs', 'gitenabled', 'showhiddenfiles'];
     if (!validOptions.includes(option)) {
       t.writeln(`\x1b[31mUnknown option: ${option}\x1b[0m`);
-      t.writeln('Supported: vimode, compat, singlefiletree, keeptabs, gitenabled, showhiddenfiles');
+      t.writeln('Supported: compat, singlefiletree, keeptabs, gitenabled, showhiddenfiles');
       return;
     }
     if (value === undefined || value === '') {
@@ -241,7 +239,6 @@ export class NoviShell extends Component {
     try {
       await window.api.setSetting(option, value === 'on');
       const eventMap: Record<string, string> = {
-        vimode: 'novi-vimode-changed',
         singlefiletree: 'novi-singlefiletree-changed',
         gitenabled: 'novi-gitenabled-changed',
         showhiddenfiles: 'novi-showhiddenfiles-changed',
@@ -262,7 +259,7 @@ export class NoviShell extends Component {
     t.writeln('  \x1b[33mlist\x1b[0m         - List all open tabs');
     t.writeln('  \x1b[33mclear\x1b[0m        - Clear the screen');
     t.writeln('  \x1b[33mexit\x1b[0m         - Close this Novi Shell tab');
-    t.writeln('  \x1b[33mset\x1b[0m          - Set options (e.g. set vimode on|off); set with no args shows all');
+    t.writeln('  \x1b[33mset\x1b[0m          - Set options (e.g. set compat on|off); set with no args shows all');
     t.writeln('  \x1b[33mhelp\x1b[0m         - Show this help message');
     t.writeln('');
     t.writeln('Keyboard Shortcuts:');

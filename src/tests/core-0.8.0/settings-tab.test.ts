@@ -58,12 +58,16 @@ describe('SettingsTab', () => {
     expect(text).toContain('WSL Bash');
   });
 
-  it('should show placeholder for editor section', () => {
+  it('should render editor settings with VI Mode toggle', () => {
     tab.section = 'editor';
     const h2 = tab.getElement().querySelector('h2');
     expect(h2?.textContent).toBe('Editor Settings');
-    const p = tab.getElement().querySelector('p');
-    expect(p?.textContent).toBe('Settings coming.');
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('VI Mode');
+    expect(text).toContain('Enable VI mode emulation in the editor');
+    const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(checkbox).not.toBeNull();
+    expect(checkbox.checked).toBe(false);
   });
 
   it('should show placeholder for novi section', () => {

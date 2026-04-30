@@ -42,6 +42,7 @@ export class SettingsTab extends Component {
   private linuxUseDefault = true;
   private loadedExtensions: ExtensionInfo[] = [];
   private extensionsLoaded = false;
+  private vimodeEnabled = false;
 
   constructor() {
     super('div');
@@ -91,6 +92,7 @@ export class SettingsTab extends Component {
         this.currentShellType = st || 'gitbash';
         this.currentShellPath = sp || 'C:\\Program Files\\Git\\bin\\bash.exe';
       }
+      this.vimodeEnabled = !!(await window.api?.getSetting<boolean>('vimode', false));
     } catch { /* use defaults */ }
   }
 
@@ -98,7 +100,7 @@ export class SettingsTab extends Component {
     clearChildren(this.contentEl);
     switch (this.activeSection) {
       case 'terminal': this.renderTerminalSettings(); break;
-      case 'editor': this.renderPlaceholder('Editor'); break;
+      case 'editor': this.renderEditorSettings(); break;
       case 'extensions': this.renderExtensionsSettings(); break;
       case 'novi': this.renderPlaceholder('Novi'); break;
     }
@@ -212,6 +214,78 @@ export class SettingsTab extends Component {
       card.appendChild(details);
       this.contentEl.appendChild(card);
     }
+  }
+
+  private renderEditorSettings(): void {
+    const heading = el('h2', {}, 'Editor Settings');
+    setStyles(heading, { margin: '0 0 24px 0', fontWeight: '400', fontSize: '1.3em' });
+    this.contentEl.appendChild(heading);
+
+    const sectionLabel = el('div', {}, 'Editing');
+    setStyles(sectionLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(sectionLabel);
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'VI Mode',
+      'Enable VI mode emulation in the editor',
+      this.vimodeEnabled,
+      async (enabled) => {
+        this.vimodeEnabled = enabled;
+        await window.api?.setSetting('vimode', enabled);
+        window.dispatchEvent(new CustomEvent('novi-vimode-changed', { detail: { enabled } }));
+      },
+    ));
+  }
+
+  private createToggleRow(
+    label: string,
+    description: string,
+    value: boolean,
+    onChange: (value: boolean) => void,
+  ): HTMLElement {
+    const row = el('div');
+    setStyles(row, {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '10px 12px',
+      marginBottom: '4px',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    row.addEventListener('mouseenter', () => { row.style.backgroundColor = '#2a2d2e'; });
+    row.addEventListener('mouseleave', () => { row.style.backgroundColor = 'transparent'; });
+
+    const checkbox = el('input', { type: 'checkbox' }) as HTMLInputElement;
+    checkbox.checked = value;
+    setStyles(checkbox, { marginRight: '12px', cursor: 'pointer', flexShrink: '0' });
+
+    const textCol = el('div');
+    const labelEl = el('div', {}, label);
+    setStyles(labelEl, { fontSize: '13px', fontWeight: '500' });
+    const descEl = el('div', {}, description);
+    setStyles(descEl, { fontSize: '11px', opacity: '0.6', marginTop: '2px' });
+    textCol.appendChild(labelEl);
+    textCol.appendChild(descEl);
+
+    row.appendChild(checkbox);
+    row.appendChild(textCol);
+
+    const toggle = () => {
+      checkbox.checked = !checkbox.checked;
+      onChange(checkbox.checked);
+    };
+    checkbox.addEventListener('change', () => onChange(checkbox.checked));
+    row.addEventListener('click', (e) => {
+      if (e.target !== checkbox) toggle();
+    });
+
+    return row;
   }
 
   private renderTerminalSettings(): void {
