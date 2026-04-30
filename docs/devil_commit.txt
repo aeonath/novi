@@ -1,0 +1,52 @@
+aeonath@sonnet:novi/ dev-core : ./testit.sh 
+
+> novi@0.8.4 test
+> jest
+
+ PASS  src/tests/core-0.5.0/image-format-conversion.test.ts
+ PASS  src/tests/core-0.4.0/terminal-service.test.ts
+ PASS  src/tests/core-0.2.0/theme.test.ts
+ PASS  src/tests/core-0.5.0/file-tree-context-menu.test.ts
+ PASS  src/tests/core-0.2.0/action-hud.test.ts
+ PASS  src/tests/core-0.4.0/editor-service.test.ts
+ PASS  src/tests/core-0.2.0/file-viewer.test.ts
+ PASS  src/tests/core-0.2.0/actions.test.ts
+ PASS  src/tests/core-0.3.0/recovery-dialog.test.ts
+ PASS  src/tests/core-0.2.0/title-bar.test.ts
+ PASS  src/tests/core-0.5.0/extension-loader.test.ts
+ PASS  src/tests/core-0.3.0/tab-bar.test.ts
+ PASS  src/tests/core-0.4.0/workspace-service.test.ts
+ PASS  src/tests/core-0.3.0/auto-save.test.ts
+ PASS  src/tests/core-0.1.0/crash-reporter.test.ts
+ PASS  src/tests/core-0.7.0/component.test.ts
+ PASS  src/tests/core-0.1.0/settings.test.ts
+ PASS  src/tests/core-0.1.0/logger.test.ts
+ PASS  src/tests/core-0.8.0/settings-sidebar.test.ts
+ PASS  src/tests/core-0.2.0/status-bar.test.ts
+ PASS  src/tests/core-0.7.0/dom.test.ts
+ PASS  src/tests/core-0.5.0/image-utils.test.ts
+ PASS  src/tests/core-0.3.0/monaco-editor.test.ts
+ PASS  src/tests/core-0.7.0/msys-path.test.ts
+ PASS  src/tests/core-0.7.0/installer.test.ts
+ PASS  src/tests/core-0.4.0/terminal-tabs.test.ts
+ PASS  src/tests/core-0.1.0/packaging.test.ts
+ PASS  src/tests/core-0.5.0/image-transparency.test.ts
+ PASS  src/tests/core-0.7.0/event-bus.test.ts
+ PASS  src/tests/core-0.7.0/app-state.test.ts
+ PASS  src/tests/core-0.8.0/settings-tab.test.ts
+ PASS  src/tests/core-0.5.0/image-resize.test.ts
+ PASS  src/tests/core-0.6.0/vimode-setting.test.ts
+ PASS  src/tests/core-0.5.0/file-tree-path-separator.test.ts
+ PASS  src/tests/core-0.8.0/novirc.test.ts
+ PASS  src/tests/core-0.5.0/image-crop.test.ts
+ PASS  src/tests/core-0.8.0/terminal-shell.test.ts
+ PASS  src/tests/core-0.5.0/image-editor.test.ts
+ PASS  src/tests/core-0.8.0/novi-command.test.ts
+ PASS  src/tests/core-0.2.0/file-tree.test.ts
+
+Test Suites: 40 passed, 40 total
+Tests:       666 passed, 666 total
+Snapshots:   0 total
+Time:        5.02 s, estimated 6 s
+Ran all test suites.
+aeonath@sonnet:novi/ dev-core : 

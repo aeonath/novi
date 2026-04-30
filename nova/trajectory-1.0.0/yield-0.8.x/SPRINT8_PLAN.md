@@ -66,5 +66,9 @@ instead of the main terminal (which will no longer exist)
 So if you open the app and no previous terminals are open, it will automatically open a terminal tab.  but closing this tab will no 
 longer exit the app.
 
-s
+
+## Task 5 - Simplify the image editor tab
+
+
+## Task 6 - Make sure we handle binary files
 

@@ -31,7 +31,6 @@ export type MenuCommand =
   | 'zoom-out'
   | 'zoom-reset'
   | 'new-terminal'
-  | 'novi-prompt'
   | 'command-palette'
   | 'debug'
   | 'reset-workspace'
@@ -187,12 +186,6 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           accelerator: 'CmdOrCtrl+`',
           click: () => executeCommand('new-terminal', mainWindow),
         },
-        {
-          label: 'Novi Shell',
-          accelerator: 'CmdOrCtrl+Shift+P',
-          click: () => executeCommand('novi-prompt', mainWindow),
-        },
-        { type: 'separator' },
         {
           label: 'Command Palette',
           click: () => executeCommand('command-palette', mainWindow),

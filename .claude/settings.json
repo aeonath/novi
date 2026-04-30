@@ -20,7 +20,8 @@
       "Bash(/c/Work/novi/node_modules/electron/dist/electron.exe -e \"console.log\\(process.versions\\)\")",
       "Bash(/c/Work/novi/node_modules/electron/dist/electron.exe -e \"console.log\\(''ELECTRON_RUN_AS_NODE:'', process.env.ELECTRON_RUN_AS_NODE\\)\")",
       "Bash(npm run compile)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx jest *)"
     ]
   }
 }

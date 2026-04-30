@@ -34,7 +34,6 @@ describe('WorkspaceManager', () => {
           { filePath: '/test/file1.ts', content: 'test content', isDirty: false },
         ],
         openTerminals: [],
-        openNoviPrompts: [],
         activeTabId: 'tab-1',
         activeTabType: 'file',
         layout: {
@@ -60,7 +59,6 @@ describe('WorkspaceManager', () => {
         workspaceRoot: null,
         openFiles: [],
         openTerminals: [],
-        openNoviPrompts: [],
         activeTabId: null,
         activeTabType: null,
         layout: {
@@ -84,7 +82,6 @@ describe('WorkspaceManager', () => {
         workspaceRoot: null,
         openFiles: [],
         openTerminals: [],
-        openNoviPrompts: [],
         activeTabId: null,
         activeTabType: null,
         layout: {
@@ -114,8 +111,7 @@ showGitPanel=true
 lastSaved=2025-11-04T12:00:00.000Z
 openFiles=/test/file1.ts
 openFilesDirty=0
-openTerminals=
-openNoviPrompts=`;
+openTerminals=`;
 
       (existsSync as jest.Mock).mockReturnValue(true);
       (readFile as jest.Mock).mockResolvedValue(mockConfig);
@@ -221,9 +217,6 @@ openNoviPrompts=`;
         openTerminals: [
           { id: 'terminal-1', name: 'bash' },
         ],
-        openNoviPrompts: [
-          { id: 'prompt-1', name: 'novi>' },
-        ],
         activeTabId: 'tab-2',
         activeTabType: 'file',
         layout: {
@@ -242,7 +235,6 @@ openNoviPrompts=`;
       
       expect(savedData).toContain('openFiles=/test/file1.ts|/test/file2.ts|/test/file3.ts');
       expect(savedData).toContain('openTerminals=terminal-1');
-      expect(savedData).toContain('openNoviPrompts=prompt-1');
       expect(savedData).toContain('activeTabId=tab-2');
       expect(savedData).toContain('activeTabType=file');
     });
@@ -252,7 +244,6 @@ openNoviPrompts=`;
         workspaceRoot: null,
         openFiles: [],
         openTerminals: [],
-        openNoviPrompts: [],
         activeTabId: null,
         activeTabType: null,
         layout: {

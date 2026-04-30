@@ -119,8 +119,8 @@ async function initializeApp() {
             });
             return;
           }
-          // For image and novi-prompt tabs, try to focus Monaco or body as fallback
-          else if (activeTab.type === 'image' || activeTab.type === 'novi-prompt') {
+          // For image tabs, try to focus Monaco or body as fallback
+          else if (activeTab.type === 'image') {
             console.log('[Renderer] Active tab is', activeTab.type, '- focusing Monaco or body');
             if (monacoAPI && monacoAPI.focus) {
               requestAnimationFrame(() => {

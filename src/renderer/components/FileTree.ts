@@ -27,7 +27,6 @@ export interface FileTreeConfig {
   showGitToggle?: boolean;
   onDirectoryOpen?: (dirPath: string) => void;
   onNewTerminal?: () => void;
-  onNoviPrompt?: () => void;
   initialPath?: string;
   displayRoot?: string | null;
   isTerminalTree?: boolean;
@@ -626,7 +625,6 @@ export class FileTree extends Component {
     menu.appendChild(makeItem('\ud83d\udcc4 New File', () => { this.hideContextMenu(); this.createNewFile(node); }));
     menu.appendChild(makeItem('\ud83d\udcc1 New Folder', () => { this.hideContextMenu(); this.createNewFolder(node); }));
     menu.appendChild(makeItem('\ud83d\udcbb New Terminal', () => { this.hideContextMenu(); this.config.onNewTerminal?.(); }));
-    menu.appendChild(makeItem('\u25b6\ufe0f Novi Shell', () => { this.hideContextMenu(); this.config.onNoviPrompt?.(); }));
 
     if (node) {
       menu.appendChild(makeDivider());

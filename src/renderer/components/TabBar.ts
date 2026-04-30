@@ -13,7 +13,7 @@ import { markReady } from '../utils/ready-events.js';
 
 export interface Tab {
   id: string;
-  type: 'file' | 'terminal' | 'image' | 'novi-prompt' | 'settings';
+  type: 'file' | 'terminal' | 'image' | 'settings';
   filePath: string;
   fileName: string;
   isDirty: boolean;
@@ -97,10 +97,10 @@ export class TabBar extends Component {
   }
 
   addTab(tab: Tab): void {
-    // For file, image, and novi-prompt tabs, check if tab already exists by filePath
-    if (tab.type === 'file' || tab.type === 'image' || tab.type === 'novi-prompt') {
+    // For file and image tabs, check if tab already exists by filePath
+    if (tab.type === 'file' || tab.type === 'image') {
       const existing = this.tabs.find(t =>
-        (t.type === 'file' || t.type === 'image' || t.type === 'novi-prompt') &&
+        (t.type === 'file' || t.type === 'image') &&
         t.filePath === tab.filePath
       );
       if (existing) {
@@ -270,55 +270,15 @@ export class TabBar extends Component {
     return tabEl;
   }
 
-  private showContextMenu(x: number, y: number, tab: Tab): void {
-    this.hideContextMenu();
-    if (tab.type !== 'novi-prompt') return;
-    const menu = el('div', {
-      style: [
-        'position: fixed', `left: ${x}px`, `top: ${y}px`,
-        'background-color: #252526', 'border: 1px solid #3e3e42',
-        'border-radius: 4px', 'box-shadow: 0 2px 8px rgba(0,0,0,0.3)',
-        'z-index: 10000', 'min-width: 150px', 'padding: 4px 0',
-      ].join(';'),
-    });
-    menu.addEventListener('click', (e) => e.stopPropagation());
-
-    const itemStyle = "padding: 6px 12px; cursor: pointer; color: #cccccc; font-size: 13px; font-family: 'Segoe UI', sans-serif;";
-
-    const copyItem = el('div', { style: itemStyle }, 'Copy');
-    copyItem.addEventListener('click', () => {
-      (window as any).__noviShellCopy?.();
-      this.hideContextMenu();
-    });
-
-    const pasteItem = el('div', { style: itemStyle }, 'Paste');
-    pasteItem.addEventListener('click', () => {
-      (window as any).__noviShellPaste?.();
-      this.hideContextMenu();
-    });
-
-    const sep = el('div', { style: 'height: 1px; background-color: #3e3e42; margin: 4px 0;' });
-
-    const closeItem = el('div', { style: itemStyle }, 'Close');
-    closeItem.addEventListener('click', () => {
-      void this.removeTab(tab.id);
-      this.hideContextMenu();
-    });
-
-    menu.appendChild(copyItem);
-    menu.appendChild(pasteItem);
-    menu.appendChild(sep);
-    menu.appendChild(closeItem);
-
-    document.body.appendChild(menu);
-    this.contextMenu = menu;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private showContextMenu(_x: number, _y: number, _tab: Tab): void {
+    // No tab-type-specific context menu currently
   }
 
   private hideContextMenu(): void {
     if (this.contextMenu) {
       this.contextMenu.remove();
       this.contextMenu = null;
-      this.contextMenuTab = null;
     }
   }
 }

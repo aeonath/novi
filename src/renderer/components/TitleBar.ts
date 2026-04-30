@@ -64,8 +64,6 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Settings', command: 'settings', shortcut: 'Ctrl+,' },
     { separator: true },
     { label: 'New Terminal', command: 'new-terminal', shortcut: 'Ctrl+T' },
-    { label: 'Novi Shell', command: 'novi-prompt', shortcut: 'Ctrl+Shift+N' },
-    { separator: true },
     { label: 'Command Palette', command: 'command-palette' },
     { separator: true },
     { label: 'Clear Workspace', command: 'reset-workspace' },
@@ -319,9 +317,9 @@ export class TitleBar extends Component {
       }
 
       const tabType = this.config.activeTabType;
-      const isNonFileTab = tabType === 'terminal' || tabType === 'novi-prompt' || tabType === 'settings';
+      const isNonFileTab = tabType === 'terminal' || tabType === 'settings';
       const disabled = item.disabled === true ||
-        ((tabType === 'novi-prompt' || tabType === 'settings') && item.command && FONT_COMMANDS.includes(item.command)) ||
+        (tabType === 'settings' && item.command && FONT_COMMANDS.includes(item.command)) ||
         (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command)) ||
         (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command)) ||
         (tabType === 'settings' && item.command && SETTINGS_DISABLED_COMMANDS.includes(item.command));

@@ -24,12 +24,8 @@ export interface WorkspaceState {
     id: string;
     name: string;
   }>;
-  openNoviPrompts: Array<{
-    id: string;
-    name: string;
-  }>;
   activeTabId: string | null;
-  activeTabType: 'file' | 'terminal' | 'novi-prompt' | null;
+  activeTabType: 'file' | 'terminal' | null;
   layout: {
     showGitPanel: boolean;
     gitPanelCollapsed?: boolean;
@@ -108,10 +104,6 @@ export class WorkspaceManager {
       const terminalIds = state.openTerminals.map(t => t.id).join('|');
       lines.push(`openTerminals=${terminalIds}`);
       
-      // Novi Prompt IDs
-      const promptIds = state.openNoviPrompts.map(p => p.id).join('|');
-      lines.push(`openNoviPrompts=${promptIds}`);
-
       // Home terminal CWD
       lines.push(`homeTerminalCwd=${state.homeTerminalCwd || ''}`);
       
@@ -122,7 +114,6 @@ export class WorkspaceManager {
       console.log('[WorkspaceManager] Root:', state.workspaceRoot);
       console.log('[WorkspaceManager] Open files:', state.openFiles.length);
       console.log('[WorkspaceManager] Open terminals:', state.openTerminals.length);
-      console.log('[WorkspaceManager] Open prompts:', state.openNoviPrompts.length);
     } catch (error) {
       console.error('[WorkspaceManager] Failed to save workspace:', error);
       throw error;
@@ -171,17 +162,10 @@ export class WorkspaceManager {
         name: 'bash',
       }));
       
-      const promptIds = (config.openNoviPrompts || config.openNovaPrompts) ? (config.openNoviPrompts || config.openNovaPrompts).split('|').filter(id => id) : [];
-      const openNoviPrompts = promptIds.map(id => ({
-        id,
-        name: 'novi>',
-      }));
-      
       const state: WorkspaceState = {
         workspaceRoot: config.workspaceRoot || null,
         openFiles,
         openTerminals,
-        openNoviPrompts,
         homeTerminalCwd: config.homeTerminalCwd || undefined,
         activeTabId: config.activeTabId || null,
         activeTabType: (config.activeTabType as any) || null,
@@ -195,7 +179,6 @@ export class WorkspaceManager {
       console.log('[WorkspaceManager] Root:', state.workspaceRoot);
       console.log('[WorkspaceManager] Open files:', state.openFiles?.length || 0);
       console.log('[WorkspaceManager] Open terminals:', state.openTerminals?.length || 0);
-      console.log('[WorkspaceManager] Open prompts:', state.openNoviPrompts?.length || 0);
       console.log('[WorkspaceManager] Last saved:', state.lastSaved);
       
       return state;
