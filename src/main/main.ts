@@ -31,13 +31,9 @@ import { DEBUG } from '../debug';
 let mainWindowRef: BrowserWindow | null = null;
 
 // --- Debug logging gate (main process) ---
-const _origLog = console.log.bind(console);
-const _origInfo = console.info.bind(console);
-const _noop = () => {};
-
 if (!DEBUG) {
-  console.log = _noop;
-  console.info = _noop;
+  console.log = () => {};
+  console.info = () => {};
 }
 
 // Load shell settings at startup

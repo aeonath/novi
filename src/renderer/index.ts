@@ -10,14 +10,11 @@ import { App } from './components/App.js';
 import { DEBUG } from '../debug.js';
 
 // --- Debug logging gate (renderer) ---
-
 const _origLog = console.log.bind(console);
-const _origInfo = console.info.bind(console);
-const _noop = () => {};
 
 if (!DEBUG) {
-  console.log = _noop;
-  console.info = _noop;
+  console.log = () => {};
+  console.info = () => {};
 }
 
 _origLog('[Novi] Initializing Novi Terminal Environment...');
