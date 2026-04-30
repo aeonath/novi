@@ -7,10 +7,9 @@
  */
 
 import { App } from './components/App.js';
+import { DEBUG } from '../debug.js';
 
 // --- Debug logging gate (renderer) ---
-// Flip to true locally when you need verbose console output.
-const DEBUG = false;
 
 const _origLog = console.log.bind(console);
 const _origInfo = console.info.bind(console);

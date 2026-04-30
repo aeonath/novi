@@ -26,13 +26,11 @@ import { commandStatsService } from './services/command-stats-service';
 import { cliService, parseStartupArgs } from './services/cli-service';
 import { runCliMode } from './cli-mode';
 import { loadAllExtensions } from '../core/extension-loader';
+import { DEBUG } from '../debug';
 
 let mainWindowRef: BrowserWindow | null = null;
 
 // --- Debug logging gate (main process) ---
-// Flip to true locally when you need verbose console output.
-const DEBUG = false;
-
 const _origLog = console.log.bind(console);
 const _origInfo = console.info.bind(console);
 const _noop = () => {};

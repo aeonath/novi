@@ -148,6 +148,24 @@ npm run fmt           # Format source files with Prettier
 npm run fmt:check     # Check formatting without writing
 ```
 
+### Debug Mode
+
+Verbose `console.log` / `console.info` output is gated behind a single flag in:
+
+```
+src/debug.ts
+```
+
+```ts
+export const DEBUG = false;  // ← flip to true to enable verbose logging
+```
+
+Both the main process and the renderer import from this file, so one change enables
+logging in both. **Never commit `DEBUG = true`** — keep it as a local-only change.
+
+When `DEBUG` is `false` (the default), `console.log` and `console.info` are no-ops in
+both processes. `console.warn` and `console.error` are always active regardless of this flag.
+
 ## Testing
 
 ### Run All Tests
