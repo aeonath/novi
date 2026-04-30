@@ -6,7 +6,6 @@
 import { app } from 'electron';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { loadNoviRc } from './novirc';
 
 export type Settings = Record<string, unknown>;
 
@@ -39,14 +38,6 @@ export function saveSettings(settings: Settings): void {
 }
 
 export function getSetting<T = unknown>(key: string, defaults?: T): T | undefined {
-  // .novirc overrides take precedence over settings.json
-  const rc = loadNoviRc();
-  if (key in rc) {
-    const rcValue = rc[key];
-    if (rcValue === null) return null as T;
-    return (rcValue as T) ?? defaults;
-  }
-
   const s = loadSettings();
   // Check if key exists in settings object
   if (!(key in s)) {
