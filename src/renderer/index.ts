@@ -8,32 +8,18 @@
 
 import { App } from './components/App.js';
 
-// Debug logging gate — when debug is off, console.log and console.info become no-ops.
-// console.warn and console.error are always active.
+// --- Debug logging gate (renderer) ---
+// Flip to true locally when you need verbose console output.
+const DEBUG = false;
+
 const _origLog = console.log.bind(console);
 const _origInfo = console.info.bind(console);
 const _noop = () => {};
 
-function applyDebugMode(enabled: boolean) {
-  console.log = enabled ? _origLog : _noop;
-  console.info = enabled ? _origInfo : _noop;
+if (!DEBUG) {
+  console.log = _noop;
+  console.info = _noop;
 }
-
-// Load debug setting immediately (before app renders)
-(async () => {
-  try {
-    const debug = await window.api.getSetting<boolean>('debug', false);
-    applyDebugMode(!!debug);
-  } catch {
-    // Default: debug off in production
-    applyDebugMode(false);
-  }
-})();
-
-// React to runtime changes from `set debug on/off`
-window.addEventListener('novi-debug-changed', ((e: CustomEvent) => {
-  applyDebugMode(!!e.detail?.enabled);
-}) as EventListener);
 
 _origLog('[Novi] Initializing Novi Terminal Environment...');
 

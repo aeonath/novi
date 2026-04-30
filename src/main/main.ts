@@ -30,19 +30,17 @@ import { loadAllExtensions } from '../core/extension-loader';
 let mainWindowRef: BrowserWindow | null = null;
 
 // --- Debug logging gate (main process) ---
-// When debug is off, console.log and console.info become no-ops.
-// console.warn and console.error are always active.
+// Flip to true locally when you need verbose console output.
+const DEBUG = false;
+
 const _origLog = console.log.bind(console);
 const _origInfo = console.info.bind(console);
 const _noop = () => {};
 
-function applyDebugMode(enabled: boolean) {
-  console.log = enabled ? _origLog : _noop;
-  console.info = enabled ? _origInfo : _noop;
+if (!DEBUG) {
+  console.log = _noop;
+  console.info = _noop;
 }
-
-// Load debug setting synchronously at startup
-applyDebugMode(!!getSetting<boolean>('debug', false));
 
 // Load shell settings at startup
 {
@@ -321,7 +319,6 @@ void app.whenReady().then(() => {
   ipcMain.handle('get-setting', (_e, key: string, defaults?: unknown) => getSetting(key, defaults));
   ipcMain.handle('set-setting', (_e, key: string, value: unknown) => {
     setSetting(key, value);
-    if (key === 'debug') applyDebugMode(!!value);
     if (key === 'shellType' || key === 'shellPath') {
       const defaultSt: ShellType = process.platform === 'win32' ? 'gitbash' : 'linux';
       const st = getSetting<ShellType>('shellType', defaultSt) || defaultSt;
