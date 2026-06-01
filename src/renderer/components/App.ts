@@ -1199,9 +1199,9 @@ export class App extends Component {
             const currentTab = tabBarAPI.getActiveTab();
             const isUntitled = currentTab && currentTab.filePath === '';
             if (isUntitled) {
-              tabBarAPI.removeTab(currentTab.id);
+              this.forceCloseTabId = currentTab.id;
+              await tabBarAPI.removeTab(currentTab.id);
               tabBarAPI.addTab({ id: currentTab.id, type: 'file', filePath: result.path, fileName, isDirty: false, content, language: 'plaintext' });
-              tabBarAPI.updateTabDirty(currentTab.id, false);
             } else {
               const newTabId = `tab-${Date.now()}`;
               tabBarAPI.addTab({ id: newTabId, type: 'file', filePath: result.path, fileName, isDirty: false, content, language: 'plaintext' });
