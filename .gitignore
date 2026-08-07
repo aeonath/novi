@@ -7,7 +7,8 @@ msys2/
 # Build output
 dist/
 out/
-build/
+build/*
+!build/installer.nsh
 temp/
 tmp/
 

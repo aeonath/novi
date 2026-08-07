@@ -339,8 +339,8 @@ Tabs are typed `'file' | 'image' | 'terminal' | 'settings'`, each with a unique 
 
 ### `novi` CLI
 
-- A small CLI client (`src/main/cli-mode.ts`) talks to the running editor over a Unix
-  socket (`~/.novi/novi-editor.sock`):
+- A small CLI client (`src/main/cli-mode.ts`) talks to the running editor over IPC
+  (`~/.novi/novi-editor.sock` on macOS/Linux, `\\.\pipe\novi-editor` on Windows):
   ```bash
   novi                   # New file tab (or restore previous session)
   novi path/to/file.ts   # Open a file in the running editor

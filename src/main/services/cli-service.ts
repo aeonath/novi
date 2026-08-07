@@ -25,6 +25,13 @@ export interface OpenFromCliPayload {
 }
 
 export function getPipePath(): string {
+  if (process.platform === 'win32') {
+    // Windows has no reliable AF_UNIX support (creating a filesystem-path socket
+    // can fail with EACCES and a bogus "WSL not installed" message depending on
+    // filesystem/ACL/provider config). Named pipes are the native, always-available
+    // IPC mechanism on Windows and require no WSL or afunix.sys support.
+    return '\\\\.\\pipe\\novi-editor';
+  }
   return path.join(os.homedir(), '.novi', 'novi-editor.sock');
 }
 
@@ -60,13 +67,17 @@ class CliService {
   start(getWindow: () => BrowserWindow | null): void {
     const sockPath = getPipePath();
 
-    fs.mkdirSync(path.dirname(sockPath), { recursive: true });
+    // Windows named pipes live in the OS pipe namespace, not on disk — no
+    // directory to create and no stale file to clean up.
+    if (process.platform !== 'win32') {
+      fs.mkdirSync(path.dirname(sockPath), { recursive: true });
 
-    if (fs.existsSync(sockPath)) {
-      try {
-        fs.unlinkSync(sockPath);
-      } catch {
-        // ignore — may not exist by the time we unlink
+      if (fs.existsSync(sockPath)) {
+        try {
+          fs.unlinkSync(sockPath);
+        } catch {
+          // ignore — may not exist by the time we unlink
+        }
       }
     }
 
@@ -153,6 +164,7 @@ class CliService {
       this.server.close();
       this.server = null;
     }
+    if (process.platform === 'win32') return;
     const sockPath = getPipePath();
     try {
       if (fs.existsSync(sockPath)) {

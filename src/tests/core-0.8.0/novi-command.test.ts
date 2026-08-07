@@ -34,7 +34,13 @@ function makeMockWindow(overrides: Record<string, unknown> = {}) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('getPipePath', () => {
-  it('returns <homedir>/.novi/novi-editor.sock on all platforms', () => {
+  it('returns a Windows named pipe path on win32', () => {
+    if (process.platform !== 'win32') return;
+    expect(getPipePath()).toBe('\\\\.\\pipe\\novi-editor');
+  });
+
+  it('returns <homedir>/.novi/novi-editor.sock on non-Windows platforms', () => {
+    if (process.platform === 'win32') return;
     expect(getPipePath()).toBe(path.join(os.homedir(), '.novi', 'novi-editor.sock'));
   });
 });
@@ -60,8 +66,13 @@ describe('parseCliModeArgs', () => {
   });
 
   it('passes through an absolute file arg unchanged', () => {
-    const result = parseCliModeArgs(['--novi-cli', '/abs/path/f.ts'], cwd);
-    expect(result).toEqual({ cmd: 'open-file', path: '/abs/path/f.ts' });
+    // Normalize to a platform-correct absolute path so this is meaningful on
+    // both POSIX (path stays "/abs/path/f.ts") and Windows (becomes a
+    // drive-rooted path like "C:\abs\path\f.ts"). path.resolve() guarantees an
+    // already-absolute input is returned unchanged, regardless of cwd.
+    const absPath = path.resolve('/abs/path/f.ts');
+    const result = parseCliModeArgs(['--novi-cli', absPath], cwd);
+    expect(result).toEqual({ cmd: 'open-file', path: absPath });
   });
 });
 
@@ -186,7 +197,8 @@ describe('CliService.start', () => {
     (cliService as any).server = null;
   });
 
-  it('creates the .novi directory with { recursive: true }', () => {
+  it('creates the .novi directory with { recursive: true } on non-Windows', () => {
+    if (process.platform === 'win32') return;
     cliService.start(() => null);
     expect(mkdirSpy).toHaveBeenCalledWith(
       path.join(os.homedir(), '.novi'),
@@ -197,18 +209,22 @@ describe('CliService.start', () => {
   it('starts net.Server and listens on the socket path', () => {
     cliService.start(() => null);
     expect(createServerSpy).toHaveBeenCalled();
-    expect(mockServer.listen).toHaveBeenCalledWith(
-      expect.stringContaining('.novi'),
-      expect.any(Function)
-    );
+    expect(mockServer.listen).toHaveBeenCalledWith(getPipePath(), expect.any(Function));
   });
 
-  it('removes a stale socket file when one already exists', () => {
+  it('removes a stale socket file when one already exists on non-Windows', () => {
+    if (process.platform === 'win32') return;
     existsSpy.mockReturnValue(true);
     const unlinkSpy = jest.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined);
     cliService.start(() => null);
     expect(unlinkSpy).toHaveBeenCalledWith(getPipePath());
     unlinkSpy.mockRestore();
+  });
+
+  it('skips filesystem setup entirely on Windows (named pipes are not files)', () => {
+    if (process.platform !== 'win32') return;
+    cliService.start(() => null);
+    expect(mkdirSpy).not.toHaveBeenCalled();
   });
 });
 
