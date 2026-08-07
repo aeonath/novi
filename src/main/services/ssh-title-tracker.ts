@@ -6,7 +6,10 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
+// Strips OSC sequences (ESC ] ... BEL-or-ST — window title, etc.) and CSI sequences
+// (ESC [ ... letter, including "?"-prefixed private-mode ones like bracketed paste).
+// Shells routinely interleave both with prompt text and typed-command echo.
+const ANSI_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[a-zA-Z]/g;
 // Matches a resting shell prompt of the form "user@host:cwd$ " or "user@host cwd % "
 const PROMPT_RE = /([A-Za-z0-9_][A-Za-z0-9_.-]{0,63})@([A-Za-z0-9_][A-Za-z0-9_.-]{0,63})[:\s][^\r\n]{0,80}[#$%>]\s*$/;
 // Finds a standalone "ssh" word anywhere in the line — NOT anchored to line-start,
@@ -106,7 +109,8 @@ export class SshTitleTracker {
   }
 
   private scanForSshCommand(data: string): SshTitleEvent | null {
-    for (const ch of data) {
+    const clean = data.replace(ANSI_RE, '');
+    for (const ch of clean) {
       if (ch === '\n') {
         const line = this.cmdLineBuffer.replace(/\r$/, '');
         this.cmdLineBuffer = '';
@@ -127,7 +131,7 @@ export class SshTitleTracker {
   }
 
   private tryStartSsh(rawLine: string): string | null {
-    const line = rawLine.replace(ANSI_RE, '').trimEnd();
+    const line = rawLine.trimEnd();
 
     let lastTokenEnd = -1;
     let match: RegExpExecArray | null;

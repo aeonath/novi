@@ -114,6 +114,24 @@ describe('SshTitleTracker', () => {
       const event = type(tracker, 'Aeonath@SONNET:work/ : ssh astra');
       expect(event).toEqual({ type: 'title', value: 'localuser@astra' });
     });
+
+    it('finds the typed command past an OSC 0 window-title escape and CSI color codes from the real prompt', () => {
+      // Regression (captured from a real git-bash PTY): git-bash's default prompt
+      // emits colored CSI segments AND an OSC 0 "set window title" escape
+      // (ESC ] 0 ; ... BEL) right before the cursor — the BEL byte isn't
+      // whitespace, so an ANSI-stripper that only understands CSI leaves "ssh"
+      // glued to a control character and the whitespace-boundary match fails.
+      const tracker = new SshTitleTracker();
+      const promptChunk =
+        '\u001b[32m\u001b[1mAeonath@SONNET\u001b[m:\u001b[34m\u001b[1m~/ \u001b[m : ' +
+        '\u001b]0;Aeonath@SONNET: ~\u0007';
+      let event: ReturnType<typeof tracker.feed> = null;
+      event = tracker.feed(promptChunk);
+      expect(event).toBeNull();
+      for (const ch of 'ssh astra') event = tracker.feed(ch);
+      event = tracker.feed('\r\n');
+      expect(event).toEqual({ type: 'title', value: 'localuser@astra' });
+    });
   });
 
   describe('while an ssh session is active', () => {
