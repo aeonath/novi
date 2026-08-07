@@ -387,7 +387,7 @@ export class App extends Component {
     // Terminal exit
     if (window.api?.terminalOnExit && window.api?.terminalRemoveExitListener) {
       window.api.terminalRemoveExitListener();
-      window.api.terminalOnExit((terminalId: string, exitCode: number) => {
+      window.api.terminalOnExit(async (terminalId: string, exitCode: number) => {
         console.log('[App] Terminal', terminalId, 'exited with code', exitCode);
         const inst = this.terminalInstances.get(terminalId);
         if (inst) inst.instance.markPtyExited();
@@ -398,16 +398,12 @@ export class App extends Component {
         }
         const tabBarAPI = (window as any).__tabBarAPI;
         if (tabBarAPI) {
-          tabBarAPI.closeTab(terminalId);
-          this.terminalTabs = this.terminalTabs.filter(t => t.id !== terminalId);
-          const tabs = tabBarAPI.getTabs();
-          if (tabs.length > 0 && this.activeTab?.id === terminalId) {
-            this.setActiveTab(tabs[0]);
-            tabBarAPI.setActiveTab(tabs[0].id);
-          } else if (tabs.length === 0) {
-            this.showWelcome = true;
-            this.setActiveTab(null);
-          }
+          // closeTab (TabBar.removeTab) is async — it awaits onTabClose (which
+          // itself awaits the terminalKill IPC round-trip) before it actually
+          // mutates its internal tab list and fires onTabSwitch/onAllTabsClosed.
+          // Must await here too, otherwise this handler used to read stale tab
+          // state before TabBar had removed the exited tab.
+          await tabBarAPI.closeTab(terminalId);
         }
       });
       this.addCleanup(() => window.api?.terminalRemoveExitListener?.());
