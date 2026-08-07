@@ -7,13 +7,17 @@
 
 set -e
 
-if [ -z "$1" ]; then
+print_usage() {
     echo "Usage: ./buildit.sh <target>"
     echo ""
     echo "Targets:"
     echo "  deb       - Build Debian package (Linux)"
     echo "  win       - Build Windows portable EXE"
     echo "  installer - Build Windows NSIS installer"
+}
+
+if [ -z "$1" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    print_usage
     exit 0
 fi
 
@@ -47,7 +51,8 @@ case "$TARGET" in
         ;;
     *)
         echo "Unknown target: $TARGET"
-        echo "Usage: ./buildit.sh [deb|win|installer]"
+        echo ""
+        print_usage
         exit 1
         ;;
 esac
