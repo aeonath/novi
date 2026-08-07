@@ -13,7 +13,10 @@ import * as fs from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { appendFile, mkdir } from 'fs/promises';
+import { Worker } from 'worker_threads';
 import { gitCredentialHelper } from './git-credential-helper.js';
+
+const EMPTY_STATUS: GitStatus = { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
 
 // Debug flag - set to true to enable verbose git operation logging
 const DEBUG_GIT_OPERATIONS = false;
@@ -34,6 +37,7 @@ export interface GitFileStatus {
 
 class GitService {
   private logPath: string;
+  private activeStatusRequest: { worker: Worker; resolve: (status: GitStatus) => void } | null = null;
 
   constructor() {
     this.logPath = join(homedir(), '.novi', 'logs', 'git.log');
@@ -72,72 +76,63 @@ class GitService {
     }
   }
 
+  /**
+   * Runs the statusMatrix() walk in a worker thread so a huge repository can
+   * never block the main process (menus, IPC, terminal input all stay responsive
+   * regardless of scan duration). Only one scan runs at a time — a new request
+   * (e.g. rapid `cd` in a terminal) terminates the previous one outright rather
+   * than letting it keep burning CPU for a directory we no longer care about.
+   */
   async getStatus(cwd: string): Promise<GitStatus> {
-    try {
-      // Only operate if .git is directly in the cwd — never walk parents
-      const gitDir = join(cwd, '.git');
-      if (!fs.existsSync(gitDir)) {
-        return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
-      }
-
-      const branch = await git.currentBranch({ fs, dir: cwd }) || null;
-
-      // statusMatrix returns [filepath, HEAD, WORKDIR, STAGE] tuples
-      // HEAD: 0=absent, 1=present
-      // WORKDIR: 0=absent, 2=present
-      // STAGE: 0=absent, 1=matches HEAD, 2=differs from HEAD, 3=matches WORKDIR
-      const matrix = await git.statusMatrix({ fs, dir: cwd });
-      const files = this.parseStatusMatrix(matrix);
-
-      const { ahead, behind } = await this.getAheadBehind(cwd, branch);
-
-      await this.log('getStatus', `Branch: ${branch}, Files: ${files.length}`, true);
-      return { isRepo: true, branch, files, ahead, behind };
-    } catch (error) {
-      await this.log('getStatus', `Error: ${error}`, false);
-      return { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
+    // Only operate if .git is directly in the cwd — never walk parents
+    const gitDir = join(cwd, '.git');
+    if (!fs.existsSync(gitDir)) {
+      return EMPTY_STATUS;
     }
+
+    this.cancelActiveStatus();
+
+    return new Promise<GitStatus>((resolve) => {
+      const worker = new Worker(join(__dirname, 'git-status-worker.js'), { workerData: { cwd } });
+
+      const settle = (status: GitStatus) => {
+        if (this.activeStatusRequest?.worker === worker) this.activeStatusRequest = null;
+        resolve(status);
+      };
+
+      this.activeStatusRequest = { worker, resolve: settle };
+
+      worker.once('message', (msg: { ok: boolean; status?: GitStatus; error?: string }) => {
+        void worker.terminate();
+        if (msg.ok && msg.status) {
+          void this.log('getStatus', `Branch: ${msg.status.branch}, Files: ${msg.status.files.length}`, true);
+          settle(msg.status);
+        } else {
+          void this.log('getStatus', `Error: ${msg.error}`, false);
+          settle(EMPTY_STATUS);
+        }
+      });
+
+      worker.once('error', (err) => {
+        void this.log('getStatus', `Worker error: ${err.message}`, false);
+        settle(EMPTY_STATUS);
+      });
+    });
   }
 
-  private parseStatusMatrix(matrix: [string, number, number, number][]): GitFileStatus[] {
-    const files: GitFileStatus[] = [];
-
-    for (const [filepath, head, workdir, stage] of matrix) {
-      // Skip unmodified files
-      if (head === 1 && workdir === 1 && stage === 1) continue;
-
-      // Untracked: not in HEAD, present in workdir, not staged
-      if (head === 0 && workdir === 2 && stage === 0) {
-        files.push({ path: filepath, status: 'untracked', staged: false });
-        continue;
-      }
-
-      // Staged new file: not in HEAD, staged
-      if (head === 0 && stage === 2) {
-        files.push({ path: filepath, status: 'added', staged: true });
-        // Also unstaged changes if workdir differs from stage
-        if (workdir === 0) {
-          files.push({ path: filepath, status: 'deleted', staged: false });
-        }
-        continue;
-      }
-
-      // Staged changes (file exists in HEAD)
-      if (head === 1 && stage === 2) {
-        files.push({ path: filepath, status: 'modified', staged: true });
-      } else if (head === 1 && stage === 0) {
-        files.push({ path: filepath, status: 'deleted', staged: true });
-      }
-
-      // Unstaged changes (workdir differs from stage or HEAD)
-      if (head === 1 && workdir === 2 && stage === 1) {
-        files.push({ path: filepath, status: 'modified', staged: false });
-      } else if (head === 1 && workdir === 0 && stage === 1) {
-        files.push({ path: filepath, status: 'deleted', staged: false });
-      }
-    }
-
-    return files;
+  /**
+   * Cancels any in-flight statusMatrix() scan, terminating its worker thread
+   * immediately (true preemption — unlike a promise cancellation, this stops
+   * a scan mid-walk instead of waiting for it to finish). Used both when a
+   * newer status request supersedes an older one, and when git support is
+   * toggled off in Settings so a running scan doesn't keep the app busy.
+   */
+  cancelActiveStatus(): void {
+    const stale = this.activeStatusRequest;
+    if (!stale) return;
+    this.activeStatusRequest = null;
+    stale.resolve(EMPTY_STATUS);
+    void stale.worker.terminate();
   }
 
   /**
@@ -161,47 +156,6 @@ class GitService {
       });
     } catch {
       // Non-critical — status will just show stale ahead/behind
-    }
-  }
-
-  private async getAheadBehind(cwd: string, branch: string | null): Promise<{ ahead: number; behind: number }> {
-    if (!branch) return { ahead: 0, behind: 0 };
-
-    try {
-      // Get the remote tracking branch
-      const remote = await git.getConfig({ fs, dir: cwd, path: `branch.${branch}.remote` });
-      const merge = await git.getConfig({ fs, dir: cwd, path: `branch.${branch}.merge` });
-      if (!remote || !merge) return { ahead: 0, behind: 0 };
-
-      const remoteBranch = merge.replace('refs/heads/', '');
-      const remoteRef = `refs/remotes/${remote}/${remoteBranch}`;
-
-      let localOid: string;
-      let remoteOid: string;
-      try {
-        localOid = await git.resolveRef({ fs, dir: cwd, ref: branch });
-        remoteOid = await git.resolveRef({ fs, dir: cwd, ref: remoteRef });
-      } catch {
-        return { ahead: 0, behind: 0 };
-      }
-
-      if (localOid === remoteOid) return { ahead: 0, behind: 0 };
-
-      // Count commits ahead/behind by walking logs
-      const [localLog, remoteLog] = await Promise.all([
-        git.log({ fs, dir: cwd, ref: branch, depth: 100 }),
-        git.log({ fs, dir: cwd, ref: remoteRef, depth: 100 }),
-      ]);
-
-      const remoteOids = new Set(remoteLog.map(c => c.oid));
-      const localOids = new Set(localLog.map(c => c.oid));
-
-      const ahead = localLog.filter(c => !remoteOids.has(c.oid)).length;
-      const behind = remoteLog.filter(c => !localOids.has(c.oid)).length;
-
-      return { ahead, behind };
-    } catch {
-      return { ahead: 0, behind: 0 };
     }
   }
 

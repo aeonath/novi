@@ -275,7 +275,7 @@ export class App extends Component {
       onToggleFiles: () => { this.showGitPanel = false; this.updateSidebarVisibility(); },
       onRefreshStatus: async () => {
         const gitRoot = this.currentFileTreeDisplayRoot || this.workspaceRoot;
-        if (!gitRoot || !window.api?.gitGetStatus) return;
+        if (!this.gitEnabled || !gitRoot || !window.api?.gitGetStatus) return;
         try {
           const status = await window.api.gitGetStatus(gitRoot);
           if (status.isRepo) appState.gitStatus = status;
@@ -428,7 +428,7 @@ export class App extends Component {
           const icon = '\u{1F4BB}';
           tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
         }
-        if (window.api?.gitGetStatus) {
+        if (this.gitEnabled && window.api?.gitGetStatus) {
           window.api.gitGetStatus(pwd).then((status: any) => {
             if (status.isRepo) appState.gitStatus = status;
             else appState.gitStatus = null;
@@ -488,14 +488,20 @@ export class App extends Component {
     window.addEventListener('novi-showhiddenfiles-changed', shfHandler);
     this.addCleanup(() => window.removeEventListener('novi-showhiddenfiles-changed', shfHandler));
 
-    // gitenabled setting changes
+    // gitenabled setting changes — must take effect immediately, with no restart:
+    // stop any active .git watcher and drop cached status so nothing keeps running
+    // in the background once the user turns git support off.
     const geHandler = () => {
       window.api?.getSetting<boolean>('gitenabled', true).then((v) => {
         this.gitEnabled = v !== false;
         this.fileTree.setShowGitToggle(this.gitEnabled);
-        if (!this.gitEnabled && this.showGitPanel) {
-          this.showGitPanel = false;
-          this.updateSidebarVisibility();
+        if (!this.gitEnabled) {
+          if (this.showGitPanel) {
+            this.showGitPanel = false;
+            this.updateSidebarVisibility();
+          }
+          window.api?.gitStopWatching?.().catch(() => {});
+          appState.gitStatus = null;
         }
       });
     };
@@ -1039,7 +1045,7 @@ export class App extends Component {
     this.updateFileTreeDisplayRoot();
 
     if (this.singleFileTree || !this.activeTab) {
-      if (window.api?.gitGetStatus) {
+      if (this.gitEnabled && window.api?.gitGetStatus) {
         try {
           const status = await window.api.gitGetStatus(dirPath);
           if (status.isRepo) appState.gitStatus = status;

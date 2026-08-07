@@ -319,6 +319,12 @@ void app.whenReady().then(() => {
       const sp = getSetting<string>('shellPath', DEFAULT_GITBASH_PATH) || DEFAULT_GITBASH_PATH;
       terminalService.setShell(st, sp);
     }
+    if (key === 'gitenabled' && value === false) {
+      // Take effect immediately, no restart: stop watching .git internals and
+      // terminate any statusMatrix() scan already in flight for a huge repo.
+      void gitWatcher.unwatch();
+      gitService.cancelActiveStatus();
+    }
   });
   ipcMain.on('renderer-error', (_e, payload: { message: string; stack?: string }) => {
     logError(`Renderer error: ${payload.message}`, payload.stack);
@@ -626,7 +632,13 @@ void app.whenReady().then(() => {
   });
 
   // Git IPC handlers
+  const EMPTY_GIT_STATUS = { isRepo: false, branch: null, files: [], ahead: 0, behind: 0 };
+  const isGitEnabled = () => getSetting<boolean>('gitenabled', true) !== false;
+
   ipcMain.handle('git-get-status', async (_e, cwd: string) => {
+    // Defense in depth: even if a renderer call site forgets to check gitEnabled,
+    // never let a statusMatrix() scan start when git support is turned off.
+    if (!isGitEnabled()) return EMPTY_GIT_STATUS;
     try {
       return await gitService.getStatus(cwd);
     } catch (error) {
@@ -691,6 +703,7 @@ void app.whenReady().then(() => {
 
   // Git watcher IPC handlers (event-driven monitoring)
   ipcMain.handle('git-start-watching', async (_e, repoPath: string) => {
+    if (!isGitEnabled()) return;
     try {
       const normalized = repoPath.replace(/\\/g, '/');
       if (/^[A-Za-z]:\/?$/.test(normalized)) return; // don't watch drive root
@@ -723,6 +736,7 @@ void app.whenReady().then(() => {
   });
 
   ipcMain.handle('git-manual-refresh', async (_e, cwd: string) => {
+    if (!isGitEnabled()) return EMPTY_GIT_STATUS;
     try {
       return await gitService.getStatus(cwd);
     } catch (error) {
