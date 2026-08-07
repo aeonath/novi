@@ -438,6 +438,28 @@ export class App extends Component {
       this.addCleanup(() => window.api?.terminalRemovePwdListener?.());
     }
 
+    // Terminal SSH title — user@host derived from an `ssh <alias>` invocation typed
+    // into the terminal; null means "revert to the normal cwd-based title"
+    if (window.api?.terminalOnSshTitle && window.api?.terminalRemoveSshTitleListener) {
+      window.api.terminalRemoveSshTitleListener();
+      window.api.terminalOnSshTitle((terminalId: string, title: string | null) => {
+        const tabBarAPI = (window as any).__tabBarAPI;
+        if (!tabBarAPI) return;
+        const icon = '\u{1F4BB}';
+        if (title) {
+          tabBarAPI.updateTabFileName(terminalId, `${icon} ${title}`);
+          return;
+        }
+        const cwd = this.terminalFileTreeRoots[terminalId]?.cwd;
+        if (cwd) {
+          const segments = cwd.replace(/\\/g, '/').split('/').filter(Boolean);
+          const dirName = segments[segments.length - 1] || cwd;
+          tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
+        }
+      });
+      this.addCleanup(() => window.api?.terminalRemoveSshTitleListener?.());
+    }
+
     // Terminal initial CWD
     if (window.api?.terminalOnInitialCwd && window.api?.terminalRemoveInitialCwdListener) {
       window.api.terminalRemoveInitialCwdListener();

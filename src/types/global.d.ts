@@ -154,6 +154,8 @@ declare global {
       terminalRemoveDataListener: () => void;
       terminalOnPwd: (callback: (terminalId: string, pwd: string) => void) => void;
       terminalRemovePwdListener: () => void;
+      terminalOnSshTitle: (callback: (terminalId: string, title: string | null) => void) => void;
+      terminalRemoveSshTitleListener: () => void;
       terminalOnInitialCwd: (callback: (terminalId: string, cwd: string) => void) => void;
       terminalRemoveInitialCwdListener: () => void;
       terminalOnExit: (callback: (terminalId: string, exitCode: number) => void) => void;

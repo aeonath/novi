@@ -23,6 +23,7 @@ import { fileTreeWatcher } from './services/file-tree-watcher';
 import { editorFileWatcher } from './services/editor-file-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand, buildMenu } from './menu';
 import { commandStatsService } from './services/command-stats-service';
+import { SshTitleTracker } from './services/ssh-title-tracker';
 import { cliService, parseStartupArgs } from './services/cli-service';
 import { runCliMode } from './cli-mode';
 import { loadAllExtensions } from '../core/extension-loader';
@@ -913,10 +914,15 @@ void app.whenReady().then(() => {
 
       // Forward PTY output to renderer
       // OSC 7 CWD notification: ESC ] 7 ; file://hostname/path BEL-or-ST
-      const OSC7_RE = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*)(?:\x07|\x1b\\)/;
+      // Host is captured so we can tell our own injected local report (always "localhost")
+      // apart from a remote shell that happens to emit its own OSC 7 (e.g. distro vte.sh
+      // integration) — only the former should be treated as "the local prompt redrew".
+      const OSC7_RE = /\x1b\]7;file:\/\/([^/]*)(\/[^\x07\x1b]*)(?:\x07|\x1b\\)/;
       // Track whether we still need to inject a cd for workspace restore.
       // The first OSC 7 proves bash has fully initialized (PROMPT_COMMAND fired).
       let pendingCdRestore = cwd ? cwd : null;
+      // Tab-title tracking for `ssh <alias>` invocations typed into this terminal.
+      const sshTitleTracker = new SshTitleTracker();
 
       // Batch PTY output into ~16ms frames to reduce IPC overhead.
       // Instead of sending every tiny PTY chunk as a separate IPC message,
@@ -942,8 +948,9 @@ void app.whenReady().then(() => {
         if (mainWindowRef && !mainWindowRef.isDestroyed()) {
           // Parse OSC 7 to extract CWD (invisible to xterm.js — no stripping needed)
           const osc7Match = OSC7_RE.exec(data);
-          if (osc7Match) {
-            const rawPath = decodeURIComponent(osc7Match[1]);
+          const isLocalOsc7 = !!osc7Match && (!osc7Match[1] || osc7Match[1] === 'localhost');
+          if (osc7Match && isLocalOsc7) {
+            const rawPath = decodeURIComponent(osc7Match[2]);
             const resolvedPath = process.platform === 'win32' ? msysToWindows(rawPath) : rawPath;
 
             // If we have a pending cd restore and bash is now ready, inject it
@@ -962,6 +969,14 @@ void app.whenReady().then(() => {
               mainWindowRef.webContents.send('terminal-pwd', terminalId, resolvedPath);
             }
           }
+
+          // SSH tab-title tracking: a "local" OSC 7 means the local shell's own
+          // prompt just redrew, which only happens once an ssh session has ended.
+          const sshEvent = isLocalOsc7 ? sshTitleTracker.notifyLocalPrompt() : sshTitleTracker.feed(data);
+          if (sshEvent) {
+            mainWindowRef.webContents.send('terminal-ssh-title', terminalId, sshEvent.type === 'title' ? sshEvent.value : null);
+          }
+
           // Accumulate data and schedule flush on next frame boundary
           dataBuffer += data;
           dataBufferLen += data.length;

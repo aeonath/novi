@@ -137,6 +137,17 @@ contextBridge.exposeInMainWorld('api', {
   terminalRemovePwdListener: () => {
     ipcRenderer.removeAllListeners('terminal-pwd');
   },
+  // Terminal SSH title listener (user@host derived from an `ssh <alias>` invocation;
+  // null means "revert to the normal cwd-based title")
+  terminalOnSshTitle: (callback: (terminalId: string, title: string | null) => void) => {
+    ipcRenderer.removeAllListeners('terminal-ssh-title');
+    ipcRenderer.on('terminal-ssh-title', (_event, terminalId: string, title: string | null) => {
+      callback(terminalId, title);
+    });
+  },
+  terminalRemoveSshTitleListener: () => {
+    ipcRenderer.removeAllListeners('terminal-ssh-title');
+  },
   // Terminal initial CWD (sent when PTY is created, so file tree can show path before first PWD)
   terminalOnInitialCwd: (callback: (terminalId: string, cwd: string) => void) => {
     ipcRenderer.removeAllListeners('terminal-initial-cwd');
