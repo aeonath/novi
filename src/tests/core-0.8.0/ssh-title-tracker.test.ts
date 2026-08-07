@@ -106,6 +106,14 @@ describe('SshTitleTracker', () => {
       event = tracker.feed('\n');
       expect(event).toEqual({ type: 'title', value: 'localuser@astra' });
     });
+
+    it('finds the typed command even when a no-newline custom prompt is glued to the front of the line', () => {
+      // Regression: a prompt like "user@host:dir : " has no trailing newline of its
+      // own, so it ends up sharing the line buffer with whatever gets typed next.
+      const tracker = new SshTitleTracker();
+      const event = type(tracker, 'Aeonath@SONNET:work/ : ssh astra');
+      expect(event).toEqual({ type: 'title', value: 'localuser@astra' });
+    });
   });
 
   describe('while an ssh session is active', () => {

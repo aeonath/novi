@@ -9,7 +9,11 @@ import * as path from 'path';
 const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
 // Matches a resting shell prompt of the form "user@host:cwd$ " or "user@host cwd % "
 const PROMPT_RE = /([A-Za-z0-9_][A-Za-z0-9_.-]{0,63})@([A-Za-z0-9_][A-Za-z0-9_.-]{0,63})[:\s][^\r\n]{0,80}[#$%>]\s*$/;
-const SSH_CMD_RE = /^\s*ssh\s+(.+?)\s*$/;
+// Finds a standalone "ssh" word anywhere in the line — NOT anchored to line-start,
+// because the accumulated line buffer includes whatever the shell's prompt printed
+// (prompts have no trailing newline of their own, e.g. custom "user@host:dir : ").
+// We want the LAST such occurrence: the one the user actually just typed.
+const SSH_TOKEN_RE = /(^|\s)ssh(?=\s|$)/g;
 const EXIT_BANNER_RE = /(?:^|[\r\n])(?:Connection to [^\r\n]+ closed\.?|Connection closed by [^\r\n]+|logout)\s*$/i;
 
 const MAX_CMD_LINE = 4096;
@@ -123,11 +127,19 @@ export class SshTitleTracker {
   }
 
   private tryStartSsh(rawLine: string): string | null {
-    const line = rawLine.replace(ANSI_RE, '').trim();
-    const m = SSH_CMD_RE.exec(line);
-    if (!m) return null;
+    const line = rawLine.replace(ANSI_RE, '').trimEnd();
 
-    const args = m[1].split(/\s+/).filter(Boolean);
+    let lastTokenEnd = -1;
+    let match: RegExpExecArray | null;
+    SSH_TOKEN_RE.lastIndex = 0;
+    while ((match = SSH_TOKEN_RE.exec(line)) !== null) {
+      lastTokenEnd = match.index + match[0].length;
+    }
+    if (lastTokenEnd === -1) return null;
+    const rest = line.slice(lastTokenEnd).trim();
+    if (!rest) return null;
+
+    const args = rest.split(/\s+/).filter(Boolean);
     let target: string | null = null;
     let explicitUser: string | null = null;
     for (let i = 0; i < args.length; i++) {
