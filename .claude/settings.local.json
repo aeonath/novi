@@ -37,7 +37,10 @@
       "Bash(npx jest --verbose)",
       "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
       "Bash(mkdir -p ~/.novi/extensions)",
-      "Bash(cp -r /home/aeonath/work/lyric-lang-syntax ~/.novi/extensions/lyric-lang-syntax)"
+      "Bash(cp -r /home/aeonath/work/lyric-lang-syntax ~/.novi/extensions/lyric-lang-syntax)",
+      "Bash(npx jest *)",
+      "Bash(git stash *)",
+      "Bash(npm test *)"
     ],
     "additionalDirectories": [
       "/tmp"
