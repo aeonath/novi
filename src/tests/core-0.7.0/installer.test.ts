@@ -131,5 +131,13 @@ describe('Windows Installer Configuration', () => {
       expect(content).toContain('--novi-cli');
       expect(content).toContain("'Path','User'");
     });
+
+    it('installer.nsh should install an extensionless bash wrapper for git-bash', () => {
+      const nshPath = join(__dirname, '..', '..', '..', 'build', 'installer.nsh');
+      const content = readFileSync(nshPath, 'utf-8');
+      expect(content).toContain('$INSTDIR\\novi"');
+      expect(content).toContain('#!/bin/bash');
+      expect(content).toContain('dirname');
+    });
   });
 });
