@@ -72,7 +72,6 @@ export class Terminal extends Component {
   get isActive(): boolean { return this._isActive; }
 
   set isActive(active: boolean) {
-    const wasActive = this._isActive;
     this._isActive = active;
 
     if (active && !this.ptyCreated) {
@@ -221,9 +220,7 @@ export class Terminal extends Component {
     if ((window as any).__terminalAPI) {
       delete (window as any).__terminalAPI[this.terminalId];
     }
-    this.terminal?.dispose();
-    this.terminal = null;
-    this.fitAddon = null;
+    this.disposeXterm();
     // Reset flags so initDisplay can run
     this.isReady = false;
     this.hasInitialFit = false;
@@ -279,7 +276,11 @@ export class Terminal extends Component {
 
       try {
         const webglAddon = new WebglAddon();
-        webglAddon.onContextLoss(() => { webglAddon.dispose(); });
+        // dispose() here can throw (see disposeXterm()'s comment) if this fires
+        // while/after the terminal itself is already being torn down.
+        webglAddon.onContextLoss(() => {
+          try { webglAddon.dispose(); } catch (_) {}
+        });
         terminal.loadAddon(webglAddon);
       } catch (_) {}
 
@@ -439,7 +440,28 @@ export class Terminal extends Component {
     if ((window as any).__terminalAPI) {
       delete (window as any).__terminalAPI[this.terminalId];
     }
-    this.terminal?.dispose();
+    this.disposeXterm();
+  }
+
+  /**
+   * xterm.js's WebGL addon has a known internal ordering bug: its own
+   * registered disposable reads `terminal._core._store._isDisposed`, which
+   * can already be undefined by the time it runs during `terminal.dispose()`,
+   * throwing "Cannot read properties of undefined (reading '_isDisposed')".
+   * That throw is synchronous, so left unguarded it propagates out through
+   * whoever destroyed this component — e.g. App.syncTerminalInstances(),
+   * called from the terminal-exit IPC handler's onTabClose() chain, which
+   * would then never reach the TabBar mutation that actually removes the
+   * tab, leaving a dead tab stuck in the UI forever. This is a best-effort
+   * teardown of a third-party renderer, not something our own tab-lifecycle
+   * logic should ever be held hostage by.
+   */
+  private disposeXterm(): void {
+    try {
+      this.terminal?.dispose();
+    } catch (err) {
+      console.error('[Terminal] xterm dispose threw (ignored):', err);
+    }
     this.terminal = null;
     this.fitAddon = null;
   }
