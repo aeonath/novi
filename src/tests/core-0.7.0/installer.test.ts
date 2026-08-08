@@ -129,7 +129,7 @@ describe('Windows Installer Configuration', () => {
       expect(content).toContain('customUnInstall');
       expect(content).toContain('novi.cmd');
       expect(content).toContain('--novi-cli');
-      expect(content).toContain("'Path','Machine'");
+      expect(content).toContain("'Path','User'");
     });
   });
 });
