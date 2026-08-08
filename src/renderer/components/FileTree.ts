@@ -9,9 +9,22 @@
 
 import { Component } from '../core/component.js';
 import { el, clearChildren, setStyles } from '../core/dom.js';
-import { appState } from '../core/app-state.js';
+import { appState, AppEvents } from '../core/app-state.js';
 import { bus } from '../core/event-bus.js';
 import { markReady } from '../utils/ready-events.js';
+import type { GitFileStatus } from '../../types/global';
+
+// Precedence used when a path (or a directory containing it) matches more than
+// one status — the "worst" / most attention-worthy status wins.
+const GIT_STATUS_PRIORITY: Record<GitFileStatus['status'], number> = {
+  deleted: 5, modified: 4, renamed: 3, added: 2, untracked: 1, staged: 0,
+};
+
+// Mirrors GitPanel's status colors; untracked/added both read as "new" (green).
+const GIT_STATUS_COLORS: Record<GitFileStatus['status'], string> = {
+  untracked: '#73c991', added: '#73c991', modified: '#e2c08d',
+  deleted: '#f48771', renamed: '#4fc1ff', staged: '#73c991',
+};
 
 interface FileNode {
   name: string;
@@ -72,6 +85,10 @@ export class FileTree extends Component {
   private headerBtnsEl: HTMLElement;
   private contentEl: HTMLElement;
   private footerEl: HTMLElement;
+
+  // Git status coloring — rebuilt from appState.gitStatus each render()
+  private gitFileStatus = new Map<string, GitFileStatus['status']>();
+  private gitDirStatus = new Map<string, GitFileStatus['status']>();
 
   constructor(config: FileTreeConfig = {}) {
     super('div');
@@ -147,9 +164,9 @@ export class FileTree extends Component {
     document.addEventListener('click', clickHandler);
     this.addCleanup(() => document.removeEventListener('click', clickHandler));
 
-    // Git status updates
-    bus.on('app:gitStatusChanged', () => this.renderFooter());
-    this.addCleanup(() => bus.off('app:gitStatusChanged', () => this.renderFooter()));
+    // Git status updates (also drives per-node coloring in renderContent)
+    const offGitStatus = bus.on(AppEvents.GIT_STATUS_CHANGED, () => this.render());
+    this.addCleanup(offGitStatus);
 
     // Initial load
     if (this.config.displayRoot) {
@@ -345,9 +362,64 @@ export class FileTree extends Component {
   // --- Render ---
 
   private render(): void {
+    this.buildGitStatusMaps();
     this.renderHeader();
     this.renderContent();
     this.renderFooter();
+  }
+
+  /**
+   * Rebuilds path -> status lookups from appState.gitStatus, gated on both
+   * "git support" being enabled (App.ts clears gitStatus to null when the
+   * `gitenabled` setting is off) and the tree actually being on a repo.
+   * Directory statuses are derived by bubbling each file's status up to
+   * every ancestor folder, so an expanded/collapsed folder can be tinted
+   * even when the changed file inside it isn't currently visible.
+   */
+  private buildGitStatusMaps(): void {
+    this.gitFileStatus.clear();
+    this.gitDirStatus.clear();
+
+    const git = appState.gitStatus;
+    if (!git || !git.isRepo || !this.rootPath) return;
+
+    const bump = (map: Map<string, GitFileStatus['status']>, key: string, status: GitFileStatus['status']) => {
+      const existing = map.get(key);
+      if (!existing || GIT_STATUS_PRIORITY[status] > GIT_STATUS_PRIORITY[existing]) {
+        map.set(key, status);
+      }
+    };
+
+    for (const file of git.files) {
+      const relPath = file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+      bump(this.gitFileStatus, relPath, file.status);
+
+      const parts = relPath.split('/');
+      parts.pop();
+      let prefix = '';
+      for (const part of parts) {
+        prefix = prefix ? `${prefix}/${part}` : part;
+        bump(this.gitDirStatus, prefix, file.status);
+      }
+    }
+  }
+
+  /** Node's path relative to the tree root, using forward slashes to match git's paths. Null if outside the root. */
+  private relativePath(nodePath: string): string | null {
+    if (!this.rootPath) return null;
+    const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+    const root = norm(this.rootPath);
+    const full = norm(nodePath);
+    if (full === root) return '';
+    if (!full.startsWith(`${root}/`)) return null;
+    return full.slice(root.length + 1);
+  }
+
+  private getGitStatusColor(node: FileNode): string | null {
+    const relPath = this.relativePath(node.path);
+    if (relPath === null) return null;
+    const status = node.isDirectory ? this.gitDirStatus.get(relPath) : this.gitFileStatus.get(relPath);
+    return status ? GIT_STATUS_COLORS[status] : null;
   }
 
   private renderHeader(): void {
@@ -501,6 +573,8 @@ export class FileTree extends Component {
 
     const name = el('span', {}, node.name);
     setStyles(name, { flex: '1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+    const gitColor = this.getGitStatusColor(node);
+    if (gitColor) name.style.color = gitColor;
     row.appendChild(name);
 
     parent.appendChild(row);
