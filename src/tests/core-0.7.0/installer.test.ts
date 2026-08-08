@@ -121,5 +121,15 @@ describe('Windows Installer Configuration', () => {
       expect(content).toContain('NoviEditor.exe');
       expect(content).toContain('taskkill');
     });
+
+    it('installer.nsh should install the novi CLI wrapper and register it on PATH', () => {
+      const nshPath = join(__dirname, '..', '..', '..', 'build', 'installer.nsh');
+      const content = readFileSync(nshPath, 'utf-8');
+      expect(content).toContain('customInstall');
+      expect(content).toContain('customUnInstall');
+      expect(content).toContain('novi.cmd');
+      expect(content).toContain('--novi-cli');
+      expect(content).toContain("'Path','Machine'");
+    });
   });
 });
