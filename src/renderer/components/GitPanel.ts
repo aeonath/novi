@@ -10,8 +10,6 @@ import { Component } from '../core/component.js';
 import { el, clearChildren, setStyles } from '../core/dom.js';
 import type { GitStatus, GitFileStatus } from '../../types/global';
 
-const DEBUG_GIT_OPERATIONS = false;
-
 export interface GitPanelConfig {
   workspaceRoot: string | null;
   onRefreshStatus?: () => void;
@@ -33,8 +31,8 @@ export class GitPanel extends Component {
   private needsCredentials = false;
   private credentialInput = '';
   private credentialPrompt = '';
-  private currentCredentialRequest: any = null;
   private changeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private changeListenerRegistered = false;
 
   // DOM elements
   private containerEl: HTMLElement;
@@ -65,11 +63,11 @@ export class GitPanel extends Component {
   protected onMount(): void {
     this.render();
     if (this._workspaceRoot) this.startWatching();
+    this.setupChangeListener();
 
     // Credential listener
     if (window.api?.gitOnCredentialRequest) {
       window.api.gitOnCredentialRequest((request: any) => {
-        this.currentCredentialRequest = request;
         this.credentialPrompt = request.prompt;
         this.needsCredentials = true;
         this.credentialInput = '';
@@ -82,7 +80,7 @@ export class GitPanel extends Component {
   }
 
   private startWatching(): void {
-    if (!this._workspaceRoot || !window.api?.gitStartWatching || !window.api?.gitOnChange) return;
+    if (!this._workspaceRoot || !window.api?.gitStartWatching) return;
     const normalized = this._workspaceRoot.replace(/\\/g, '/');
     if (/^[A-Za-z]:\/?$/.test(normalized)) return;
 
@@ -91,6 +89,22 @@ export class GitPanel extends Component {
       window.api.gitStartWatching(root).catch(() => {});
       this.refreshStatus();
     }, 100);
+  }
+
+  /**
+   * Registers the `.git`-change IPC listener exactly once for this component's
+   * lifetime. window.api.gitOnChange() is a bare ipcRenderer.on() with no
+   * dedup, and startWatching() re-runs on every workspaceRoot change (every
+   * tab switch / tree navigation) — calling gitOnChange() from there piled up
+   * listeners that all shared changeDebounceTimer, clobbering each other's
+   * pending refresh so only the last-registered listener's (possibly stale)
+   * root ever actually got refreshed. Reading this._workspaceRoot at fire
+   * time instead of capturing it means one listener stays correct across
+   * every future root change.
+   */
+  private setupChangeListener(): void {
+    if (this.changeListenerRegistered || !window.api?.gitOnChange) return;
+    this.changeListenerRegistered = true;
 
     window.api.gitOnChange(() => {
       // Debounce: many file changes fire rapidly — only refresh once they settle.
@@ -99,6 +113,7 @@ export class GitPanel extends Component {
       if (this.changeDebounceTimer) clearTimeout(this.changeDebounceTimer);
       this.changeDebounceTimer = setTimeout(() => {
         this.changeDebounceTimer = null;
+        const root = this._workspaceRoot;
         if (root && window.api?.gitManualRefresh) {
           window.api.gitManualRefresh(root).then((status: GitStatus) => {
             this.gitStatus = status;
@@ -188,7 +203,7 @@ export class GitPanel extends Component {
     if (!this.credentialInput.trim() || !window.api?.gitProvideCredentials) return;
     try { await window.api.gitProvideCredentials({ password: this.credentialInput, cancelled: false }); }
     catch (_) {}
-    this.needsCredentials = false; this.credentialInput = ''; this.currentCredentialRequest = null;
+    this.needsCredentials = false; this.credentialInput = '';
     this.render();
   }
 
@@ -196,7 +211,7 @@ export class GitPanel extends Component {
     if (window.api?.gitProvideCredentials) {
       try { await window.api.gitProvideCredentials({ cancelled: true }); } catch (_) {}
     }
-    this.needsCredentials = false; this.credentialInput = ''; this.currentCredentialRequest = null;
+    this.needsCredentials = false; this.credentialInput = '';
     this.error = 'Authentication cancelled';
     this.render();
     setTimeout(() => { this.error = null; this.render(); }, 3000);
