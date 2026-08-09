@@ -171,6 +171,53 @@ describe('Terminal activation does not re-fit or resize', () => {
     expect((terminal as any).suppressNextResize).toBe(false);
   });
 
+  it('handleContainerResize() (the persistent ResizeObserver callback) does not fit() while inactive — the actual corruption source', () => {
+    // FitAddon.proposeDimensions() does not bail out on a zero-size
+    // container: it clamps to {cols: 2, rows: 1} and fit() calls
+    // terminal.resize(2, 1), which destructively reflows the whole
+    // scrollback buffer to 2 columns wide, permanently mangling it. This is
+    // what garbled the terminal into scrambled/overlapping short lines when
+    // switching tabs. handleContainerResize() must refuse to fit() at all
+    // while the terminal is inactive (hidden), regardless of suppressNextResize.
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-hidden-fit', onResize });
+
+    const fakeXterm = makeFakeXterm();
+    const fakeFitAddon = { fit: jest.fn() };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any)._isActive = false; // tab was just hidden
+    (terminal as any).suppressNextResize = false; // already consumed, or never armed
+
+    (terminal as any).handleContainerResize();
+
+    expect(fakeFitAddon.fit).not.toHaveBeenCalled();
+    expect(onResize).not.toHaveBeenCalled();
+  });
+
+  it('handleContainerResize() still fits/resizes on a genuine resize while active', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-active-fit', onResize });
+
+    const fakeXterm = makeFakeXterm();
+    fakeXterm.cols = 80;
+    fakeXterm.rows = 24;
+    const fakeFitAddon = {
+      fit: jest.fn(() => { fakeXterm.cols = 100; fakeXterm.rows = 30; }),
+    };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any)._isActive = true; // tab is visible on screen
+    (terminal as any).suppressNextResize = false;
+
+    (terminal as any).handleContainerResize();
+
+    expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
+    expect(onResize).toHaveBeenCalledWith(100, 30);
+  });
+
   it('re-activating after deactivation re-arms suppressNextResize every time', () => {
     const terminal = new Terminal({ terminalId: 'test-term-suppress-2' });
 

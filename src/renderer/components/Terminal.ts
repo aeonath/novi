@@ -321,26 +321,7 @@ export class Terminal extends Component {
         // Attach the persistent ResizeObserver AFTER the initial fit so it
         // only reacts to genuine future container size changes, not the
         // initial layout settling (which would cause a duplicate SIGWINCH).
-        this.resizeObserver = new ResizeObserver(() => {
-          // Skip the callback triggered by this tab's own activation
-          // (container display:none->flex) — see the isActive setter's
-          // comment. Only container size changes that happen while the tab
-          // is already visible should ever fit()/resize.
-          if (this.suppressNextResize) {
-            this.suppressNextResize = false;
-            return;
-          }
-          if (this.fitAddon && this.terminal) {
-            const oldC = this.terminal.cols;
-            const oldR = this.terminal.rows;
-            this.fitAddon.fit();
-            const newC = this.terminal.cols;
-            const newR = this.terminal.rows;
-            if (this.ptyCreated && this.onResize && (newC !== oldC || newR !== oldR) && newC > 0 && newR > 0) {
-              this.onResize(newC, newR);
-            }
-          }
-        });
+        this.resizeObserver = new ResizeObserver(() => this.handleContainerResize());
         this.resizeObserver.observe(this.container);
 
         // Mark ready AFTER the persistent ResizeObserver is attached, so
@@ -363,6 +344,44 @@ export class Terminal extends Component {
       }
     } catch (error) {
       console.error('[Terminal] Failed to open terminal display:', error);
+    }
+  }
+
+  /**
+   * Callback for the persistent ResizeObserver attached in initDisplay().
+   * Only ever fit()/resize while this terminal is active and visible.
+   */
+  private handleContainerResize(): void {
+    // Skip the callback triggered by this tab's own activation (container
+    // display:none->flex) — see the isActive setter's comment. Only
+    // container size changes that happen while the tab is already visible
+    // should ever fit()/resize.
+    if (this.suppressNextResize) {
+      this.suppressNextResize = false;
+      return;
+    }
+    // CRITICAL: never fit() while hidden (inactive). A hidden container's
+    // display:flex->none "resize" (e.g. this same tab being deactivated)
+    // reports contentRect 0x0. FitAddon's proposeDimensions() does NOT bail
+    // out on a zero-size container — it clamps to Math.max(2, ...) cols /
+    // Math.max(1, ...) rows and returns {cols: 2, rows: 1}. fit() then calls
+    // terminal.resize(2, 1), which DESTRUCTIVELY reflows the entire
+    // scrollback buffer down to a 2-column-wide terminal and clears the
+    // render service — permanently mangling all wrapped lines into garbage.
+    // Re-activating the tab afterward can't undo this; the corruption
+    // already happened at the moment the tab was hidden. Only fit() while
+    // _isActive is true, i.e. while the container is actually on screen
+    // with real dimensions.
+    if (!this._isActive) return;
+    if (this.fitAddon && this.terminal) {
+      const oldC = this.terminal.cols;
+      const oldR = this.terminal.rows;
+      this.fitAddon.fit();
+      const newC = this.terminal.cols;
+      const newR = this.terminal.rows;
+      if (this.ptyCreated && this.onResize && (newC !== oldC || newR !== oldR) && newC > 0 && newR > 0) {
+        this.onResize(newC, newR);
+      }
     }
   }
 
