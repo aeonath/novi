@@ -82,7 +82,9 @@ const MENUS: Record<string, MenuItem[]> = {
 
 const FONT_COMMANDS = ['increase-font-size', 'decrease-font-size', 'reset-font-size'];
 const SAVE_COMMANDS = ['save', 'save-as'];
-const EDITOR_ONLY_COMMANDS = ['command-palette'];
+// Close File only ever acts on a 'file' tab (App.onCloseFile is a no-op
+// otherwise) — New/Open File still make sense from any tab, so they're not here.
+const EDITOR_ONLY_COMMANDS = ['command-palette', 'close-file'];
 const SETTINGS_DISABLED_COMMANDS = ['show-hidden-files'];
 // Undo/Redo/Cut don't apply to a terminal (or any non-editor tab) at all.
 const EDITOR_ONLY_EDIT_COMMANDS = ['undo', 'redo', 'cut'];
