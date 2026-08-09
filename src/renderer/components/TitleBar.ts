@@ -326,6 +326,7 @@ export class TitleBar extends Component {
       const isTerminalOrFileTab = tabType === 'terminal' || isFileTab;
       // Live, not cached — window.__monacoEditorAPI reflects whatever file is
       // currently displayed at the moment the menu is opened.
+      const canUndo = isFileTab && !!(window as any).__monacoEditorAPI?.canUndo?.();
       const canRedo = isFileTab && !!(window as any).__monacoEditorAPI?.canRedo?.();
       const disabled = item.disabled === true ||
         (tabType === 'settings' && item.command && FONT_COMMANDS.includes(item.command)) ||
@@ -333,6 +334,7 @@ export class TitleBar extends Component {
         (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command)) ||
         (tabType === 'settings' && item.command && SETTINGS_DISABLED_COMMANDS.includes(item.command)) ||
         (!isFileTab && item.command && EDITOR_ONLY_EDIT_COMMANDS.includes(item.command)) ||
+        (item.command === 'undo' && isFileTab && !canUndo) ||
         (item.command === 'redo' && isFileTab && !canRedo) ||
         (!isTerminalOrFileTab && item.command && CLIPBOARD_COMMANDS.includes(item.command));
 
