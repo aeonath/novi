@@ -71,7 +71,6 @@ export class FileTree extends Component {
   private rootPath: string | null = null;
   private tree: FileNode[] = [];
   private _loading = false;
-  // Git button uses direct .git tree check (no parent directory walking)
   private expandedDirs = new Set<string>();
   private contextMenuEl: HTMLElement | null = null;
 
@@ -427,7 +426,14 @@ export class FileTree extends Component {
     this.titleEl.textContent = dirName;
 
     clearChildren(this.headerBtnsEl);
-    if (this.config.showGitToggle && this.rootPath && this.config.onToggleGit && this.tree.some(n => n.name === '.git' && n.isDirectory)) {
+    // Checking the loaded tree for a literal ".git" entry used to gate this
+    // button, but ".git" is a dotfile — hidden by default (the
+    // `showhiddenfiles` setting), so the button silently vanished whenever
+    // hidden files weren't shown, regardless of whether the root is
+    // actually a repo. appState.gitStatus.isRepo (kept in sync with the
+    // displayed root by App.updateFileTreeDisplayRoot) doesn't depend on
+    // directory-listing visibility at all.
+    if (this.config.showGitToggle && this.rootPath && this.config.onToggleGit && appState.gitStatus?.isRepo) {
       const gitBtn = this.makeHeaderBtn('\u271a', 'Toggle Git View');
       gitBtn.addEventListener('click', () => this.config.onToggleGit!());
       this.headerBtnsEl.appendChild(gitBtn);
