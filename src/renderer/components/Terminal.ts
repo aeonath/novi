@@ -37,7 +37,6 @@ export class Terminal extends Component {
   private isReady = false;
   private ptyCreated = false;
   private initInProgress = false;
-  private hasInitialFit = false;
   private _isActive = false;
   private ptyCols = 0;
   private ptyRows = 0;
@@ -81,29 +80,23 @@ export class Terminal extends Component {
       this.initDisplay();
     }
 
-    // Refit on tab switch (after initial mount)
-    if (active && this.isReady && this.hasInitialFit && this.terminal && this.fitAddon) {
-      const ro = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-            if (this.fitAddon && this.terminal) {
-              const oldCols = this.terminal.cols;
-              const oldRows = this.terminal.rows;
-              this.fitAddon.fit();
-              const newCols = this.terminal.cols;
-              const newRows = this.terminal.rows;
-              if (this.ptyCreated && this.onResize && (newCols !== oldCols || newRows !== oldRows) && newCols > 0 && newRows > 0) {
-                this.onResize(newCols, newRows);
-              }
-              this.terminal.scrollToBottom();
-              this.terminal.focus();
-              ro.disconnect();
-            }
-          }
-        }
-      });
-      ro.observe(this.container);
-      this.addCleanup(() => ro.disconnect());
+    // Tab switched to active: bring the scroll position/cursor back into
+    // view and give it keyboard focus. Deliberately does NOT re-fit or
+    // resize — the persistent resizeObserver (see initDisplay()) already
+    // reacts to any genuine container size change, including this tab's
+    // own display:none->flex transition on activation. A second, separate
+    // ResizeObserver used to be created here on every activation to redo
+    // that same fit()+resize; the two independent observers, both firing
+    // off the same just-unhidden container, could each measure a slightly
+    // different col/row count and send the shell two close-together
+    // SIGWINCH resizes — corrupting the prompt and dropping on-screen
+    // content on every tab switch. The terminal's size (and therefore its
+    // content) now stays exactly as it was while hidden — "frozen" —
+    // unless the container's real size has actually changed, which the
+    // persistent observer alone already handles correctly.
+    if (active && this.isReady && this.terminal) {
+      this.terminal.scrollToBottom();
+      this.terminal.focus();
     }
   }
 
@@ -223,7 +216,6 @@ export class Terminal extends Component {
     this.disposeXterm();
     // Reset flags so initDisplay can run
     this.isReady = false;
-    this.hasInitialFit = false;
     this.initInProgress = false;
     this.container.style.opacity = '0';
     // Create PTY immediately with saved dimensions — don't wait for container
@@ -324,9 +316,9 @@ export class Terminal extends Component {
         });
         this.resizeObserver.observe(this.container);
 
-        // Mark ready AFTER ResizeObserver is attached, so the isActive
-        // setter's refit block does not fire during this same init cycle.
-        this.hasInitialFit = true;
+        // Mark ready AFTER the persistent ResizeObserver is attached, so
+        // the isActive setter's focus/scroll block (gated on isReady)
+        // never fires before this terminal has anything to focus/scroll.
         this.isReady = true;
 
         requestAnimationFrame(() => terminal.scrollToBottom());
