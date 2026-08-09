@@ -63,6 +63,7 @@ export class App extends Component {
   private forceCloseTabId: string | null = null;
   private previousActiveTabId: string | null = null;
   private lastFileTreeRoot: string | null = null;
+  private lastGitRoot: string | null = null;
   private welcomeContextMenu: { x: number; y: number } | null = null;
   private shellLabel = 'Linux Terminal';
   // restartingTerminalId tracked via (window as any).__restartingTerminalId
@@ -802,7 +803,22 @@ export class App extends Component {
     // Don't update the file tree while it's in loading state —
     // wait for the terminal to report its CWD first.
     if (this.fileTree && !this.fileTree.isLoading) this.fileTree.displayRoot = root;
-    if (this.gitPanel && this.gitEnabled) this.gitPanel.workspaceRoot = root || this.workspaceRoot;
+    if (this.gitPanel && this.gitEnabled) {
+      const effectiveGitRoot = root || this.workspaceRoot;
+      if (effectiveGitRoot !== this.lastGitRoot) {
+        // The displayed repo root just changed (tab switch, cd, workspace
+        // load...). GitPanel.workspaceRoot's setter clears its own internal
+        // status on this transition, but appState.gitStatus is shared across
+        // every tab's FileTree coloring — without clearing it here too, the
+        // previous root's (or even a previous session's restored root's)
+        // status stays plastered on the new tree until some fetch happens to
+        // land. Clear immediately so colors never reflect a foreign root;
+        // the fresh fetch below (and GitPanel's own) repopulates it.
+        this.lastGitRoot = effectiveGitRoot;
+        appState.gitStatus = null;
+      }
+      this.gitPanel.workspaceRoot = effectiveGitRoot;
+    }
   }
 
   private updateContentVisibility(): void {
