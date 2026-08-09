@@ -67,7 +67,7 @@ export class App extends Component {
   private lastFileTreeRoot: string | null = null;
   private lastGitRoot: string | null = null;
   private welcomeContextMenu: { x: number; y: number } | null = null;
-  private shellLabel = 'Linux Terminal';
+  private shellLabel = 'Git Bash';
   // restartingTerminalId tracked via (window as any).__restartingTerminalId
 
   // ---- DOM refs ----
@@ -595,10 +595,12 @@ export class App extends Component {
       const ge = await window.api?.getSetting<boolean>('gitenabled', true);
       this.gitEnabled = ge !== false;
       this.fileTree.setShowGitToggle(this.gitEnabled);
-      const platform = await window.api?.getPlatform?.() || 'win32';
-      const defaultShellType = platform === 'win32' ? 'gitbash' : 'linux';
-      const shellType = await window.api?.getSetting<string>('shellType', defaultShellType);
-      this.shellLabel = this.shellTypeToLabel(shellType || defaultShellType);
+      // Ask terminalService directly for the shell it's actually configured
+      // to use, rather than re-deriving/guessing it from settings — it's
+      // the single source of truth and already accounts for the
+      // git-bash-not-found-so-fell-back-to-PowerShell case.
+      const shellType = await window.api?.getShellType?.();
+      this.shellLabel = this.shellTypeToLabel(shellType);
     } catch { /* ignore */ }
   }
 

@@ -301,6 +301,10 @@ void app.whenReady().then(() => {
 
   // Platform detection
   ipcMain.handle('get-platform', () => process.platform);
+  // The shell terminalService is actually configured to use — the single
+  // source of truth (already accounts for the git-bash-not-found fallback),
+  // so the renderer never has to re-derive/guess this independently.
+  ipcMain.handle('get-shell-type', () => terminalService.getShellType());
   ipcMain.handle('check-wsl-available', () => {
     if (process.platform !== 'win32') return false;
     if (!existsSync('C:\\Windows\\System32\\wsl.exe')) return false;

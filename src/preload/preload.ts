@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   toggleDevTools: () => ipcRenderer.invoke('toggle-devtools'),
   getCommandLineArgs: () => ipcRenderer.invoke('get-command-line-args'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),
+  getShellType: () => ipcRenderer.invoke('get-shell-type'),
   checkWslAvailable: () => ipcRenderer.invoke('check-wsl-available'),
   ping: () => Promise.resolve('pong'),
   getSetting: <T = unknown>(key: string, defaults?: T) =>

@@ -89,6 +89,7 @@ declare global {
       toggleDevTools: () => Promise<void>;
       getCommandLineArgs: () => Promise<string[]>;
       getPlatform: () => Promise<string>;
+      getShellType: () => Promise<string>;
       checkWslAvailable: () => Promise<boolean>;
       ping: () => Promise<string>;
       getSetting: <T = unknown>(key: string, defaults?: T) => Promise<T | undefined>;
