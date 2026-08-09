@@ -895,7 +895,9 @@ export class App extends Component {
     // Image editor
     this.imageEditorContainerEl.style.display = at?.type === 'image' && !showW ? 'flex' : 'none';
     // Settings
-    this.settingsContainerEl.style.display = at?.type === 'settings' && !showW ? 'flex' : 'none';
+    const showSettings = at?.type === 'settings' && !showW;
+    this.settingsContainerEl.style.display = showSettings ? 'flex' : 'none';
+    if (showSettings) this.settingsTab?.notifyShown();
   }
 
   private updateSidebarVisibility(): void {

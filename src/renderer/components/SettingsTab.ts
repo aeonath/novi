@@ -39,6 +39,8 @@ export class SettingsTab extends Component {
   private currentShellPath = 'C:\\Program Files\\Git\\bin\\bash.exe';
   private platform: string = 'win32';
   private wslAvailable = false;
+  private wslChecked = false;
+  private hasBeenShown = false;
   private linuxUseDefault = true;
   private loadedExtensions: ExtensionInfo[] = [];
   private extensionsLoaded = false;
@@ -76,6 +78,15 @@ export class SettingsTab extends Component {
     this.loadSettings().then(() => this.render());
   }
 
+  /** Called by App when the Settings panel actually becomes visible (as opposed to
+   * being mounted-but-hidden at startup). Gates probes like the WSL availability
+   * check so they don't run until the user actually opens Options → Terminal. */
+  notifyShown(): void {
+    if (this.hasBeenShown) return;
+    this.hasBeenShown = true;
+    this.render();
+  }
+
   get section(): SettingsSection { return this.activeSection; }
 
   set section(value: SettingsSection) {
@@ -88,7 +99,6 @@ export class SettingsTab extends Component {
   private async loadSettings(): Promise<void> {
     try {
       this.platform = await window.api?.getPlatform?.() || 'win32';
-      this.wslAvailable = await window.api?.checkWslAvailable?.() || false;
       const st = await window.api?.getSetting<ShellType>('shellType');
       const sp = await window.api?.getSetting<string>('shellPath');
       const ud = await window.api?.getSetting<boolean>('shellUseDefault');
@@ -519,6 +529,14 @@ export class SettingsTab extends Component {
   // ---- Windows shell options ----
 
   private renderWindowsShellSettings(): void {
+    if (!this.wslChecked && this.hasBeenShown) {
+      this.wslChecked = true;
+      window.api?.checkWslAvailable?.().then((available: boolean) => {
+        this.wslAvailable = available;
+        this.render();
+      }).catch(() => { /* leave wslAvailable as-is */ });
+    }
+
     const options: ShellOption[] = [
       { type: 'gitbash', label: 'Git Bash', description: 'Git for Windows bash shell', hasPath: true, pathLabel: 'Git Bash Path' },
       { type: 'cmd', label: 'Command Prompt', description: 'Windows cmd.exe — no directory tracking' },
