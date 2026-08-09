@@ -342,6 +342,14 @@ export class MonacoEditor extends Component {
       clearDiagnostics: () => this.editorService?.clearDiagnostics(),
       focus: () => this.editor?.focus(),
       openCommandPalette: () => { this.editor?.focus(); this.editor?.trigger('', 'editor.action.quickCommand', null); },
+      undo: () => { this.editor?.focus(); this.editor?.trigger('menu', 'undo', null); },
+      redo: () => { this.editor?.focus(); this.editor?.trigger('menu', 'redo', null); },
+      cut: () => this.handleCut(),
+      copy: () => this.handleCopy(),
+      paste: () => this.handlePaste(),
+      selectAll: () => { this.editor?.focus(); this.editor?.trigger('menu', 'editor.action.selectAll', null); },
+      canUndo: () => !!this.editor?.getModel()?.canUndo(),
+      canRedo: () => !!this.editor?.getModel()?.canRedo(),
     };
   }
 

@@ -1339,7 +1339,27 @@ export class App extends Component {
         }
         break;
       case 'exit': window.api?.quit(); break;
-      case 'undo': case 'redo': case 'cut': case 'copy': case 'paste': case 'select-all': break;
+      case 'undo':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.undo();
+        break;
+      case 'redo':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.redo();
+        break;
+      case 'cut':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.cut();
+        break;
+      case 'copy':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.copy();
+        else if (this.activeTab?.type === 'terminal') (window as any).__terminalAPI?.[this.activeTab.id]?.copy?.();
+        break;
+      case 'paste':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.paste();
+        else if (this.activeTab?.type === 'terminal') (window as any).__terminalAPI?.[this.activeTab.id]?.paste?.();
+        break;
+      case 'select-all':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.selectAll();
+        else if (this.activeTab?.type === 'terminal') (window as any).__terminalAPI?.[this.activeTab.id]?.selectAll?.();
+        break;
       case 'toggle-word-wrap': case 'toggle-line-numbers': break;
       case 'increase-font-size': case 'decrease-font-size': case 'reset-font-size':
         this.handleFontSizeCommand(command);

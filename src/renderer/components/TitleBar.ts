@@ -8,10 +8,10 @@
  */
 
 import { Component } from '../core/component.js';
-import { el, clearChildren } from '../core/dom.js';
+import { el } from '../core/dom.js';
 
 interface MenuItem {
-  label: string;
+  label?: string;
   command?: string;
   shortcut?: string;
   separator?: boolean;
@@ -83,6 +83,10 @@ const FONT_COMMANDS = ['increase-font-size', 'decrease-font-size', 'reset-font-s
 const SAVE_COMMANDS = ['save', 'save-as'];
 const EDITOR_ONLY_COMMANDS = ['command-palette'];
 const SETTINGS_DISABLED_COMMANDS = ['show-hidden-files'];
+// Undo/Redo/Cut don't apply to a terminal (or any non-editor tab) at all.
+const EDITOR_ONLY_EDIT_COMMANDS = ['undo', 'redo', 'cut'];
+// Copy/Paste/Select All work on both an editor tab and a terminal tab.
+const CLIPBOARD_COMMANDS = ['copy', 'paste', 'select-all'];
 
 export class TitleBar extends Component {
   private config: TitleBarConfig;
@@ -317,12 +321,20 @@ export class TitleBar extends Component {
       }
 
       const tabType = this.config.activeTabType;
+      const isFileTab = tabType === 'file';
       const isNonFileTab = tabType === 'terminal' || tabType === 'settings';
+      const isTerminalOrFileTab = tabType === 'terminal' || isFileTab;
+      // Live, not cached — window.__monacoEditorAPI reflects whatever file is
+      // currently displayed at the moment the menu is opened.
+      const canRedo = isFileTab && !!(window as any).__monacoEditorAPI?.canRedo?.();
       const disabled = item.disabled === true ||
         (tabType === 'settings' && item.command && FONT_COMMANDS.includes(item.command)) ||
         (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command)) ||
         (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command)) ||
-        (tabType === 'settings' && item.command && SETTINGS_DISABLED_COMMANDS.includes(item.command));
+        (tabType === 'settings' && item.command && SETTINGS_DISABLED_COMMANDS.includes(item.command)) ||
+        (!isFileTab && item.command && EDITOR_ONLY_EDIT_COMMANDS.includes(item.command)) ||
+        (item.command === 'redo' && isFileTab && !canRedo) ||
+        (!isTerminalOrFileTab && item.command && CLIPBOARD_COMMANDS.includes(item.command));
 
       const menuItem = el('div', {
         style: [
