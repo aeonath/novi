@@ -431,12 +431,9 @@ export class App extends Component {
         // each other on every single `cd`, sometimes leaving the tree
         // uncolored even though the newer fetch had the correct data.
         this.updateFileTreeDisplayRoot();
-        const segments = pwd.replace(/\\/g, '/').split('/').filter(Boolean);
-        const dirName = segments[segments.length - 1] || pwd;
         const tabBarAPI = (window as any).__tabBarAPI;
         if (tabBarAPI) {
-          const icon = '\u{1F4BB}';
-          tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
+          tabBarAPI.updateTabFileName(terminalId, this.deriveTerminalTabName(pwd));
         }
       });
       this.addCleanup(() => window.api?.terminalRemovePwdListener?.());
@@ -455,11 +452,7 @@ export class App extends Component {
           return;
         }
         const cwd = this.terminalFileTreeRoots[terminalId]?.cwd;
-        if (cwd) {
-          const segments = cwd.replace(/\\/g, '/').split('/').filter(Boolean);
-          const dirName = segments[segments.length - 1] || cwd;
-          tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
-        }
+        if (cwd) tabBarAPI.updateTabFileName(terminalId, this.deriveTerminalTabName(cwd));
       });
       this.addCleanup(() => window.api?.terminalRemoveSshTitleListener?.());
     }
@@ -721,9 +714,16 @@ export class App extends Component {
           const ti = workspace.openTerminals[i];
           const tid = `terminal-${Date.now()}-restore-${i}`;
           oldToNewTabId[ti.id] = tid;
-          tabBarAPI.addTab({ id: tid, type: 'terminal', filePath: tid, fileName: ti.name || 'bash', isDirty: false, content: '', language: 'terminal' });
           const cwd = ti.cwd || workspace.workspaceRoot || '';
-          this.terminalTabs = [...this.terminalTabs, { id: tid, fileName: ti.name || 'bash', workspaceRoot: cwd || this.workspaceRoot }];
+          // A restored tab's PTY is created lazily — only once its tab
+          // actually becomes active — so terminalOnPwd (the only thing that
+          // normally renames a tab from its cwd) may never fire for it if
+          // the workspace's last-active tab was a file, not a terminal.
+          // Derive the name from the saved cwd upfront so it shows the
+          // right label immediately instead of a stale/generic one.
+          const restoredName = cwd ? this.deriveTerminalTabName(cwd) : (ti.name || '\u{1F4BB} bash');
+          tabBarAPI.addTab({ id: tid, type: 'terminal', filePath: tid, fileName: restoredName, isDirty: false, content: '', language: 'terminal' });
+          this.terminalTabs = [...this.terminalTabs, { id: tid, fileName: restoredName, workspaceRoot: cwd || this.workspaceRoot }];
           this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [tid]: { cwd, overriddenRoot: undefined } };
         }
         this.syncTerminalInstances();
@@ -824,9 +824,21 @@ export class App extends Component {
     if (this.activeTab?.type !== 'settings' && root) {
       this.lastFileTreeRoot = root;
     }
-    // Don't update the file tree while it's in loading state —
-    // wait for the terminal to report its CWD first.
-    if (this.fileTree && !this.fileTree.isLoading) this.fileTree.displayRoot = root;
+    if (this.fileTree) {
+      // "loading" only means anything while we're genuinely waiting on the
+      // active terminal's PTY to report its cwd via OSC7 (terminalOnPwd is
+      // the only other place that clears it in multi-tree mode) — that's
+      // the sole case where `root` isn't already known synchronously. For
+      // any other active tab type (file, image, settings, none) we already
+      // have a valid root here, so don't gate on it: a workspace restored
+      // with a non-terminal tab active never activates any terminal (PTYs
+      // are lazy, only the active tab's spins up), so terminalOnPwd would
+      // never fire and this flag would otherwise stay stuck true forever,
+      // permanently blocking displayRoot below and leaving the sidebar
+      // spinning indefinitely.
+      if (this.activeTab?.type !== 'terminal') this.fileTree.loading = false;
+      if (!this.fileTree.isLoading) this.fileTree.displayRoot = root;
+    }
     if (this.gitPanel && this.gitEnabled) {
       const effectiveGitRoot = root || this.workspaceRoot;
       if (effectiveGitRoot !== this.lastGitRoot) {
@@ -851,6 +863,13 @@ export class App extends Component {
       }
       this.gitPanel.workspaceRoot = effectiveGitRoot;
     }
+  }
+
+  /** Renders a terminal tab's display name from a cwd, e.g. "/home/user/novi" -> "💻 novi/". */
+  private deriveTerminalTabName(cwd: string): string {
+    const segments = cwd.replace(/\\/g, '/').split('/').filter(Boolean);
+    const dirName = segments[segments.length - 1] || cwd;
+    return `\u{1F4BB} ${dirName}/`;
   }
 
   private updateContentVisibility(): void {
