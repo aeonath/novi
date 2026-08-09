@@ -1409,7 +1409,7 @@ export class App extends Component {
         window.dispatchEvent(new CustomEvent('novi-showhiddenfiles-changed'));
         break;
       case 'about': this.showAboutDialog(); break;
-      case 'documentation': window.open('https://lyric-lang.org/novi.html', '_blank'); break;
+      case 'documentation': window.open('https://miranova.studio/projects/novi.html', '_blank'); break;
       case 'check-updates': this.showCheckUpdatesDialog(); break;
       default: console.warn('[App] Unknown menu command:', command);
     }
