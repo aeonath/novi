@@ -87,8 +87,13 @@ export class MonacoEditor extends Component {
   set wordWrap(enabled: boolean) {
     this._wordWrap = enabled;
     if (this.editor) {
-      this.editor.updateOptions({ wordWrap: enabled ? 'wordWrapColumn' : 'off', wordWrapColumn: WORD_WRAP_COLUMN });
+      this.editor.updateOptions({ wordWrap: enabled ? 'wordWrapColumn' : 'off', wordWrapColumn: this.effectiveWrapColumn() });
     }
+  }
+
+  /** Word Wrap's column follows Column Break's value whenever Column Break is enabled. */
+  private effectiveWrapColumn(): number {
+    return this._columnBreakEnabled ? this._columnBreakValue : WORD_WRAP_COLUMN;
   }
 
   set lineNumbers(enabled: boolean) {
@@ -104,6 +109,11 @@ export class MonacoEditor extends Component {
     this._columnBreakValue = value;
     this._columnBreakHard = hard;
     this.applyRuler();
+    // Word Wrap's column follows Column Break's value while it's enabled —
+    // reapply live so an already-wrapped editor picks up the new column.
+    if (this._wordWrap && this.editor) {
+      this.editor.updateOptions({ wordWrapColumn: this.effectiveWrapColumn() });
+    }
   }
 
   setShowRuler(enabled: boolean): void {
@@ -130,6 +140,12 @@ export class MonacoEditor extends Component {
       this._columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
       this._showRuler = !!(await window.api?.getSetting<boolean>('showruler', false));
       this.applyRuler();
+      // Word Wrap was applied at editor creation using whatever Column
+      // Break state existed then (still the defaults, since this load
+      // hadn't resolved yet) — reapply now that the real values are in.
+      if (this._wordWrap && this.editor) {
+        this.editor.updateOptions({ wordWrapColumn: this.effectiveWrapColumn() });
+      }
     } catch { /* use defaults */ }
   }
 
@@ -237,7 +253,7 @@ export class MonacoEditor extends Component {
         theme: theme?.name === 'light' ? 'novi-light' : 'novi-dark',
         fontSize: this._fontSize,
         fontFamily: "'DejaVu Sans Mono', monospace",
-        wordWrap: this._wordWrap ? 'wordWrapColumn' : 'off', wordWrapColumn: WORD_WRAP_COLUMN,
+        wordWrap: this._wordWrap ? 'wordWrapColumn' : 'off', wordWrapColumn: this.effectiveWrapColumn(),
         wrappingStrategy: 'advanced', wrappingIndent: 'same',
         lineHeight: this._fontSize + 8,
         minimap: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false,

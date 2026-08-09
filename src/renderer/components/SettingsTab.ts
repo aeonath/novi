@@ -313,6 +313,7 @@ export class SettingsTab extends Component {
         this.wordWrapDefault = enabled;
         await window.api?.setSetting('wordwrap', enabled);
         window.dispatchEvent(new CustomEvent('novi-wordwrap-changed', { detail: { enabled } }));
+        this.render(); // Hard Break's disabled state depends on this
       },
     ));
 
@@ -378,6 +379,7 @@ export class SettingsTab extends Component {
         await window.api?.setSetting('columnbreakhard', enabled);
         dispatchChange();
       },
+      this.wordWrapDefault,
     );
     setStyles(hardBreakRow, { marginLeft: '32px' });
     container.appendChild(hardBreakRow);
@@ -436,6 +438,7 @@ export class SettingsTab extends Component {
     description: string,
     value: boolean,
     onChange: (value: boolean) => void,
+    disabled = false,
   ): HTMLElement {
     const row = el('div');
     setStyles(row, {
@@ -444,18 +447,22 @@ export class SettingsTab extends Component {
       padding: '10px 12px',
       marginBottom: '4px',
       borderRadius: '4px',
-      cursor: 'pointer',
+      cursor: disabled ? 'default' : 'pointer',
+      opacity: disabled ? '0.5' : '1',
       fontFamily: "'Segoe UI', sans-serif",
     });
-    row.addEventListener('mouseenter', () => { row.style.backgroundColor = '#2a2d2e'; });
-    row.addEventListener('mouseleave', () => { row.style.backgroundColor = 'transparent'; });
+    if (!disabled) {
+      row.addEventListener('mouseenter', () => { row.style.backgroundColor = '#2a2d2e'; });
+      row.addEventListener('mouseleave', () => { row.style.backgroundColor = 'transparent'; });
+    }
 
     const checkbox = el('input', { type: 'checkbox' }) as HTMLInputElement;
     checkbox.checked = value;
-    setStyles(checkbox, { marginRight: '12px', cursor: 'pointer', flexShrink: '0' });
+    checkbox.disabled = disabled;
+    setStyles(checkbox, { marginRight: '12px', cursor: disabled ? 'default' : 'pointer', flexShrink: '0' });
 
     const textCol = el('div');
-    const labelEl = el('div', {}, label);
+    const labelEl = el('div', {}, disabled ? `${label} (disabled)` : label);
     setStyles(labelEl, { fontSize: '13px', fontWeight: '500' });
     const descEl = el('div', {}, description);
     setStyles(descEl, { fontSize: '11px', opacity: '0.6', marginTop: '2px' });
@@ -465,14 +472,16 @@ export class SettingsTab extends Component {
     row.appendChild(checkbox);
     row.appendChild(textCol);
 
-    const toggle = () => {
-      checkbox.checked = !checkbox.checked;
-      onChange(checkbox.checked);
-    };
-    checkbox.addEventListener('change', () => onChange(checkbox.checked));
-    row.addEventListener('click', (e) => {
-      if (e.target !== checkbox) toggle();
-    });
+    if (!disabled) {
+      const toggle = () => {
+        checkbox.checked = !checkbox.checked;
+        onChange(checkbox.checked);
+      };
+      checkbox.addEventListener('change', () => onChange(checkbox.checked));
+      row.addEventListener('click', (e) => {
+        if (e.target !== checkbox) toggle();
+      });
+    }
 
     return row;
   }

@@ -81,6 +81,52 @@ describe('MonacoEditor Column Break / Show Ruler', () => {
   });
 });
 
+describe('MonacoEditor Word Wrap honors Column Break', () => {
+  it('wraps at the default 90 columns when Column Break is off', () => {
+    const editor = new MonacoEditor();
+    const fakeEditor = makeFakeEditor('', 1);
+    (editor as any).editor = fakeEditor;
+
+    editor.wordWrap = true;
+
+    expect(fakeEditor.updateOptions).toHaveBeenCalledWith({ wordWrap: 'wordWrapColumn', wordWrapColumn: 90 });
+  });
+
+  it('wraps at the Column Break value once Column Break is enabled', () => {
+    const editor = new MonacoEditor();
+    const fakeEditor = makeFakeEditor('', 1);
+    (editor as any).editor = fakeEditor;
+
+    editor.setColumnBreak(true, 120, false);
+    editor.wordWrap = true;
+
+    expect(fakeEditor.updateOptions).toHaveBeenCalledWith({ wordWrap: 'wordWrapColumn', wordWrapColumn: 120 });
+  });
+
+  it('re-wraps live at the new column when Column Break changes while wrap is already on', () => {
+    const editor = new MonacoEditor();
+    const fakeEditor = makeFakeEditor('', 1);
+    (editor as any).editor = fakeEditor;
+
+    editor.wordWrap = true;
+    editor.setColumnBreak(true, 60, false);
+
+    expect(fakeEditor.updateOptions).toHaveBeenLastCalledWith({ wordWrapColumn: 60 });
+  });
+
+  it('ignores the Column Break value once Column Break is disabled again', () => {
+    const editor = new MonacoEditor();
+    const fakeEditor = makeFakeEditor('', 1);
+    (editor as any).editor = fakeEditor;
+
+    editor.setColumnBreak(true, 120, false);
+    editor.wordWrap = true;
+    editor.setColumnBreak(false, 120, false);
+
+    expect(fakeEditor.updateOptions).toHaveBeenLastCalledWith({ wordWrapColumn: 90 });
+  });
+});
+
 describe('MonacoEditor Hard Break (maybeHardBreak)', () => {
   function callMaybeHardBreak(editor: MonacoEditor): void {
     (editor as any).maybeHardBreak();

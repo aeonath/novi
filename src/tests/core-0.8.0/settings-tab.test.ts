@@ -85,6 +85,37 @@ describe('SettingsTab', () => {
     for (const cb of checkboxes) expect(cb.checked).toBe(false);
   });
 
+  it('disables Hard Break and labels it "(disabled)" once Word Wrap is turned on', async () => {
+    tab.section = 'editor';
+    const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+    const wordWrapBox = checkboxes[1]; // VI Mode, Word Wrap, ...
+    wordWrapBox.checked = true;
+    wordWrapBox.dispatchEvent(new Event('change'));
+    await new Promise((r) => setTimeout(r, 10)); // onChange awaits setSetting before re-rendering
+
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Hard Break (disabled)');
+
+    const checkboxesAfter = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+    const hardBreakBox = checkboxesAfter[3]; // VI Mode, Word Wrap, Column Break, Hard Break, ...
+    expect(hardBreakBox.disabled).toBe(true);
+
+    // Disabled rows never attach a change listener — dispatching one directly should no-op.
+    mockApi.setSetting.mockClear();
+    hardBreakBox.dispatchEvent(new Event('change'));
+    expect(mockApi.setSetting).not.toHaveBeenCalledWith('columnbreakhard', expect.anything());
+  });
+
+  it('keeps Hard Break enabled and unlabeled while Word Wrap is off', () => {
+    tab.section = 'editor';
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Hard Break');
+    expect(text).not.toContain('Hard Break (disabled)');
+
+    const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+    expect(checkboxes[3].disabled).toBe(false);
+  });
+
   it('should default the Column Break value text field to 90', () => {
     tab.section = 'editor';
     const numberInput = tab.getElement().querySelector('input[type="text"]') as HTMLInputElement;
