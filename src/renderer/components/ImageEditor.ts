@@ -66,6 +66,9 @@ export class ImageEditor extends Component {
   private static readonly ZOOM_MAX = 4.0;
   private static readonly ZOOM_STEP = 0.25;
 
+  // Pan state (left-click-drag scrolls the viewport when zoomed in)
+  private panDrag: { startClientX: number; startClientY: number; startScrollLeft: number; startScrollTop: number } | null = null;
+
   // Transparency state
   private opacity = 1.0;
   private showTransparencyControls = false;
@@ -115,6 +118,7 @@ export class ImageEditor extends Component {
 
     // Viewport
     this.viewportEl = el('div');
+    this.viewportEl.classList.add('image-viewport-scroll');
     setStyles(this.viewportEl, {
       flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
       overflow: 'auto', background: '#1e1e1e', padding: '20px', position: 'relative',
@@ -126,6 +130,7 @@ export class ImageEditor extends Component {
 
     // Image element
     this.imgEl = document.createElement('img');
+    this.imgEl.draggable = false;
     setStyles(this.imgEl, {
       display: 'block',
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
@@ -133,6 +138,10 @@ export class ImageEditor extends Component {
 
     this.imageContainerEl.appendChild(this.imgEl);
     this.viewportEl.appendChild(this.imageContainerEl);
+
+    // Left-click-drag pans the viewport (only takes effect where the crop
+    // overlay/handles don't already stopPropagation for their own drag).
+    this.imageContainerEl.addEventListener('mousedown', (e) => this.startPanDrag(e));
 
     // Processing overlay
     this.processingEl = el('div', {}, 'Processing...');
@@ -170,10 +179,17 @@ export class ImageEditor extends Component {
     window.addEventListener('keydown', keyHandler);
     this.addCleanup(() => window.removeEventListener('keydown', keyHandler));
 
-    // Crop handle dragging is tracked at the window level so a fast drag that
-    // leaves the small handle/overlay elements doesn't drop the interaction.
-    const moveHandler = (e: MouseEvent) => this.handleCropInteractionMove(e);
-    const upHandler = () => this.handleCropInteractionUp();
+    // Crop handle dragging and image panning are both tracked at the window
+    // level so a fast drag that leaves the small handle/image elements
+    // doesn't drop the interaction.
+    const moveHandler = (e: MouseEvent) => {
+      this.handleCropInteractionMove(e);
+      this.handlePanDragMove(e);
+    };
+    const upHandler = () => {
+      this.handleCropInteractionUp();
+      this.handlePanDragUp();
+    };
     window.addEventListener('mousemove', moveHandler);
     window.addEventListener('mouseup', upHandler);
     this.addCleanup(() => window.removeEventListener('mousemove', moveHandler));
@@ -235,7 +251,7 @@ export class ImageEditor extends Component {
 
     this.imgEl.src = this.imageUrl || '';
     this.imgEl.alt = this.filePath;
-    this.imgEl.style.cursor = 'default';
+    if (!this.panDrag) this.imgEl.style.cursor = this.imageUrl ? 'grab' : 'default';
     this.imgEl.style.display = this.imageUrl ? 'block' : 'none';
     if (this.dims) {
       this.imgEl.style.width = `${Math.round(this.dims.width * this.viewZoom)}px`;
@@ -734,6 +750,33 @@ export class ImageEditor extends Component {
     if (this.cropInteraction) {
       this.cropInteraction = null;
       this.renderToolbar(); // Update Apply Crop button state
+    }
+  }
+
+  // --- Pan (left-click-drag to view zoomed-in image) ---
+
+  private startPanDrag(e: MouseEvent): void {
+    if (e.button !== 0 || this.processing || !this.imageUrl) return;
+    e.preventDefault();
+    this.panDrag = {
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startScrollLeft: this.viewportEl.scrollLeft,
+      startScrollTop: this.viewportEl.scrollTop,
+    };
+    this.imgEl.style.cursor = 'grabbing';
+  }
+
+  private handlePanDragMove(e: MouseEvent): void {
+    if (!this.panDrag) return;
+    this.viewportEl.scrollLeft = this.panDrag.startScrollLeft - (e.clientX - this.panDrag.startClientX);
+    this.viewportEl.scrollTop = this.panDrag.startScrollTop - (e.clientY - this.panDrag.startClientY);
+  }
+
+  private handlePanDragUp(): void {
+    if (this.panDrag) {
+      this.panDrag = null;
+      this.imgEl.style.cursor = this.imageUrl ? 'grab' : 'default';
     }
   }
 
