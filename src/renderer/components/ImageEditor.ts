@@ -62,11 +62,11 @@ export class ImageEditor extends Component {
   private loading = true;
   private errorMsg: string | null = null;
 
-  // Crop state
-  private cropMode = false;
-  private cropRegion: { x: number; y: number; width: number; height: number } | null = null;
+  // Crop state — handles are always shown around the current image bounds
+  // (mspaint canvas-resize style), not gated behind a separate "Crop" mode.
+  // cropRegion always mirrors the full current image except mid-drag.
+  private cropRegion: CropRegion | null = null;
   private cropInteraction: CropInteraction | null = null;
-  private cropPreviewUrl: string | null = null;
 
   // View zoom (display-only, does not touch the underlying image data)
   private viewZoom = 1.0;
@@ -101,7 +101,6 @@ export class ImageEditor extends Component {
   private imageContainerEl: HTMLElement;
   private imgEl: HTMLImageElement;
   private cropOverlayEl: HTMLElement | null = null;
-  private cropHintEl: HTMLElement | null = null;
   private processingEl: HTMLElement;
   private infoBarEl: HTMLElement;
   private modalEl: HTMLElement | null = null;
@@ -230,6 +229,7 @@ export class ImageEditor extends Component {
         this.resizeHeight = String(dims.height);
         this.history = [{ imageUrl: url, dimensions: dims, opacity: 1.0 }];
         this.historyIndex = 0;
+        this.resetCropRegion();
       } catch (dimErr) {
         console.warn('[ImageEditor] Could not get dimensions:', dimErr);
       }
@@ -288,7 +288,6 @@ export class ImageEditor extends Component {
     this.renderToolbar();
     this.renderInfoBar();
     this.renderCropOverlay();
-    this.renderCropHint();
   }
 
   private showLoading(): void {
@@ -316,28 +315,20 @@ export class ImageEditor extends Component {
   private renderToolbar(): void {
     clearChildren(this.toolbarEl);
 
-    const canEdit = !!this.dims && !this.processing;
-    const canEditNoCrop = canEdit && !this.cropMode;
+    const canEdit = !!this.dims && !this.processing && !this.cropInteraction;
 
     // Undo / Redo
     this.toolbarEl.appendChild(this.makeBtn('\u2190 Undo', () => this.handleUndo(), this.historyIndex > 0 && !this.processing, 'Undo (Ctrl+Z)'));
     this.toolbarEl.appendChild(this.makeBtn('Redo \u2192', () => this.handleRedo(), this.historyIndex < this.history.length - 1 && !this.processing, 'Redo (Ctrl+Y)'));
     this.toolbarEl.appendChild(this.makeSep());
 
-    // Resize / Crop
-    this.toolbarEl.appendChild(this.makeBtn('Resize...', () => this.showResizeDialog(), canEditNoCrop));
-    this.toolbarEl.appendChild(this.makeBtn('Crop', () => this.handleCropClick(), canEditNoCrop));
-
-    if (this.cropMode) {
-      const validCrop = this.cropRegion && this.cropRegion.width > 0 && this.cropRegion.height > 0;
-      this.toolbarEl.appendChild(this.makeBtn('Apply Crop', () => this.handleCropApply(), !!validCrop && !this.processing));
-      this.toolbarEl.appendChild(this.makeBtn('Cancel', () => this.handleCropCancel(), true));
-    }
+    // Resize (drag the handles on the image itself to crop \u2014 see renderCropOverlay)
+    this.toolbarEl.appendChild(this.makeBtn('Resize...', () => this.showResizeDialog(), canEdit));
 
     this.toolbarEl.appendChild(this.makeSep());
 
     // Transparency
-    const canTransparency = supportsTransparency(this.mimeType) && canEditNoCrop;
+    const canTransparency = supportsTransparency(this.mimeType) && canEdit;
     const transpLabel = this.showTransparencyControls ? 'Hide Transparency' : 'Show Transparency';
     const transpTitle = supportsTransparency(this.mimeType)
       ? 'Toggle transparency controls'
@@ -412,7 +403,7 @@ export class ImageEditor extends Component {
 
     // Save / Save As / Reset
     this.toolbarEl.appendChild(this.makeBtn('Save', () => this.handleSave(), this.isModified && !this.processing));
-    this.toolbarEl.appendChild(this.makeBtn('Save As...', () => this.showSaveAsDialog(), canEditNoCrop));
+    this.toolbarEl.appendChild(this.makeBtn('Save As...', () => this.showSaveAsDialog(), canEdit));
     this.toolbarEl.appendChild(this.makeBtn('Reset', () => this.handleReset(), this.isModified && !this.processing));
   }
 
@@ -459,93 +450,90 @@ export class ImageEditor extends Component {
 
   // --- Crop Overlay ---
 
+  /**
+   * Renders the always-on-canvas crop handles (mspaint canvas-resize style):
+   * 8 handles sit on the image's border at all times — no separate "Crop"
+   * mode to enter first. Dragging a handle live-previews a smaller region
+   * (border + dimming appear only while it differs from the full image);
+   * releasing the mouse commits the crop immediately (see
+   * handleCropInteractionUp / commitCrop). The overlay's own box never
+   * captures pointer events — only the handles/strips do — so plain
+   * click-drag on the image still pans it (see startPanDrag).
+   */
   private renderCropOverlay(): void {
     if (this.cropOverlayEl) { this.cropOverlayEl.remove(); this.cropOverlayEl = null; }
+    if (!this.dims || !this.cropRegion || this.processing) return;
 
-    if (this.cropMode && this.cropRegion && this.cropRegion.width > 0 && this.cropRegion.height > 0) {
-      // cropRegion is stored in natural image pixels; scale to display pixels for layout.
-      const z = this.viewZoom;
-      this.cropOverlayEl = el('div');
-      this.cropOverlayEl.classList.add('crop-overlay');
-      setStyles(this.cropOverlayEl, {
-        position: 'absolute',
-        border: '2px solid #007acc',
-        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-        cursor: 'move',
-        pointerEvents: 'auto',
-        left: `${this.cropRegion.x * z}px`,
-        top: `${this.cropRegion.y * z}px`,
-        width: `${this.cropRegion.width * z}px`,
-        height: `${this.cropRegion.height * z}px`,
-      });
+    // cropRegion is stored in natural image pixels; scale to display pixels for layout.
+    const z = this.viewZoom;
+    const region = this.cropRegion;
+    const isFullImage = region.x === 0 && region.y === 0
+      && region.width === this.dims.width && region.height === this.dims.height;
 
-      const info = el('div', {}, `${this.cropRegion.width} \u00d7 ${this.cropRegion.height} px`);
+    this.cropOverlayEl = el('div');
+    this.cropOverlayEl.classList.add('crop-overlay');
+    setStyles(this.cropOverlayEl, {
+      position: 'absolute',
+      border: isFullImage ? '1px dashed rgba(255, 255, 255, 0.5)' : '2px solid #007acc',
+      boxShadow: isFullImage ? 'none' : '0 0 0 9999px rgba(0, 0, 0, 0.5)',
+      pointerEvents: 'none',
+      left: `${region.x * z}px`,
+      top: `${region.y * z}px`,
+      width: `${region.width * z}px`,
+      height: `${region.height * z}px`,
+    });
+
+    if (!isFullImage) {
+      const info = el('div', {}, `${region.width} \u00d7 ${region.height} px`);
       setStyles(info, {
         position: 'absolute', top: '-25px', left: '0',
         background: 'rgba(0, 0, 0, 0.7)', color: '#ffffff',
         padding: '4px 8px', fontSize: '12px', borderRadius: '2px', whiteSpace: 'nowrap',
       });
       this.cropOverlayEl.appendChild(info);
-
-      // Drag-to-move the whole crop rectangle (mspaint-style body drag).
-      this.cropOverlayEl.addEventListener('mousedown', (e) => this.startCropInteraction('move', e));
-
-      // Edge handles: the grabbable strip spans the entire edge (z-index 1),
-      // with a small visible marker at its midpoint (pointer-events: none —
-      // purely a visual cue, the strip beneath it is what's actually clickable).
-      for (const h of CROP_EDGE_HANDLES) {
-        const strip = el('div');
-        strip.dataset.cropHandle = h.mode;
-        setStyles(strip, {
-          position: 'absolute', cursor: h.cursor, pointerEvents: 'auto', zIndex: '1',
-          ...h.style,
-        });
-        strip.addEventListener('mousedown', (e) => this.startCropInteraction(h.mode, e));
-        this.cropOverlayEl.appendChild(strip);
-
-        const isVertical = h.mode === 'n' || h.mode === 's';
-        const marker = el('div');
-        setStyles(marker, {
-          position: 'absolute', width: '10px', height: '10px',
-          background: '#007acc', border: '1px solid #ffffff', borderRadius: '2px',
-          top: isVertical ? (h.mode === 'n' ? '0%' : '100%') : '50%',
-          left: isVertical ? '50%' : (h.mode === 'w' ? '0%' : '100%'),
-          transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: '1',
-        });
-        this.cropOverlayEl.appendChild(marker);
-      }
-
-      // Corner handles: small squares, exact grab points, rendered last so
-      // they win over any overlapping edge strip right at the corners.
-      for (const h of CROP_CORNER_HANDLES) {
-        const handle = el('div');
-        handle.dataset.cropHandle = h.mode;
-        setStyles(handle, {
-          position: 'absolute', width: '12px', height: '12px',
-          background: '#007acc', border: '1px solid #ffffff', borderRadius: '2px',
-          top: h.top, left: h.left, transform: 'translate(-50%, -50%)',
-          cursor: h.cursor, pointerEvents: 'auto', zIndex: '2',
-        });
-        handle.addEventListener('mousedown', (e) => this.startCropInteraction(h.mode, e));
-        this.cropOverlayEl.appendChild(handle);
-      }
-
-      this.imageContainerEl.appendChild(this.cropOverlayEl);
     }
-  }
 
-  private renderCropHint(): void {
-    if (this.cropHintEl) { this.cropHintEl.remove(); this.cropHintEl = null; }
-
-    if (this.cropMode) {
-      this.cropHintEl = el('div', {}, 'Drag the handles to adjust the crop area, or drag inside to move it');
-      setStyles(this.cropHintEl, {
-        position: 'absolute', bottom: '20px', left: '50%',
-        transform: 'translateX(-50%)', background: 'rgba(0, 0, 0, 0.8)',
-        color: '#ffffff', padding: '8px 16px', borderRadius: '4px', fontSize: '13px',
+    // Edge handles: the grabbable strip spans the entire edge (z-index 1),
+    // with a small visible marker at its midpoint (pointer-events: none,
+    // purely a visual cue) - the strip beneath it is what's actually clickable.
+    for (const h of CROP_EDGE_HANDLES) {
+      const strip = el('div');
+      strip.dataset.cropHandle = h.mode;
+      setStyles(strip, {
+        position: 'absolute', cursor: h.cursor, pointerEvents: 'auto', zIndex: '1',
+        ...h.style,
       });
-      this.viewportEl.appendChild(this.cropHintEl);
+      strip.addEventListener('mousedown', (e) => this.startCropInteraction(h.mode, e));
+      this.cropOverlayEl.appendChild(strip);
+
+      const isVertical = h.mode === 'n' || h.mode === 's';
+      const marker = el('div');
+      setStyles(marker, {
+        position: 'absolute', width: '10px', height: '10px',
+        background: '#ffffff', border: '1px solid #007acc', borderRadius: '1px',
+        top: isVertical ? (h.mode === 'n' ? '0%' : '100%') : '50%',
+        left: isVertical ? '50%' : (h.mode === 'w' ? '0%' : '100%'),
+        transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: '1',
+      });
+      this.cropOverlayEl.appendChild(marker);
     }
+
+    // Corner handles: small squares, exact grab points, rendered last so
+    // they win over any overlapping edge strip right at the corners.
+    for (const h of CROP_CORNER_HANDLES) {
+      const handle = el('div');
+      handle.dataset.cropHandle = h.mode;
+      setStyles(handle, {
+        position: 'absolute', width: '12px', height: '12px',
+        background: '#ffffff', border: '1px solid #007acc', borderRadius: '1px',
+        top: h.top, left: h.left, transform: 'translate(-50%, -50%)',
+        cursor: h.cursor, pointerEvents: 'auto', zIndex: '2',
+      });
+      handle.addEventListener('mousedown', (e) => this.startCropInteraction(h.mode, e));
+      this.cropOverlayEl.appendChild(handle);
+    }
+
+    this.imageContainerEl.appendChild(this.cropOverlayEl);
   }
 
   // --- History ---
@@ -565,6 +553,7 @@ export class ImageEditor extends Component {
     this.dims = state.dimensions;
     this.opacity = state.opacity;
     this.isModified = this.historyIndex > 0;
+    this.resetCropRegion();
     this.render();
   }
 
@@ -576,6 +565,7 @@ export class ImageEditor extends Component {
     this.dims = state.dimensions;
     this.opacity = state.opacity;
     this.isModified = this.historyIndex > 0;
+    this.resetCropRegion();
     this.render();
   }
 
@@ -659,6 +649,7 @@ export class ImageEditor extends Component {
       this.dims = { width: w, height: h };
       this.isModified = true;
       this.saveToHistory(resized, { width: w, height: h }, this.opacity);
+      this.resetCropRegion();
     } catch (err) {
       console.error('[ImageEditor] Failed to resize:', err);
       this.errorMsg = err instanceof Error ? err.message : String(err);
@@ -685,82 +676,16 @@ export class ImageEditor extends Component {
     this.render();
   }
 
-  // --- Crop ---
+  // --- Crop (mspaint-style: always-on canvas handles, no separate mode) ---
 
-  private handleCropClick(): void {
-    if (!this.dims) return;
-    this.cropMode = true;
-    // Start with the full image selected, like mspaint's crop tool — the user
-    // drags the edge/corner handles inward to shrink the region to keep.
-    this.cropRegion = { x: 0, y: 0, width: this.dims.width, height: this.dims.height };
-    this.render();
+  /** Snaps cropRegion back to covering the whole current image. Call this any
+   * time this.dims changes (load, resize, crop commit, undo/redo, reset). */
+  private resetCropRegion(): void {
+    this.cropRegion = this.dims ? { x: 0, y: 0, width: this.dims.width, height: this.dims.height } : null;
   }
-
-  private handleCropCancel(): void {
-    this.cropMode = false;
-    this.cropRegion = null;
-    this.cropInteraction = null;
-    this.render();
-  }
-
-  private async handleCropApply(): Promise<void> {
-    if (!this.cropRegion || !this.imageUrl) return;
-    try {
-      this.processing = true; this.render();
-      const cropped = await cropImage(this.imageUrl, this.cropRegion.x, this.cropRegion.y, this.cropRegion.width, this.cropRegion.height);
-      this.cropPreviewUrl = cropped;
-      this.showCropPreviewDialog();
-    } catch (err) {
-      console.error('[ImageEditor] Failed to crop:', err);
-      this.errorMsg = err instanceof Error ? err.message : String(err);
-    } finally {
-      this.processing = false; this.render();
-    }
-  }
-
-  private showCropPreviewDialog(): void {
-    if (!this.cropPreviewUrl) return;
-    this.showModal('Crop Preview', (content, actions) => {
-      setStyles(content, { alignItems: 'center' });
-      const preview = document.createElement('img');
-      preview.src = this.cropPreviewUrl!;
-      preview.alt = 'Crop preview';
-      setStyles(preview, {
-        maxWidth: '450px', maxHeight: '450px', objectFit: 'contain', border: '1px solid #3e3e42',
-      });
-      content.appendChild(preview);
-
-      const note = el('div', {}, 'Preview of cropped image');
-      setStyles(note, { fontSize: '13px', color: '#cccccc', marginTop: '12px' });
-      content.appendChild(note);
-
-      actions.appendChild(this.makeBtn('Cancel', () => this.hideModal(), true));
-      actions.appendChild(this.makeBtn('Confirm Crop', () => this.handleCropConfirm(), true));
-    }, '500px');
-  }
-
-  private async handleCropConfirm(): Promise<void> {
-    if (!this.cropPreviewUrl) return;
-    this.hideModal();
-    try {
-      this.imageUrl = this.cropPreviewUrl;
-      const dims = await getImageDimensions(this.cropPreviewUrl);
-      this.dims = dims;
-      this.isModified = true;
-      this.cropMode = false;
-      this.cropRegion = null;
-      this.saveToHistory(this.cropPreviewUrl, dims, this.opacity);
-    } catch (err) {
-      console.error('[ImageEditor] Failed to apply crop:', err);
-      this.errorMsg = err instanceof Error ? err.message : String(err);
-    }
-    this.render();
-  }
-
-  // --- Crop Handle Dragging (mspaint-style) ---
 
   private startCropInteraction(mode: CropHandleMode, e: MouseEvent): void {
-    if (!this.cropRegion) return;
+    if (!this.cropRegion || this.processing) return;
     e.preventDefault();
     e.stopPropagation();
     this.cropInteraction = {
@@ -782,10 +707,38 @@ export class ImageEditor extends Component {
     this.renderCropOverlay();
   }
 
+  /** Releasing a handle commits the crop immediately, like mspaint's canvas
+   * resize — no separate "Apply" step. Undo (Ctrl+Z) reverts it. */
   private handleCropInteractionUp(): void {
-    if (this.cropInteraction) {
-      this.cropInteraction = null;
-      this.renderToolbar(); // Update Apply Crop button state
+    if (!this.cropInteraction) return;
+    this.cropInteraction = null;
+
+    const region = this.cropRegion;
+    const isNoOp = !region || !this.dims
+      || (region.x === 0 && region.y === 0 && region.width === this.dims.width && region.height === this.dims.height);
+    if (isNoOp) {
+      this.renderToolbar();
+      return;
+    }
+    void this.commitCrop(region);
+  }
+
+  private async commitCrop(region: CropRegion): Promise<void> {
+    if (!this.imageUrl) return;
+    try {
+      this.processing = true; this.render();
+      const cropped = await cropImage(this.imageUrl, region.x, region.y, region.width, region.height);
+      const dims = { width: region.width, height: region.height };
+      this.imageUrl = cropped;
+      this.dims = dims;
+      this.isModified = true;
+      this.saveToHistory(cropped, dims, this.opacity);
+      this.resetCropRegion();
+    } catch (err) {
+      console.error('[ImageEditor] Failed to crop:', err);
+      this.errorMsg = err instanceof Error ? err.message : String(err);
+    } finally {
+      this.processing = false; this.render();
     }
   }
 
@@ -967,9 +920,8 @@ export class ImageEditor extends Component {
     this.imageUrl = this.originalDataUrl;
     this.dims = { ...this.originalDims };
     this.isModified = false;
-    this.cropMode = false;
-    this.cropRegion = null;
     this.cropInteraction = null;
+    this.resetCropRegion();
     this.opacity = 1.0;
     this.showTransparencyControls = false;
     this.showCheckerboard = false;
