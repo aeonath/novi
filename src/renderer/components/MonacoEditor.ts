@@ -178,6 +178,15 @@ export class MonacoEditor extends Component {
 
       this.editorService = new EditorService(this.editor);
 
+      // Shift+Insert — classic X11/Windows terminal-style paste. Reuses the
+      // same Electron-clipboard path as Ctrl+V/the right-click menu (Monaco's
+      // own clipboard actions can be unreliable under Electron's clipboard
+      // permissions), and is scoped to this editor's own keybinding context
+      // so it only fires while the editor actually has focus.
+      this.editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Insert, () => {
+        void this.handlePaste();
+      });
+
       // Context menu
       const handleCtxMenu = (e: MouseEvent) => {
         e.preventDefault(); e.stopPropagation();
