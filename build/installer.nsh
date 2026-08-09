@@ -62,3 +62,38 @@
   nsExec::Exec 'powershell -NoProfile -ExecutionPolicy Bypass -File "$TEMP\novi-path-remove.ps1"'
   Delete "$TEMP\novi-path-remove.ps1"
 !macroend
+
+; Overrides electron-builder's default "Launch Novi" finish-page behavior.
+; The stock implementation (StartApp in app-builder-lib's
+; templates/nsis/common.nsh) always launches via StdUtils::ExecShellAsUser,
+; which de-elevates the launched app through Explorer via DCOM — needed
+; only when the installer itself is running elevated. This installer is
+; per-user by design (HKCU PATH only, see customInstall above) and in
+; practice essentially never elevates, but every install still pays that
+; DCOM broker's overhead regardless, which visibly freezes the installer
+; window ("Not Responding") for as long as Novi's own Electron/Chromium
+; startup takes — the broker call doesn't return until the launch completes.
+; Skip the de-elevation dance whenever we're not actually elevated (the
+; overwhelming majority of installs); only take the slow-but-safe original
+; path if we genuinely are, so a deliberately elevated install still hands
+; off correctly instead of leaving Novi itself running with admin rights.
+!macro customFinishPage
+  !ifndef HIDE_RUN_AFTER_FINISH
+    Function StartApp
+      ${if} ${isUpdated}
+        StrCpy $1 "--updated"
+      ${else}
+        StrCpy $1 ""
+      ${endif}
+      ${If} ${UAC_IsAdmin}
+        ${StdUtils.ExecShellAsUser} $0 "$launchLink" "open" "$1"
+      ${Else}
+        Exec '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" $1'
+      ${EndIf}
+    FunctionEnd
+
+    !define MUI_FINISHPAGE_RUN
+    !define MUI_FINISHPAGE_RUN_FUNCTION "StartApp"
+  !endif
+  !insertmacro MUI_PAGE_FINISH
+!macroend
