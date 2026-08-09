@@ -70,9 +70,14 @@ export class ImageEditor extends Component {
 
   // View zoom (display-only, does not touch the underlying image data)
   private viewZoom = 1.0;
+  // True until the user manually changes zoom (+/-/typing a %); while true,
+  // the viewport is kept auto-fitted to the window so scrollbars don't
+  // appear until the user actually zooms in past the fitted size.
+  private autoFit = true;
   private static readonly ZOOM_MIN = 0.1;
   private static readonly ZOOM_MAX = 4.0;
   private static readonly ZOOM_STEP = 0.25;
+  private static readonly VIEWPORT_PADDING = 20; // must match viewportEl's CSS padding
 
   // Pan state (left-click-drag scrolls the viewport when zoomed in)
   private panDrag: { startClientX: number; startClientY: number; startScrollLeft: number; startScrollTop: number } | null = null;
@@ -201,6 +206,16 @@ export class ImageEditor extends Component {
     window.addEventListener('mouseup', upHandler);
     this.addCleanup(() => window.removeEventListener('mousemove', moveHandler));
     this.addCleanup(() => window.removeEventListener('mouseup', upHandler));
+
+    // Re-fit the image to the window on resize (sidebar toggle, window
+    // resize, or the tab becoming visible after being hidden) as long as
+    // the user hasn't manually zoomed. Guarded for test environments
+    // (jsdom) where ResizeObserver doesn't exist.
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => this.applyAutoFit());
+      ro.observe(this.viewportEl);
+      this.addCleanup(() => ro.disconnect());
+    }
   }
 
   // --- Public API ---
@@ -214,6 +229,7 @@ export class ImageEditor extends Component {
       this.loading = true;
       this.errorMsg = null;
       this.viewZoom = 1.0;
+      this.autoFit = true;
       this.showLoading();
 
       this.mimeType = ImageEditorService.getMimeType(this.filePath);
@@ -230,6 +246,7 @@ export class ImageEditor extends Component {
         this.history = [{ imageUrl: url, dimensions: dims, opacity: 1.0 }];
         this.historyIndex = 0;
         this.resetCropRegion();
+        this.applyAutoFit();
       } catch (dimErr) {
         console.warn('[ImageEditor] Could not get dimensions:', dimErr);
       }
@@ -672,7 +689,28 @@ export class ImageEditor extends Component {
   }
 
   private setZoom(zoom: number): void {
+    this.autoFit = false; // user took manual control — stop re-fitting on resize
     this.viewZoom = clampZoom(zoom, ImageEditor.ZOOM_MIN, ImageEditor.ZOOM_MAX);
+    this.render();
+  }
+
+  /** Shrinks (never enlarges) the image to fit inside the viewport so no
+   * scrollbars appear, unless the user has manually zoomed. Re-run whenever
+   * the viewport resizes (see the ResizeObserver in onMount) so switching
+   * tabs, toggling the sidebar, or resizing the window keeps it fitted. */
+  private applyAutoFit(): void {
+    if (!this.autoFit || !this.dims) return;
+    const pad = ImageEditor.VIEWPORT_PADDING * 2;
+    const availW = this.viewportEl.clientWidth - pad;
+    const availH = this.viewportEl.clientHeight - pad;
+    if (availW <= 0 || availH <= 0) return; // not visible/laid out yet
+
+    const fit = Math.min(1, availW / this.dims.width, availH / this.dims.height);
+    if (!Number.isFinite(fit) || fit <= 0) return;
+
+    const rounded = Math.round(fit * 100) / 100;
+    if (rounded === this.viewZoom) return;
+    this.viewZoom = rounded;
     this.render();
   }
 
@@ -926,8 +964,10 @@ export class ImageEditor extends Component {
     this.showTransparencyControls = false;
     this.showCheckerboard = false;
     this.viewZoom = 1.0;
+    this.autoFit = true;
     this.history = [{ imageUrl: this.originalDataUrl, dimensions: { ...this.originalDims }, opacity: 1.0 }];
     this.historyIndex = 0;
+    this.applyAutoFit();
     this.render();
   }
 
