@@ -595,7 +595,10 @@ export class App extends Component {
       const ge = await window.api?.getSetting<boolean>('gitenabled', true);
       this.gitEnabled = ge !== false;
       this.fileTree.setShowGitToggle(this.gitEnabled);
-      this.shellLabel = this.shellTypeToLabel(await window.api?.getSetting<string>('shellType'));
+      const platform = await window.api?.getPlatform?.() || 'win32';
+      const defaultShellType = platform === 'win32' ? 'gitbash' : 'linux';
+      const shellType = await window.api?.getSetting<string>('shellType', defaultShellType);
+      this.shellLabel = this.shellTypeToLabel(shellType || defaultShellType);
     } catch { /* ignore */ }
   }
 
@@ -606,7 +609,7 @@ export class App extends Component {
       case 'wsl': return 'WSL';
       case 'linux': return 'Linux Terminal';
       case 'gitbash': return 'Git Bash';
-      default: return 'Linux Terminal';
+      default: return 'Git Bash';
     }
   }
 
