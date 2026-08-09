@@ -73,22 +73,25 @@
 ; DCOM broker's overhead regardless, which visibly freezes the installer
 ; window ("Not Responding") for as long as Novi's own Electron/Chromium
 ; startup takes — the broker call doesn't return until the launch completes.
-; Skip the de-elevation dance whenever we're not actually elevated (the
-; overwhelming majority of installs); only take the slow-but-safe original
-; path if we genuinely are, so a deliberately elevated install still hands
-; off correctly instead of leaving Novi itself running with admin rights.
+;
+; That was originally "fixed" by only taking the slow StdUtils path when
+; genuinely elevated, but that still leaves the installer looking frozen on
+; any install that *does* elevate (e.g. the user picked an install
+; directory like Program Files, which requires it) — StdUtils.ExecShellAsUser
+; is a blocking call no matter which branch reaches it. Both branches below
+; are now fire-and-forget: the elevated branch hands the launch off to the
+; already-running (non-elevated) Explorer process via `explorer.exe <path>`,
+; which de-elevates the launch the same way StdUtils did, but Exec never
+; waits for it. `--updated`/$1 was dead — nothing in Novi reads that flag —
+; so dropping it to make explorer.exe's argument handling simple costs
+; nothing.
 !macro customFinishPage
   !ifndef HIDE_RUN_AFTER_FINISH
     Function StartApp
-      ${if} ${isUpdated}
-        StrCpy $1 "--updated"
-      ${else}
-        StrCpy $1 ""
-      ${endif}
       ${If} ${UAC_IsAdmin}
-        ${StdUtils.ExecShellAsUser} $0 "$launchLink" "open" "$1"
+        Exec 'explorer.exe "$INSTDIR\${APP_EXECUTABLE_FILENAME}"'
       ${Else}
-        Exec '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" $1'
+        Exec '"$INSTDIR\${APP_EXECUTABLE_FILENAME}"'
       ${EndIf}
     FunctionEnd
 
