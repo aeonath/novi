@@ -29,15 +29,23 @@ interface CropInteraction {
   startRegion: CropRegion;
 }
 
-const CROP_HANDLES: { mode: CropHandleMode; cursor: string; top: string; left: string }[] = [
+// Corner handles: small visible squares, exact grab points for diagonal resize.
+const CROP_CORNER_HANDLES: { mode: CropHandleMode; cursor: string; top: string; left: string }[] = [
   { mode: 'nw', cursor: 'nwse-resize', top: '0%', left: '0%' },
-  { mode: 'n', cursor: 'ns-resize', top: '0%', left: '50%' },
   { mode: 'ne', cursor: 'nesw-resize', top: '0%', left: '100%' },
-  { mode: 'w', cursor: 'ew-resize', top: '50%', left: '0%' },
-  { mode: 'e', cursor: 'ew-resize', top: '50%', left: '100%' },
   { mode: 'sw', cursor: 'nesw-resize', top: '100%', left: '0%' },
-  { mode: 's', cursor: 'ns-resize', top: '100%', left: '50%' },
   { mode: 'se', cursor: 'nwse-resize', top: '100%', left: '100%' },
+];
+
+// Edge handles: the grabbable area spans the *entire* edge (like an OS window
+// border), not just a small dot at the midpoint — a small square at the
+// midpoint is easy to miss, and any miss on the plain border fell through to
+// the "move" drag instead of resizing, which made resizing feel broken.
+const CROP_EDGE_HANDLES: { mode: CropHandleMode; cursor: string; style: Partial<CSSStyleDeclaration> }[] = [
+  { mode: 'n', cursor: 'ns-resize', style: { top: '-5px', left: '0', right: '0', height: '10px' } },
+  { mode: 's', cursor: 'ns-resize', style: { bottom: '-5px', left: '0', right: '0', height: '10px' } },
+  { mode: 'w', cursor: 'ew-resize', style: { left: '-5px', top: '0', bottom: '0', width: '10px' } },
+  { mode: 'e', cursor: 'ew-resize', style: { right: '-5px', top: '0', bottom: '0', width: '10px' } },
 ];
 
 const CROP_MIN_SIZE = 1;
@@ -458,6 +466,7 @@ export class ImageEditor extends Component {
       // cropRegion is stored in natural image pixels; scale to display pixels for layout.
       const z = this.viewZoom;
       this.cropOverlayEl = el('div');
+      this.cropOverlayEl.classList.add('crop-overlay');
       setStyles(this.cropOverlayEl, {
         position: 'absolute',
         border: '2px solid #007acc',
@@ -481,11 +490,38 @@ export class ImageEditor extends Component {
       // Drag-to-move the whole crop rectangle (mspaint-style body drag).
       this.cropOverlayEl.addEventListener('mousedown', (e) => this.startCropInteraction('move', e));
 
-      // Drag handles on every edge and corner (mspaint-style crop handles).
-      for (const h of CROP_HANDLES) {
-        const handle = el('div');
-        setStyles(handle, {
+      // Edge handles: the grabbable strip spans the entire edge (z-index 1),
+      // with a small visible marker at its midpoint (pointer-events: none —
+      // purely a visual cue, the strip beneath it is what's actually clickable).
+      for (const h of CROP_EDGE_HANDLES) {
+        const strip = el('div');
+        strip.dataset.cropHandle = h.mode;
+        setStyles(strip, {
+          position: 'absolute', cursor: h.cursor, pointerEvents: 'auto', zIndex: '1',
+          ...h.style,
+        });
+        strip.addEventListener('mousedown', (e) => this.startCropInteraction(h.mode, e));
+        this.cropOverlayEl.appendChild(strip);
+
+        const isVertical = h.mode === 'n' || h.mode === 's';
+        const marker = el('div');
+        setStyles(marker, {
           position: 'absolute', width: '10px', height: '10px',
+          background: '#007acc', border: '1px solid #ffffff', borderRadius: '2px',
+          top: isVertical ? (h.mode === 'n' ? '0%' : '100%') : '50%',
+          left: isVertical ? '50%' : (h.mode === 'w' ? '0%' : '100%'),
+          transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: '1',
+        });
+        this.cropOverlayEl.appendChild(marker);
+      }
+
+      // Corner handles: small squares, exact grab points, rendered last so
+      // they win over any overlapping edge strip right at the corners.
+      for (const h of CROP_CORNER_HANDLES) {
+        const handle = el('div');
+        handle.dataset.cropHandle = h.mode;
+        setStyles(handle, {
+          position: 'absolute', width: '12px', height: '12px',
           background: '#007acc', border: '1px solid #ffffff', borderRadius: '2px',
           top: h.top, left: h.left, transform: 'translate(-50%, -50%)',
           cursor: h.cursor, pointerEvents: 'auto', zIndex: '2',
@@ -813,10 +849,8 @@ export class ImageEditor extends Component {
     try {
       this.processing = true; this.render();
       const base64Data = this.imageUrl.replace(/^data:image\/\w+;base64,/, '');
-      const result = await window.api.saveFile(this.filePath, base64Data);
-      if (result.success) {
-        this.isModified = false;
-      }
+      await window.api.saveFile(this.filePath, base64Data);
+      this.isModified = false;
     } catch (err) {
       console.error('[ImageEditor] Failed to save:', err);
     } finally {
