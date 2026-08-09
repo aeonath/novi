@@ -1410,6 +1410,7 @@ export class App extends Component {
         break;
       case 'about': this.showAboutDialog(); break;
       case 'documentation': window.open('https://miranova.studio/projects/novi.html', '_blank'); break;
+      case 'report-issue': window.open('https://miranova.studio/contact.html', '_blank'); break;
       case 'check-updates': this.showCheckUpdatesDialog(); break;
       default: console.warn('[App] Unknown menu command:', command);
     }
