@@ -16,10 +16,13 @@ import { convertTmToMonarch } from '../../core/tm-to-monarch.js';
 
 declare const monaco: typeof import('monaco-editor');
 
+const WORD_WRAP_COLUMN = 90;
+
 export interface MonacoEditorConfig {
   onDirtyChange?: (isDirty: boolean) => void;
   fontSize?: number;
-  wordWrap?: 'on' | 'off';
+  wordWrap?: boolean;
+  lineNumbers?: boolean;
 }
 
 export class MonacoEditor extends Component {
@@ -36,13 +39,15 @@ export class MonacoEditor extends Component {
   private isDirtyFlag = false;
   private onDirtyChange?: (isDirty: boolean) => void;
   private _fontSize: number;
-  private _wordWrap: 'on' | 'off';
+  private _wordWrap: boolean;
+  private _lineNumbers: boolean;
 
   constructor(config: MonacoEditorConfig = {}) {
     super('div');
     this.onDirtyChange = config.onDirtyChange;
     this._fontSize = config.fontSize ?? 14;
-    this._wordWrap = config.wordWrap ?? 'on';
+    this._wordWrap = config.wordWrap ?? true;
+    this._lineNumbers = config.lineNumbers ?? true;
 
     // Wrapper
     setStyles(this.el, {
@@ -75,10 +80,17 @@ export class MonacoEditor extends Component {
     }
   }
 
-  set wordWrap(value: 'on' | 'off') {
-    this._wordWrap = value;
+  set wordWrap(enabled: boolean) {
+    this._wordWrap = enabled;
     if (this.editor) {
-      this.editor.updateOptions({ wordWrap: value });
+      this.editor.updateOptions({ wordWrap: enabled ? 'wordWrapColumn' : 'off', wordWrapColumn: WORD_WRAP_COLUMN });
+    }
+  }
+
+  set lineNumbers(enabled: boolean) {
+    this._lineNumbers = enabled;
+    if (this.editor) {
+      this.editor.updateOptions({ lineNumbers: enabled ? 'on' : 'off' });
     }
   }
 
@@ -163,13 +175,14 @@ export class MonacoEditor extends Component {
         theme: theme?.name === 'light' ? 'novi-light' : 'novi-dark',
         fontSize: this._fontSize,
         fontFamily: "'DejaVu Sans Mono', monospace",
-        wordWrap: this._wordWrap, wrappingStrategy: 'advanced', wrappingIndent: 'same',
+        wordWrap: this._wordWrap ? 'wordWrapColumn' : 'off', wordWrapColumn: WORD_WRAP_COLUMN,
+        wrappingStrategy: 'advanced', wrappingIndent: 'same',
         lineHeight: this._fontSize + 8,
         minimap: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false,
         renderWhitespace: 'selection',
         bracketPairColorization: { enabled: true },
         guides: { indentation: true, bracketPairs: true },
-        lineNumbers: 'on', readOnly: false,
+        lineNumbers: this._lineNumbers ? 'on' : 'off', readOnly: false,
         scrollbar: { vertical: 'visible', horizontal: 'visible', verticalScrollbarSize: 17, horizontalScrollbarSize: 17, alwaysConsumeMouseWheel: false, useShadows: false },
         glyphMargin: false, folding: true, lineDecorationsWidth: 5, lineNumbersMinChars: 3,
         quickSuggestions: { other: false, comments: false, strings: false },

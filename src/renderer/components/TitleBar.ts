@@ -26,6 +26,7 @@ export interface TitleBarConfig {
   title?: string;
   onCommand?: (command: string) => void;
   activeTabType?: string | null;
+  showGitPanel?: boolean;
 }
 
 const MENUS: Record<string, MenuItem[]> = {
@@ -51,8 +52,8 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Select All', command: 'select-all', shortcut: 'Ctrl+A' },
   ],
   View: [
-    { label: 'Toggle Word Wrap', command: 'toggle-word-wrap' },
-    { label: 'Toggle Line Numbers', command: 'toggle-line-numbers' },
+    { label: 'Toggle Word Wrap', command: 'toggle-word-wrap', checkbox: true, settingKey: 'wordwrap', settingDefault: true },
+    { label: 'Toggle Line Numbers', command: 'toggle-line-numbers', checkbox: true, settingKey: 'linenumbers', settingDefault: true },
     { separator: true },
     { label: 'Increase Font Size', command: 'increase-font-size', shortcut: 'Ctrl+Plus' },
     { label: 'Decrease Font Size', command: 'decrease-font-size', shortcut: 'Ctrl+-' },
@@ -87,6 +88,8 @@ const SETTINGS_DISABLED_COMMANDS = ['show-hidden-files'];
 const EDITOR_ONLY_EDIT_COMMANDS = ['undo', 'redo', 'cut'];
 // Copy/Paste/Select All work on both an editor tab and a terminal tab.
 const CLIPBOARD_COMMANDS = ['copy', 'paste', 'select-all'];
+// Word wrap / line numbers are editor (Monaco) concepts — meaningless on a terminal.
+const EDITOR_ONLY_VIEW_COMMANDS = ['toggle-word-wrap', 'toggle-line-numbers'];
 
 export class TitleBar extends Component {
   private config: TitleBarConfig;
@@ -328,15 +331,19 @@ export class TitleBar extends Component {
       // currently displayed at the moment the menu is opened.
       const canUndo = isFileTab && !!(window as any).__monacoEditorAPI?.canUndo?.();
       const canRedo = isFileTab && !!(window as any).__monacoEditorAPI?.canRedo?.();
+      // Show Hidden Files acts on the file tree, which is hidden whenever the
+      // Settings tab is active OR the Git panel has replaced it in the sidebar.
+      const isFileTreeHidden = tabType === 'settings' || this.config.showGitPanel === true;
       const disabled = item.disabled === true ||
         (tabType === 'settings' && item.command && FONT_COMMANDS.includes(item.command)) ||
         (isNonFileTab && item.command && SAVE_COMMANDS.includes(item.command)) ||
         (tabType !== 'file' && item.command && EDITOR_ONLY_COMMANDS.includes(item.command)) ||
-        (tabType === 'settings' && item.command && SETTINGS_DISABLED_COMMANDS.includes(item.command)) ||
+        (isFileTreeHidden && item.command && SETTINGS_DISABLED_COMMANDS.includes(item.command)) ||
         (!isFileTab && item.command && EDITOR_ONLY_EDIT_COMMANDS.includes(item.command)) ||
         (item.command === 'undo' && isFileTab && !canUndo) ||
         (item.command === 'redo' && isFileTab && !canRedo) ||
-        (!isTerminalOrFileTab && item.command && CLIPBOARD_COMMANDS.includes(item.command));
+        (!isTerminalOrFileTab && item.command && CLIPBOARD_COMMANDS.includes(item.command)) ||
+        (!isFileTab && item.command && EDITOR_ONLY_VIEW_COMMANDS.includes(item.command));
 
       const menuItem = el('div', {
         style: [

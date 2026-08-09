@@ -52,6 +52,8 @@ export class App extends Component {
   private isResizing = false;
   private editorFontSize = 14;
   private terminalFontSize = 14;
+  private editorWordWrap = true;
+  private editorLineNumbers = true;
   private showAbout = false;
   private showCheckUpdates = false;
   private appVersion = 'unknown';
@@ -290,6 +292,8 @@ export class App extends Component {
     // MonacoEditor
     this.monacoEditor = new MonacoEditor({
       fontSize: this.editorFontSize,
+      wordWrap: this.editorWordWrap,
+      lineNumbers: this.editorLineNumbers,
       onDirtyChange: (isDirty) => {
         const tabBarAPI = (window as any).__tabBarAPI;
         const current = tabBarAPI?.getActiveTab();
@@ -576,6 +580,12 @@ export class App extends Component {
       this.editorFontSize = ef ?? 14;
       this.terminalFontSize = tf ?? 14;
       this.monacoEditor.fontSize = this.editorFontSize;
+      const ww = await window.api?.getSetting<boolean>('wordwrap', true);
+      const ln = await window.api?.getSetting<boolean>('linenumbers', true);
+      this.editorWordWrap = ww ?? true;
+      this.editorLineNumbers = ln ?? true;
+      this.monacoEditor.wordWrap = this.editorWordWrap;
+      this.monacoEditor.lineNumbers = this.editorLineNumbers;
       const v = await window.api?.getVersion?.();
       this.appVersion = v ?? 'unknown';
       const ge = await window.api?.getSetting<boolean>('gitenabled', true);
@@ -863,6 +873,7 @@ export class App extends Component {
     this.settingsSidebarContainerEl.style.display = isSettings ? 'flex' : 'none';
     this.fileTreeContainerEl.style.display = (this.showGitPanel || isSettings) ? 'none' : 'flex';
     this.gitPanelContainerEl.style.display = this.showGitPanel && !isSettings ? 'flex' : 'none';
+    this.titleBar?.updateConfig({ showGitPanel: this.showGitPanel });
   }
 
   // ============================================================
@@ -1360,7 +1371,23 @@ export class App extends Component {
         if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.selectAll();
         else if (this.activeTab?.type === 'terminal') (window as any).__terminalAPI?.[this.activeTab.id]?.selectAll?.();
         break;
-      case 'toggle-word-wrap': case 'toggle-line-numbers': break;
+      case 'toggle-word-wrap':
+        if (this.activeTab?.type === 'file') {
+          // TitleBar's checkbox click already flipped and persisted the
+          // setting before dispatching this command — read the fresh value
+          // rather than independently re-deriving a toggle here.
+          const ww = await window.api?.getSetting<boolean>('wordwrap', true);
+          this.editorWordWrap = ww ?? true;
+          this.monacoEditor.wordWrap = this.editorWordWrap;
+        }
+        break;
+      case 'toggle-line-numbers':
+        if (this.activeTab?.type === 'file') {
+          const ln = await window.api?.getSetting<boolean>('linenumbers', true);
+          this.editorLineNumbers = ln ?? true;
+          this.monacoEditor.lineNumbers = this.editorLineNumbers;
+        }
+        break;
       case 'increase-font-size': case 'decrease-font-size': case 'reset-font-size':
         this.handleFontSizeCommand(command);
         break;
