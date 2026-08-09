@@ -417,6 +417,15 @@ export class App extends Component {
         console.log('[App] Terminal', terminalId, 'PWD changed to:', pwd);
         this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [terminalId]: { ...this.terminalFileTreeRoots[terminalId], cwd: pwd } };
         this.fileTree.loading = false;
+        // Refreshes appState.gitStatus itself if this pwd change moved the
+        // active tab's effective git root — no separate gitGetStatus call
+        // needed here. A second, independent call for the same `pwd` used
+        // to live in this handler and raced this one: gitService's status
+        // fetch is a single global slot that cancels whichever request is
+        // still in flight when a newer one starts, and the loser's `.then`
+        // unconditionally wrote `null` — so the two calls could clobber
+        // each other on every single `cd`, sometimes leaving the tree
+        // uncolored even though the newer fetch had the correct data.
         this.updateFileTreeDisplayRoot();
         const segments = pwd.replace(/\\/g, '/').split('/').filter(Boolean);
         const dirName = segments[segments.length - 1] || pwd;
@@ -424,12 +433,6 @@ export class App extends Component {
         if (tabBarAPI) {
           const icon = '\u{1F4BB}';
           tabBarAPI.updateTabFileName(terminalId, `${icon} ${dirName}/`);
-        }
-        if (this.gitEnabled && window.api?.gitGetStatus) {
-          window.api.gitGetStatus(pwd).then((status: any) => {
-            if (status.isRepo) appState.gitStatus = status;
-            else appState.gitStatus = null;
-          }).catch(() => { appState.gitStatus = null; });
         }
       });
       this.addCleanup(() => window.api?.terminalRemovePwdListener?.());
