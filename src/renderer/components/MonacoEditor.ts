@@ -41,12 +41,16 @@ export class MonacoEditor extends Component {
   private _fontSize: number;
   private _wordWrap: boolean;
   private _lineNumbers: boolean;
+  private _showRuler = false;
+  private _columnBreakEnabled = false;
+  private _columnBreakValue = 90;
+  private _columnBreakHard = false;
 
   constructor(config: MonacoEditorConfig = {}) {
     super('div');
     this.onDirtyChange = config.onDirtyChange;
     this._fontSize = config.fontSize ?? 14;
-    this._wordWrap = config.wordWrap ?? true;
+    this._wordWrap = config.wordWrap ?? false;
     this._lineNumbers = config.lineNumbers ?? true;
 
     // Wrapper
@@ -92,6 +96,64 @@ export class MonacoEditor extends Component {
     if (this.editor) {
       this.editor.updateOptions({ lineNumbers: enabled ? 'on' : 'off' });
     }
+  }
+
+  /** Column Break settings — target line-length column, independent of Word Wrap. */
+  setColumnBreak(enabled: boolean, value: number, hard: boolean): void {
+    this._columnBreakEnabled = enabled;
+    this._columnBreakValue = value;
+    this._columnBreakHard = hard;
+    this.applyRuler();
+  }
+
+  setShowRuler(enabled: boolean): void {
+    this._showRuler = enabled;
+    this.applyRuler();
+  }
+
+  private applyRuler(): void {
+    if (!this.editor) return;
+    this.editor.updateOptions({ rulers: this._showRuler ? [this._columnBreakValue] : [] });
+  }
+
+  /**
+   * Loads Column Break / Show Ruler prefs (not passed through the config —
+   * these are purely editor-internal, same self-contained pattern as
+   * initVim() below) and applies the ruler. Fired once at editor creation;
+   * live changes afterward arrive via the novi-columnbreak-changed /
+   * novi-showruler-changed window events wired up in initEditor().
+   */
+  private async loadEditorPrefs(): Promise<void> {
+    try {
+      this._columnBreakEnabled = !!(await window.api?.getSetting<boolean>('columnbreak', false));
+      this._columnBreakValue = (await window.api?.getSetting<number>('columnbreakvalue', 90)) ?? 90;
+      this._columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
+      this._showRuler = !!(await window.api?.getSetting<boolean>('showruler', false));
+      this.applyRuler();
+    } catch { /* use defaults */ }
+  }
+
+  /**
+   * Hard Break: as the user types past the Column Break column, split the
+   * line with a real newline instead of leaving it to Monaco's (purely
+   * visual) word wrap. The two are alternatives — Word Wrap being on always
+   * wins, so this no-ops in that case. Only reacts to actual keystrokes
+   * (onDidType), not paste/programmatic edits, so it won't reflow pasted
+   * text or fight with other edits; it breaks exactly at the column
+   * boundary rather than the nearest word boundary.
+   */
+  private maybeHardBreak(): void {
+    if (!this.editor || this._wordWrap || !this._columnBreakEnabled || !this._columnBreakHard) return;
+    const model = this.editor.getModel();
+    const pos = this.editor.getPosition();
+    if (!model || !pos) return;
+    const breakColumn = this._columnBreakValue + 1;
+    if (pos.column < breakColumn) return;
+    if (model.getLineContent(pos.lineNumber).length < this._columnBreakValue) return;
+    this.editor.executeEdits('hard-break', [{
+      range: new monaco.Range(pos.lineNumber, breakColumn, pos.lineNumber, breakColumn),
+      text: '\n',
+    }]);
   }
 
   private initEditor(): void {
@@ -245,6 +307,25 @@ export class MonacoEditor extends Component {
       // Vim mode
       this.initVim();
 
+      // Column Break / Show Ruler — self-contained, same pattern as Vim mode:
+      // read the settings directly rather than routing through App.ts, since
+      // nothing outside the editor needs this state.
+      void this.loadEditorPrefs();
+      const typeDisposable = this.editor.onDidType(() => this.maybeHardBreak());
+      this.addCleanup(() => typeDisposable?.dispose());
+
+      const columnBreakHandler = (e: CustomEvent<{ enabled: boolean; value: number; hard: boolean }>) => {
+        this.setColumnBreak(e.detail?.enabled ?? false, e.detail?.value ?? 90, e.detail?.hard ?? false);
+      };
+      window.addEventListener('novi-columnbreak-changed', columnBreakHandler as EventListener);
+      this.addCleanup(() => window.removeEventListener('novi-columnbreak-changed', columnBreakHandler as EventListener));
+
+      const showRulerHandler = (e: CustomEvent<{ enabled: boolean }>) => {
+        this.setShowRuler(e.detail?.enabled ?? false);
+      };
+      window.addEventListener('novi-showruler-changed', showRulerHandler as EventListener);
+      this.addCleanup(() => window.removeEventListener('novi-showruler-changed', showRulerHandler as EventListener));
+
       // Close context menu on outside click
       const closeCtxMenus = (e: CustomEvent) => {
         if (e.detail?.source !== 'MonacoEditor') this.hideContextMenu();
@@ -268,8 +349,8 @@ export class MonacoEditor extends Component {
           monaco.editor.setModelLanguage(model, lang);
         }
       };
-      window.addEventListener('novi-vimode-changed', vimodeHandler as EventListener);
-      this.addCleanup(() => window.removeEventListener('novi-vimode-changed', vimodeHandler as EventListener));
+      window.addEventListener('novi-vimode-changed', vimodeHandler as unknown as EventListener);
+      this.addCleanup(() => window.removeEventListener('novi-vimode-changed', vimodeHandler as unknown as EventListener));
 
       // Theme changes
       const themeUnsub = bus.on('app:theme-changed', () => {

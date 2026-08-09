@@ -52,7 +52,7 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Select All', command: 'select-all', shortcut: 'Ctrl+A' },
   ],
   View: [
-    { label: 'Toggle Word Wrap', command: 'toggle-word-wrap', checkbox: true, settingKey: 'wordwrap', settingDefault: true },
+    { label: 'Toggle Word Wrap', command: 'toggle-word-wrap', checkbox: true, settingKey: 'wordwrap', settingDefault: false },
     { label: 'Toggle Line Numbers', command: 'toggle-line-numbers', checkbox: true, settingKey: 'linenumbers', settingDefault: true },
     { separator: true },
     { label: 'Increase Font Size', command: 'increase-font-size', shortcut: 'Ctrl+Plus' },
@@ -75,8 +75,8 @@ const MENUS: Record<string, MenuItem[]> = {
     { separator: true },
     { label: 'Show Developer Tools', command: 'toggle-devtools', shortcut: 'Ctrl+Shift+I', checkbox: true, settingKey: 'devToolsEnabled', settingDefault: false, mainManaged: true },
     { separator: true },
-    { label: 'About Novi', command: 'about' },
     { label: 'Check for Updates', command: 'check-updates' },
+    { label: 'About Novi', command: 'about' },
   ],
 };
 

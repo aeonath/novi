@@ -221,12 +221,12 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         },
         { type: 'separator' },
         {
-          label: 'About Novi',
-          click: () => executeCommand('about', mainWindow),
-        },
-        {
           label: 'Check for Updates',
           click: () => executeCommand('check-updates', mainWindow),
+        },
+        {
+          label: 'About Novi',
+          click: () => executeCommand('about', mainWindow),
         },
       ],
     },

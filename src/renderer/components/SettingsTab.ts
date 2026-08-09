@@ -46,6 +46,11 @@ export class SettingsTab extends Component {
   private singlefiletreeEnabled = false;
   private keeptabsEnabled = true;
   private gitenabledEnabled = true;
+  private wordWrapDefault = false;
+  private columnBreakEnabled = false;
+  private columnBreakValue = 90;
+  private columnBreakHard = false;
+  private showRulerEnabled = false;
 
   constructor() {
     super('div');
@@ -99,6 +104,11 @@ export class SettingsTab extends Component {
       this.singlefiletreeEnabled = !!(await window.api?.getSetting<boolean>('singlefiletree', false));
       this.keeptabsEnabled = (await window.api?.getSetting<boolean>('keeptabs', true)) !== false;
       this.gitenabledEnabled = (await window.api?.getSetting<boolean>('gitenabled', true)) !== false;
+      this.wordWrapDefault = !!(await window.api?.getSetting<boolean>('wordwrap', false));
+      this.columnBreakEnabled = !!(await window.api?.getSetting<boolean>('columnbreak', false));
+      this.columnBreakValue = (await window.api?.getSetting<number>('columnbreakvalue', 90)) ?? 90;
+      this.columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
+      this.showRulerEnabled = !!(await window.api?.getSetting<boolean>('showruler', false));
     } catch { /* use defaults */ }
   }
 
@@ -294,6 +304,131 @@ export class SettingsTab extends Component {
         window.dispatchEvent(new CustomEvent('novi-vimode-changed', { detail: { enabled } }));
       },
     ));
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Word Wrap',
+      'Wrap long lines to fit the editor width by default',
+      this.wordWrapDefault,
+      async (enabled) => {
+        this.wordWrapDefault = enabled;
+        await window.api?.setSetting('wordwrap', enabled);
+        window.dispatchEvent(new CustomEvent('novi-wordwrap-changed', { detail: { enabled } }));
+      },
+    ));
+
+    this.contentEl.appendChild(this.createColumnBreakSection());
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Show Ruler',
+      `Show a vertical guide line at column ${this.columnBreakValue}`,
+      this.showRulerEnabled,
+      async (enabled) => {
+        this.showRulerEnabled = enabled;
+        await window.api?.setSetting('showruler', enabled);
+        window.dispatchEvent(new CustomEvent('novi-showruler-changed', { detail: { enabled, column: this.columnBreakValue } }));
+      },
+    ));
+  }
+
+  /**
+   * Column Break: a target line-length column, independent of Word Wrap.
+   * Its "Hard Break" sub-option inserts a real newline as the user types
+   * past the column, instead of Monaco's purely-visual wrap — the two are
+   * alternatives, so hard-break is ignored while Word Wrap is on.
+   */
+  private createColumnBreakSection(): HTMLElement {
+    const container = el('div');
+
+    const dispatchChange = () => {
+      window.dispatchEvent(new CustomEvent('novi-columnbreak-changed', {
+        detail: { enabled: this.columnBreakEnabled, value: this.columnBreakValue, hard: this.columnBreakHard },
+      }));
+    };
+
+    container.appendChild(this.createToggleRow(
+      'Column Break',
+      'Mark a target line-length column',
+      this.columnBreakEnabled,
+      async (enabled) => {
+        this.columnBreakEnabled = enabled;
+        await window.api?.setSetting('columnbreak', enabled);
+        dispatchChange();
+      },
+    ));
+
+    const valueRow = this.createNumberFieldRow(
+      'Column',
+      this.columnBreakValue,
+      async (value) => {
+        this.columnBreakValue = value;
+        await window.api?.setSetting('columnbreakvalue', value);
+        dispatchChange();
+        this.render(); // Show Ruler's description echoes the column value
+      },
+    );
+    setStyles(valueRow, { marginLeft: '32px' });
+    container.appendChild(valueRow);
+
+    const hardBreakRow = this.createToggleRow(
+      'Hard Break',
+      'Insert an actual newline instead of just wrapping visually (ignored while Word Wrap is on)',
+      this.columnBreakHard,
+      async (enabled) => {
+        this.columnBreakHard = enabled;
+        await window.api?.setSetting('columnbreakhard', enabled);
+        dispatchChange();
+      },
+    );
+    setStyles(hardBreakRow, { marginLeft: '32px' });
+    container.appendChild(hardBreakRow);
+
+    return container;
+  }
+
+  private createNumberFieldRow(
+    label: string,
+    value: number,
+    onChange: (value: number) => void,
+  ): HTMLElement {
+    const row = el('div');
+    setStyles(row, {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '10px 12px',
+      marginBottom: '4px',
+      borderRadius: '4px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+
+    const labelEl = el('div', {}, label);
+    setStyles(labelEl, { fontSize: '13px', fontWeight: '500', flex: '1' });
+
+    const input = el('input', { type: 'text', value: String(value) }) as HTMLInputElement;
+    setStyles(input, {
+      width: '56px',
+      padding: '5px 8px',
+      fontSize: '12px',
+      backgroundColor: '#3c3c3c',
+      color: '#cccccc',
+      border: '1px solid #555',
+      borderRadius: '3px',
+      outline: 'none',
+      textAlign: 'center',
+    });
+
+    const commit = () => {
+      const parsed = parseInt(input.value, 10);
+      const clamped = Number.isFinite(parsed) ? Math.max(1, Math.min(500, parsed)) : value;
+      input.value = String(clamped);
+      if (clamped !== value) onChange(clamped);
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    });
+
+    row.append(labelEl, input);
+    return row;
   }
 
   private createToggleRow(

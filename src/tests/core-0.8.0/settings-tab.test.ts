@@ -70,6 +70,104 @@ describe('SettingsTab', () => {
     expect(checkbox.checked).toBe(false);
   });
 
+  it('should render Word Wrap, Column Break (with Hard Break), and Show Ruler, all off by default', () => {
+    tab.section = 'editor';
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Word Wrap');
+    expect(text).toContain('Column Break');
+    expect(text).toContain('Hard Break');
+    expect(text).toContain('Show Ruler');
+    expect(text).toContain('ignored while Word Wrap is on');
+
+    const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+    // VI Mode, Word Wrap, Column Break, Hard Break, Show Ruler
+    expect(checkboxes.length).toBe(5);
+    for (const cb of checkboxes) expect(cb.checked).toBe(false);
+  });
+
+  it('should default the Column Break value text field to 90', () => {
+    tab.section = 'editor';
+    const numberInput = tab.getElement().querySelector('input[type="text"]') as HTMLInputElement;
+    expect(numberInput).not.toBeNull();
+    expect(numberInput.value).toBe('90');
+    expect((tab.getElement().textContent || '')).toContain('Show a vertical guide line at column 90');
+  });
+
+  it('should persist and broadcast Word Wrap toggling', async () => {
+    tab.section = 'editor';
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-wordwrap-changed', eventSpy);
+    try {
+      const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      const wordWrapBox = checkboxes[1]; // VI Mode, Word Wrap, ...
+      wordWrapBox.checked = true;
+      wordWrapBox.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10)); // onChange is async (awaits setSetting) before dispatching
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('wordwrap', true);
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      expect((eventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ enabled: true });
+    } finally {
+      window.removeEventListener('novi-wordwrap-changed', eventSpy);
+    }
+  });
+
+  it('should persist and broadcast Column Break enabling', async () => {
+    tab.section = 'editor';
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-columnbreak-changed', eventSpy);
+    try {
+      const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      const columnBreakBox = checkboxes[2]; // VI Mode, Word Wrap, Column Break, ...
+      columnBreakBox.checked = true;
+      columnBreakBox.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('columnbreak', true);
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      expect((eventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ enabled: true, value: 90, hard: false });
+    } finally {
+      window.removeEventListener('novi-columnbreak-changed', eventSpy);
+    }
+  });
+
+  it('should clamp and persist a new Column Break value on blur', async () => {
+    tab.section = 'editor';
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-columnbreak-changed', eventSpy);
+    try {
+      const numberInput = tab.getElement().querySelector('input[type="text"]') as HTMLInputElement;
+      numberInput.value = '9999';
+      numberInput.dispatchEvent(new Event('blur'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(numberInput.value).toBe('500'); // clamped to the max
+      expect(mockApi.setSetting).toHaveBeenCalledWith('columnbreakvalue', 500);
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('novi-columnbreak-changed', eventSpy);
+    }
+  });
+
+  it('should persist and broadcast Show Ruler toggling', async () => {
+    tab.section = 'editor';
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-showruler-changed', eventSpy);
+    try {
+      const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      const showRulerBox = checkboxes[4]; // VI Mode, Word Wrap, Column Break, Hard Break, Show Ruler
+      showRulerBox.checked = true;
+      showRulerBox.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('showruler', true);
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      expect((eventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ enabled: true, column: 90 });
+    } finally {
+      window.removeEventListener('novi-showruler-changed', eventSpy);
+    }
+  });
+
   it('should render novi settings with all three toggles', () => {
     tab.section = 'novi';
     const h2 = tab.getElement().querySelector('h2');

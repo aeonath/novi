@@ -52,7 +52,7 @@ export class App extends Component {
   private isResizing = false;
   private editorFontSize = 14;
   private terminalFontSize = 14;
-  private editorWordWrap = true;
+  private editorWordWrap = false;
   private editorLineNumbers = true;
   private showAbout = false;
   private showCheckUpdates = false;
@@ -534,6 +534,17 @@ export class App extends Component {
     window.addEventListener('novi-gitenabled-changed', geHandler);
     this.addCleanup(() => window.removeEventListener('novi-gitenabled-changed', geHandler));
 
+    // wordwrap setting changes from Settings' Editor section — the View menu's
+    // own Toggle Word Wrap checkbox already applies live via handleMenuCommand.
+    const wwHandler = () => {
+      window.api?.getSetting<boolean>('wordwrap', false).then((v) => {
+        this.editorWordWrap = !!v;
+        this.monacoEditor.wordWrap = this.editorWordWrap;
+      });
+    };
+    window.addEventListener('novi-wordwrap-changed', wwHandler);
+    this.addCleanup(() => window.removeEventListener('novi-wordwrap-changed', wwHandler));
+
     // External file change detection — dedicated editor file watcher (independent of file tree)
     if (window.api?.editorOnFileChanged) {
       window.api.editorOnFileChanged((filePath: string) => {
@@ -580,9 +591,9 @@ export class App extends Component {
       this.editorFontSize = ef ?? 14;
       this.terminalFontSize = tf ?? 14;
       this.monacoEditor.fontSize = this.editorFontSize;
-      const ww = await window.api?.getSetting<boolean>('wordwrap', true);
+      const ww = await window.api?.getSetting<boolean>('wordwrap', false);
       const ln = await window.api?.getSetting<boolean>('linenumbers', true);
-      this.editorWordWrap = ww ?? true;
+      this.editorWordWrap = ww ?? false;
       this.editorLineNumbers = ln ?? true;
       this.monacoEditor.wordWrap = this.editorWordWrap;
       this.monacoEditor.lineNumbers = this.editorLineNumbers;
@@ -1376,8 +1387,8 @@ export class App extends Component {
           // TitleBar's checkbox click already flipped and persisted the
           // setting before dispatching this command — read the fresh value
           // rather than independently re-deriving a toggle here.
-          const ww = await window.api?.getSetting<boolean>('wordwrap', true);
-          this.editorWordWrap = ww ?? true;
+          const ww = await window.api?.getSetting<boolean>('wordwrap', false);
+          this.editorWordWrap = ww ?? false;
           this.monacoEditor.wordWrap = this.editorWordWrap;
         }
         break;
