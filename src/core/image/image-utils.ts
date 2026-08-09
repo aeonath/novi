@@ -414,6 +414,89 @@ export function convertFormat(
 }
 
 /**
+ * A crop selection expressed in natural (unscaled) image pixels.
+ */
+export interface CropRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Which part of a crop selection a drag handle controls. 'move' translates
+ * the whole region; the compass directions resize from that edge/corner —
+ * mirrors mspaint's crop tool (edge handles resize one axis, corner handles
+ * resize both).
+ */
+export type CropHandleMode = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
+/**
+ * Computes the new crop region after dragging a handle (or the selection
+ * body, for 'move') by (dxNatural, dyNatural) natural image pixels away from
+ * startRegion. The result is clamped so the region never leaves the
+ * [0, imageWidth] x [0, imageHeight] bounds and never shrinks below minSize
+ * on either axis.
+ * @param mode - Which handle is being dragged
+ * @param startRegion - The crop region at the start of the drag
+ * @param dxNatural - Horizontal drag distance, in natural image pixels
+ * @param dyNatural - Vertical drag distance, in natural image pixels
+ * @param imageWidth - Natural width of the image being cropped
+ * @param imageHeight - Natural height of the image being cropped
+ * @param minSize - Minimum width/height the region may be resized to
+ * @returns The updated crop region
+ */
+export function computeCropHandleDrag(
+  mode: CropHandleMode,
+  startRegion: CropRegion,
+  dxNatural: number,
+  dyNatural: number,
+  imageWidth: number,
+  imageHeight: number,
+  minSize = 1
+): CropRegion {
+  const clamp = (value: number, lo: number, hi: number): number => Math.min(Math.max(value, lo), hi);
+
+  let { x, y, width, height } = startRegion;
+
+  if (mode === 'move') {
+    x = clamp(startRegion.x + dxNatural, 0, imageWidth - startRegion.width);
+    y = clamp(startRegion.y + dyNatural, 0, imageHeight - startRegion.height);
+    return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
+  }
+
+  if (mode.includes('n')) {
+    const newY = clamp(startRegion.y + dyNatural, 0, startRegion.y + startRegion.height - minSize);
+    height = startRegion.height - (newY - startRegion.y);
+    y = newY;
+  }
+  if (mode.includes('s')) {
+    height = clamp(startRegion.height + dyNatural, minSize, imageHeight - startRegion.y);
+  }
+  if (mode.includes('w')) {
+    const newX = clamp(startRegion.x + dxNatural, 0, startRegion.x + startRegion.width - minSize);
+    width = startRegion.width - (newX - startRegion.x);
+    x = newX;
+  }
+  if (mode.includes('e')) {
+    width = clamp(startRegion.width + dxNatural, minSize, imageWidth - startRegion.x);
+  }
+
+  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
+}
+
+/**
+ * Clamps a view zoom factor (1.0 = 100%) to a sane display range.
+ * @param zoom - Requested zoom factor
+ * @param min - Minimum allowed zoom factor
+ * @param max - Maximum allowed zoom factor
+ * @returns The clamped zoom factor
+ */
+export function clampZoom(zoom: number, min = 0.1, max = 4.0): number {
+  return Math.min(Math.max(zoom, min), max);
+}
+
+/**
  * Gets the file extension for a given format
  * @param format - Image format
  * @returns File extension with dot (e.g., '.png')

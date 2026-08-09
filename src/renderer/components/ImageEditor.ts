@@ -11,15 +11,36 @@ import { el, clearChildren, setStyles } from '../core/dom.js';
 import { ImageEditorService } from '../../core/image/image-editor.js';
 import {
   getImageDimensions, resizeImage, calculateProportionalDimensions,
-  scaleDimensions, cropImage, setTransparency, supportsTransparency,
-  convertFormat,
+  cropImage, setTransparency, supportsTransparency,
+  convertFormat, computeCropHandleDrag, clampZoom,
 } from '../../core/image/image-utils.js';
+import type { CropHandleMode, CropRegion } from '../../core/image/image-utils.js';
 
 interface HistoryEntry {
   imageUrl: string;
   dimensions: { width: number; height: number };
   opacity: number;
 }
+
+interface CropInteraction {
+  mode: CropHandleMode;
+  startClientX: number;
+  startClientY: number;
+  startRegion: CropRegion;
+}
+
+const CROP_HANDLES: { mode: CropHandleMode; cursor: string; top: string; left: string }[] = [
+  { mode: 'nw', cursor: 'nwse-resize', top: '0%', left: '0%' },
+  { mode: 'n', cursor: 'ns-resize', top: '0%', left: '50%' },
+  { mode: 'ne', cursor: 'nesw-resize', top: '0%', left: '100%' },
+  { mode: 'w', cursor: 'ew-resize', top: '50%', left: '0%' },
+  { mode: 'e', cursor: 'ew-resize', top: '50%', left: '100%' },
+  { mode: 'sw', cursor: 'nesw-resize', top: '100%', left: '0%' },
+  { mode: 's', cursor: 'ns-resize', top: '100%', left: '50%' },
+  { mode: 'se', cursor: 'nwse-resize', top: '100%', left: '100%' },
+];
+
+const CROP_MIN_SIZE = 1;
 
 export class ImageEditor extends Component {
   private filePath: string;
@@ -36,9 +57,14 @@ export class ImageEditor extends Component {
   // Crop state
   private cropMode = false;
   private cropRegion: { x: number; y: number; width: number; height: number } | null = null;
-  private cropDragging = false;
-  private cropDragStart: { x: number; y: number } | null = null;
+  private cropInteraction: CropInteraction | null = null;
   private cropPreviewUrl: string | null = null;
+
+  // View zoom (display-only, does not touch the underlying image data)
+  private viewZoom = 1.0;
+  private static readonly ZOOM_MIN = 0.1;
+  private static readonly ZOOM_MAX = 4.0;
+  private static readonly ZOOM_STEP = 0.25;
 
   // Transparency state
   private opacity = 1.0;
@@ -101,7 +127,7 @@ export class ImageEditor extends Component {
     // Image element
     this.imgEl = document.createElement('img');
     setStyles(this.imgEl, {
-      maxWidth: '100%', maxHeight: '100%', objectFit: 'contain',
+      display: 'block',
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
     });
 
@@ -128,12 +154,6 @@ export class ImageEditor extends Component {
     this.el.appendChild(this.toolbarEl);
     this.el.appendChild(this.viewportEl);
     this.el.appendChild(this.infoBarEl);
-
-    // Mouse events for crop
-    this.imageContainerEl.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-    this.imageContainerEl.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-    this.imageContainerEl.addEventListener('mouseup', () => this.handleMouseUp());
-    this.imageContainerEl.addEventListener('mouseleave', () => this.handleMouseUp());
   }
 
   protected onMount(): void {
@@ -149,6 +169,15 @@ export class ImageEditor extends Component {
     };
     window.addEventListener('keydown', keyHandler);
     this.addCleanup(() => window.removeEventListener('keydown', keyHandler));
+
+    // Crop handle dragging is tracked at the window level so a fast drag that
+    // leaves the small handle/overlay elements doesn't drop the interaction.
+    const moveHandler = (e: MouseEvent) => this.handleCropInteractionMove(e);
+    const upHandler = () => this.handleCropInteractionUp();
+    window.addEventListener('mousemove', moveHandler);
+    window.addEventListener('mouseup', upHandler);
+    this.addCleanup(() => window.removeEventListener('mousemove', moveHandler));
+    this.addCleanup(() => window.removeEventListener('mouseup', upHandler));
   }
 
   // --- Public API ---
@@ -161,6 +190,7 @@ export class ImageEditor extends Component {
     try {
       this.loading = true;
       this.errorMsg = null;
+      this.viewZoom = 1.0;
       this.showLoading();
 
       this.mimeType = ImageEditorService.getMimeType(this.filePath);
@@ -205,8 +235,24 @@ export class ImageEditor extends Component {
 
     this.imgEl.src = this.imageUrl || '';
     this.imgEl.alt = this.filePath;
-    this.imgEl.style.cursor = this.cropMode ? 'crosshair' : 'default';
-    this.imgEl.style.display = this.imageUrl ? '' : 'none';
+    this.imgEl.style.cursor = 'default';
+    this.imgEl.style.display = this.imageUrl ? 'block' : 'none';
+    if (this.dims) {
+      this.imgEl.style.width = `${Math.round(this.dims.width * this.viewZoom)}px`;
+      this.imgEl.style.height = `${Math.round(this.dims.height * this.viewZoom)}px`;
+    } else {
+      this.imgEl.style.width = '';
+      this.imgEl.style.height = '';
+    }
+
+    // When the zoomed image is larger than the viewport, anchor it to the
+    // top-left instead of centering — centering an overflowing flex child
+    // makes part of the overflow unreachable by scrolling.
+    const displayW = this.dims ? this.dims.width * this.viewZoom : 0;
+    const displayH = this.dims ? this.dims.height * this.viewZoom : 0;
+    const overflowsViewport = displayW > this.viewportEl.clientWidth || displayH > this.viewportEl.clientHeight;
+    this.viewportEl.style.alignItems = overflowsViewport ? 'flex-start' : 'center';
+    this.viewportEl.style.justifyContent = overflowsViewport ? 'flex-start' : 'center';
 
     // Viewport background
     this.viewportEl.style.background = this.showCheckerboard
@@ -315,10 +361,28 @@ export class ImageEditor extends Component {
 
     this.toolbarEl.appendChild(this.makeSep());
 
-    // Quick scale
-    for (const [label, scale] of [['50%', 0.5], ['75%', 0.75], ['150%', 1.5], ['200%', 2.0]] as [string, number][]) {
-      this.toolbarEl.appendChild(this.makeBtn(label, () => this.handleQuickScale(scale), canEditNoCrop));
-    }
+    // Zoom (view-only; does not modify the underlying image data)
+    this.toolbarEl.appendChild(this.makeBtn('−', () => this.handleZoomStep(-1), canEdit, 'Zoom out'));
+
+    const zoomInput = document.createElement('input');
+    zoomInput.type = 'text';
+    zoomInput.inputMode = 'numeric';
+    zoomInput.value = String(Math.round(this.viewZoom * 100));
+    zoomInput.disabled = !canEdit;
+    zoomInput.title = 'Zoom percentage';
+    setStyles(zoomInput, {
+      width: '48px', textAlign: 'center', background: '#3c3c3c', border: '1px solid #3e3e42',
+      color: '#cccccc', padding: '5px 4px', fontSize: '13px', fontFamily: "'Segoe UI', sans-serif", borderRadius: '2px',
+    });
+    zoomInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') zoomInput.blur(); });
+    zoomInput.addEventListener('change', () => this.handleZoomInput(zoomInput.value));
+    this.toolbarEl.appendChild(zoomInput);
+
+    const pctSpan = el('span', {}, '%');
+    setStyles(pctSpan, { color: '#cccccc', fontSize: '13px', fontFamily: "'Segoe UI', sans-serif" });
+    this.toolbarEl.appendChild(pctSpan);
+
+    this.toolbarEl.appendChild(this.makeBtn('+', () => this.handleZoomStep(1), canEdit, 'Zoom in'));
 
     this.toolbarEl.appendChild(this.makeSep());
 
@@ -375,6 +439,8 @@ export class ImageEditor extends Component {
     if (this.cropOverlayEl) { this.cropOverlayEl.remove(); this.cropOverlayEl = null; }
 
     if (this.cropMode && this.cropRegion && this.cropRegion.width > 0 && this.cropRegion.height > 0) {
+      // cropRegion is stored in natural image pixels; scale to display pixels for layout.
+      const z = this.viewZoom;
       this.cropOverlayEl = el('div');
       setStyles(this.cropOverlayEl, {
         position: 'absolute',
@@ -382,10 +448,10 @@ export class ImageEditor extends Component {
         boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
         cursor: 'move',
         pointerEvents: 'auto',
-        left: `${this.cropRegion.x}px`,
-        top: `${this.cropRegion.y}px`,
-        width: `${this.cropRegion.width}px`,
-        height: `${this.cropRegion.height}px`,
+        left: `${this.cropRegion.x * z}px`,
+        top: `${this.cropRegion.y * z}px`,
+        width: `${this.cropRegion.width * z}px`,
+        height: `${this.cropRegion.height * z}px`,
       });
 
       const info = el('div', {}, `${this.cropRegion.width} \u00d7 ${this.cropRegion.height} px`);
@@ -395,6 +461,23 @@ export class ImageEditor extends Component {
         padding: '4px 8px', fontSize: '12px', borderRadius: '2px', whiteSpace: 'nowrap',
       });
       this.cropOverlayEl.appendChild(info);
+
+      // Drag-to-move the whole crop rectangle (mspaint-style body drag).
+      this.cropOverlayEl.addEventListener('mousedown', (e) => this.startCropInteraction('move', e));
+
+      // Drag handles on every edge and corner (mspaint-style crop handles).
+      for (const h of CROP_HANDLES) {
+        const handle = el('div');
+        setStyles(handle, {
+          position: 'absolute', width: '10px', height: '10px',
+          background: '#007acc', border: '1px solid #ffffff', borderRadius: '2px',
+          top: h.top, left: h.left, transform: 'translate(-50%, -50%)',
+          cursor: h.cursor, pointerEvents: 'auto', zIndex: '2',
+        });
+        handle.addEventListener('mousedown', (e) => this.startCropInteraction(h.mode, e));
+        this.cropOverlayEl.appendChild(handle);
+      }
+
       this.imageContainerEl.appendChild(this.cropOverlayEl);
     }
   }
@@ -403,7 +486,7 @@ export class ImageEditor extends Component {
     if (this.cropHintEl) { this.cropHintEl.remove(); this.cropHintEl = null; }
 
     if (this.cropMode) {
-      this.cropHintEl = el('div', {}, 'Click and drag to select crop region');
+      this.cropHintEl = el('div', {}, 'Drag the handles to adjust the crop area, or drag inside to move it');
       setStyles(this.cropHintEl, {
         position: 'absolute', bottom: '20px', left: '50%',
         transform: 'translateX(-50%)', background: 'rgba(0, 0, 0, 0.8)',
@@ -532,22 +615,22 @@ export class ImageEditor extends Component {
     }
   }
 
-  private async handleQuickScale(scale: number): Promise<void> {
-    if (!this.dims || !this.imageUrl) return;
-    try {
-      this.processing = true; this.render();
-      const newDims = scaleDimensions(this.dims.width, this.dims.height, scale);
-      const resized = await resizeImage(this.imageUrl, newDims.width, newDims.height);
-      this.imageUrl = resized;
-      this.dims = newDims;
-      this.isModified = true;
-      this.saveToHistory(resized, newDims, this.opacity);
-    } catch (err) {
-      console.error('[ImageEditor] Failed to scale:', err);
-      this.errorMsg = err instanceof Error ? err.message : String(err);
-    } finally {
-      this.processing = false; this.render();
-    }
+  // --- Zoom (view-only) ---
+
+  private handleZoomStep(direction: 1 | -1): void {
+    const next = Math.round((this.viewZoom + direction * ImageEditor.ZOOM_STEP) * 100) / 100;
+    this.setZoom(next);
+  }
+
+  private handleZoomInput(raw: string): void {
+    const pct = parseInt(raw, 10);
+    if (isNaN(pct)) { this.render(); return; }
+    this.setZoom(pct / 100);
+  }
+
+  private setZoom(zoom: number): void {
+    this.viewZoom = clampZoom(zoom, ImageEditor.ZOOM_MIN, ImageEditor.ZOOM_MAX);
+    this.render();
   }
 
   // --- Crop ---
@@ -555,25 +638,24 @@ export class ImageEditor extends Component {
   private handleCropClick(): void {
     if (!this.dims) return;
     this.cropMode = true;
-    const w = Math.floor(this.dims.width * 0.5);
-    const h = Math.floor(this.dims.height * 0.5);
-    const x = Math.floor((this.dims.width - w) / 2);
-    const y = Math.floor((this.dims.height - h) / 2);
-    this.cropRegion = { x, y, width: w, height: h };
+    // Start with the full image selected, like mspaint's crop tool — the user
+    // drags the edge/corner handles inward to shrink the region to keep.
+    this.cropRegion = { x: 0, y: 0, width: this.dims.width, height: this.dims.height };
     this.render();
   }
 
   private handleCropCancel(): void {
     this.cropMode = false;
     this.cropRegion = null;
+    this.cropInteraction = null;
     this.render();
   }
 
   private async handleCropApply(): Promise<void> {
-    if (!this.cropRegion || !this.originalDataUrl) return;
+    if (!this.cropRegion || !this.imageUrl) return;
     try {
       this.processing = true; this.render();
-      const cropped = await cropImage(this.originalDataUrl, this.cropRegion.x, this.cropRegion.y, this.cropRegion.width, this.cropRegion.height);
+      const cropped = await cropImage(this.imageUrl, this.cropRegion.x, this.cropRegion.y, this.cropRegion.width, this.cropRegion.height);
       this.cropPreviewUrl = cropped;
       this.showCropPreviewDialog();
     } catch (err) {
@@ -623,36 +705,34 @@ export class ImageEditor extends Component {
     this.render();
   }
 
-  // --- Crop Mouse Handlers ---
+  // --- Crop Handle Dragging (mspaint-style) ---
 
-  private handleMouseDown(e: MouseEvent): void {
-    if (!this.cropMode) return;
-    const rect = this.imgEl.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    this.cropDragging = true;
-    this.cropDragStart = { x, y };
-    this.cropRegion = { x: Math.round(x), y: Math.round(y), width: 0, height: 0 };
+  private startCropInteraction(mode: CropHandleMode, e: MouseEvent): void {
+    if (!this.cropRegion) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.cropInteraction = {
+      mode,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startRegion: { ...this.cropRegion },
+    };
   }
 
-  private handleMouseMove(e: MouseEvent): void {
-    if (!this.cropDragging || !this.cropDragStart) return;
-    const rect = this.imgEl.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-    this.cropRegion = {
-      x: Math.round(Math.min(this.cropDragStart.x, cx)),
-      y: Math.round(Math.min(this.cropDragStart.y, cy)),
-      width: Math.round(Math.abs(cx - this.cropDragStart.x)),
-      height: Math.round(Math.abs(cy - this.cropDragStart.y)),
-    };
+  private handleCropInteractionMove(e: MouseEvent): void {
+    if (!this.cropInteraction || !this.dims) return;
+    const { mode, startRegion } = this.cropInteraction;
+    const z = this.viewZoom || 1;
+    const dx = (e.clientX - this.cropInteraction.startClientX) / z;
+    const dy = (e.clientY - this.cropInteraction.startClientY) / z;
+
+    this.cropRegion = computeCropHandleDrag(mode, startRegion, dx, dy, this.dims.width, this.dims.height, CROP_MIN_SIZE);
     this.renderCropOverlay();
   }
 
-  private handleMouseUp(): void {
-    if (this.cropDragging) {
-      this.cropDragging = false;
-      this.cropDragStart = null;
+  private handleCropInteractionUp(): void {
+    if (this.cropInteraction) {
+      this.cropInteraction = null;
       this.renderToolbar(); // Update Apply Crop button state
     }
   }
@@ -812,9 +892,11 @@ export class ImageEditor extends Component {
     this.isModified = false;
     this.cropMode = false;
     this.cropRegion = null;
+    this.cropInteraction = null;
     this.opacity = 1.0;
     this.showTransparencyControls = false;
     this.showCheckerboard = false;
+    this.viewZoom = 1.0;
     this.history = [{ imageUrl: this.originalDataUrl, dimensions: { ...this.originalDims }, opacity: 1.0 }];
     this.historyIndex = 0;
     this.render();
