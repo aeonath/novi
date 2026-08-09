@@ -40,6 +40,7 @@ export class Terminal extends Component {
   private _isActive = false;
   private ptyCols = 0;
   private ptyRows = 0;
+  private suppressNextResize = false;
 
   constructor(config: TerminalConfig) {
     super('div');
@@ -73,6 +74,20 @@ export class Terminal extends Component {
   set isActive(active: boolean) {
     this._isActive = active;
 
+    if (active) {
+      // The caller flips this.container's display from 'none' to 'flex'
+      // right before assigning isActive — a genuine size change from the
+      // persistent ResizeObserver's point of view (see initDisplay()), which
+      // would otherwise fire its own fit()+onResize() (a SIGWINCH) the
+      // moment the observer's callback runs. On Windows/conpty that resize
+      // can repaint the whole console buffer, which is exactly what made
+      // tab switches flash the old content then clear it down to a bare
+      // prompt. Activation must never resize — only genuine container size
+      // changes that happen *while already active* should, so the very next
+      // observer callback (the one caused by this activation) is skipped.
+      this.suppressNextResize = true;
+    }
+
     if (active && !this.ptyCreated) {
       this.initPhase1();
     } else if (active && this.ptyCreated && !this.terminal) {
@@ -82,18 +97,11 @@ export class Terminal extends Component {
 
     // Tab switched to active: bring the scroll position/cursor back into
     // view and give it keyboard focus. Deliberately does NOT re-fit or
-    // resize — the persistent resizeObserver (see initDisplay()) already
-    // reacts to any genuine container size change, including this tab's
-    // own display:none->flex transition on activation. A second, separate
-    // ResizeObserver used to be created here on every activation to redo
-    // that same fit()+resize; the two independent observers, both firing
-    // off the same just-unhidden container, could each measure a slightly
-    // different col/row count and send the shell two close-together
-    // SIGWINCH resizes — corrupting the prompt and dropping on-screen
-    // content on every tab switch. The terminal's size (and therefore its
-    // content) now stays exactly as it was while hidden — "frozen" —
-    // unless the container's real size has actually changed, which the
-    // persistent observer alone already handles correctly.
+    // resize — see the suppressNextResize comment above and on the
+    // ResizeObserver in initDisplay(). The terminal's size (and therefore
+    // its content) now stays exactly as it was while hidden — "frozen" —
+    // unless the container's real size changes while this tab is already
+    // active, which the persistent observer alone still handles correctly.
     if (active && this.isReady && this.terminal) {
       this.terminal.scrollToBottom();
       this.terminal.focus();
@@ -314,6 +322,14 @@ export class Terminal extends Component {
         // only reacts to genuine future container size changes, not the
         // initial layout settling (which would cause a duplicate SIGWINCH).
         this.resizeObserver = new ResizeObserver(() => {
+          // Skip the callback triggered by this tab's own activation
+          // (container display:none->flex) — see the isActive setter's
+          // comment. Only container size changes that happen while the tab
+          // is already visible should ever fit()/resize.
+          if (this.suppressNextResize) {
+            this.suppressNextResize = false;
+            return;
+          }
           if (this.fitAddon && this.terminal) {
             const oldC = this.terminal.cols;
             const oldR = this.terminal.rows;

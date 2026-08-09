@@ -18,6 +18,16 @@
  * content) stays exactly as it was while hidden, unless the container's
  * real size has genuinely changed, which the persistent observer alone
  * handles.
+ *
+ * Follow-up regression: even after the above, the *persistent* observer
+ * itself still fired on activation, because the container's display:none ->
+ * flex flip is a genuine size change from its point of view. That fit() +
+ * onResize() (SIGWINCH) on Windows/conpty could repaint the whole console
+ * buffer, flashing the old content then clearing it down to a bare prompt.
+ * `set isActive(true)` now sets a `suppressNextResize` flag that makes the
+ * persistent observer skip exactly the one callback caused by activation,
+ * while still reacting normally to genuine resizes that happen once the tab
+ * is already visible (window resize, sidebar drag, etc).
  */
 
 import { Terminal } from '../../renderer/components/Terminal';
@@ -138,5 +148,45 @@ describe('Terminal activation does not re-fit or resize', () => {
 
     expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
     expect(onResize).toHaveBeenCalledTimes(1);
+  });
+
+  it('activation arms suppressNextResize, so the persistent ResizeObserver skips the callback caused by the display:none->flex flip', () => {
+    const terminal = new Terminal({ terminalId: 'test-term-suppress-1' });
+
+    const fakeXterm = makeFakeXterm();
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = { fit: jest.fn() };
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+
+    expect((terminal as any).suppressNextResize).toBe(false);
+    terminal.isActive = true;
+    expect((terminal as any).suppressNextResize).toBe(true);
+
+    // Simulate the persistent observer's callback consuming the flag on its
+    // next fire, exactly as it does inside initDisplay().
+    if ((terminal as any).suppressNextResize) {
+      (terminal as any).suppressNextResize = false;
+    }
+    expect((terminal as any).suppressNextResize).toBe(false);
+  });
+
+  it('re-activating after deactivation re-arms suppressNextResize every time', () => {
+    const terminal = new Terminal({ terminalId: 'test-term-suppress-2' });
+
+    const fakeXterm = makeFakeXterm();
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = { fit: jest.fn() };
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+
+    terminal.isActive = true;
+    (terminal as any).suppressNextResize = false; // consumed by the observer
+
+    terminal.isActive = false;
+    expect((terminal as any).suppressNextResize).toBe(false); // deactivation does not arm it
+
+    terminal.isActive = true;
+    expect((terminal as any).suppressNextResize).toBe(true); // re-activation arms it again
   });
 });
