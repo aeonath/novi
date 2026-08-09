@@ -196,6 +196,14 @@ function createWindow(): void {
     });
   });
 
+  // Popup windows opened via window.open() (Help > Documentation/Report Issue,
+  // etc.) are external content — they have no active tab, so the app's own
+  // Edit/View menu items would be nonfunctional there. Strip the menu they'd
+  // otherwise inherit from Menu.setApplicationMenu().
+  mainWindow.webContents.on('did-create-window', (childWindow) => {
+    childWindow.removeMenu();
+  });
+
   // Always load local built HTML file
   void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   mainWindow.setMinimumSize(800, 600);
