@@ -812,10 +812,18 @@ export class App extends Component {
         // every tab's FileTree coloring — without clearing it here too, the
         // previous root's (or even a previous session's restored root's)
         // status stays plastered on the new tree until some fetch happens to
-        // land. Clear immediately so colors never reflect a foreign root;
-        // the fresh fetch below (and GitPanel's own) repopulates it.
+        // land. Clear immediately so colors never reflect a foreign root,
+        // then fetch fresh for the new one directly — don't rely solely on
+        // GitPanel's own ~100ms-delayed startWatching() cascade, since that
+        // requires GitPanel to independently reach the same conclusion.
         this.lastGitRoot = effectiveGitRoot;
         appState.gitStatus = null;
+        if (effectiveGitRoot && window.api?.gitGetStatus) {
+          window.api.gitGetStatus(effectiveGitRoot).then((status) => {
+            if (this.lastGitRoot !== effectiveGitRoot) return; // superseded by a newer root change
+            appState.gitStatus = status.isRepo ? status : null;
+          }).catch(() => {});
+        }
       }
       this.gitPanel.workspaceRoot = effectiveGitRoot;
     }
