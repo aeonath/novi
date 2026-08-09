@@ -28,6 +28,7 @@ function makeFakeXterm() {
     focus: jest.fn(),
     cols: 80,
     rows: 24,
+    options: {},
   };
 }
 
@@ -100,5 +101,42 @@ describe('Terminal activation does not re-fit or resize', () => {
     expect(fakeXterm.focus).not.toHaveBeenCalled();
     expect(fakeFitAddon.fit).not.toHaveBeenCalled();
     expect(onResize).not.toHaveBeenCalled();
+  });
+
+  it('re-assigning the same fontSizeProp value (as App.ts does on every tab switch) does not fit/resize', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-fontsize-1', onResize, fontSize: 14 });
+
+    const fakeXterm = makeFakeXterm();
+    const fakeFitAddon = { fit: jest.fn() };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+
+    // Simulate App.ts's syncTerminalActiveState(), which re-assigns
+    // fontSizeProp to the same unchanged value on every tab switch.
+    (terminal as any).fontSizeProp = 14;
+    (terminal as any).fontSizeProp = 14;
+
+    expect(fakeFitAddon.fit).not.toHaveBeenCalled();
+    expect(onResize).not.toHaveBeenCalled();
+  });
+
+  it('assigning a genuinely different fontSizeProp still fits and resizes', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-fontsize-2', onResize, fontSize: 14 });
+
+    const fakeXterm = makeFakeXterm();
+    const fakeFitAddon = { fit: jest.fn() };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+
+    (terminal as any).fontSizeProp = 16;
+
+    expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
+    expect(onResize).toHaveBeenCalledTimes(1);
   });
 });

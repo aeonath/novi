@@ -101,6 +101,17 @@ export class Terminal extends Component {
   }
 
   set fontSizeProp(size: number) {
+    // No-op if the font size hasn't actually changed. syncTerminalActiveState()
+    // (App.ts) assigns this on EVERY tab switch, for EVERY terminal instance —
+    // not just the one being activated, and not just when the size differs.
+    // Without this guard, every tab switch re-ran fitAddon.fit() + onResize()
+    // (a SIGWINCH) on the just-activated terminal in the same synchronous tick
+    // as its container's display:none->flex flip, often before layout had
+    // settled to the container's final size — computing a bogus col/row count
+    // and corrupting/clearing the freshly-flashed content. This was a second,
+    // independent resize path beyond the persistent ResizeObserver in
+    // initDisplay() (see the isActive setter's comment for that one).
+    if (this.fontSize === size) return;
     this.fontSize = size;
     if (this.terminal && this.fitAddon) {
       this.terminal.options.fontSize = size;
