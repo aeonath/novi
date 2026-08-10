@@ -133,7 +133,7 @@ describe('Terminal activation does not re-fit or resize', () => {
     expect(onResize).not.toHaveBeenCalled();
   });
 
-  it('assigning a genuinely different fontSizeProp still fits and resizes', () => {
+  it('assigning a genuinely different fontSizeProp still fits and resizes while active', () => {
     const onResize = jest.fn();
     const terminal = new Terminal({ terminalId: 'test-term-fontsize-2', onResize, fontSize: 14 });
 
@@ -143,11 +143,32 @@ describe('Terminal activation does not re-fit or resize', () => {
     (terminal as any).fitAddon = fakeFitAddon;
     (terminal as any).ptyCreated = true;
     (terminal as any).isReady = true;
+    (terminal as any)._isActive = true;
 
     (terminal as any).fontSizeProp = 16;
 
     expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
     expect(onResize).toHaveBeenCalledTimes(1);
+  });
+
+  it('assigning a genuinely different fontSizeProp while INACTIVE updates the xterm option but defers the fit, instead of destructively fitting a 0x0 hidden container', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-fontsize-hidden', onResize, fontSize: 14 });
+
+    const fakeXterm = makeFakeXterm();
+    const fakeFitAddon = { fit: jest.fn() };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+    (terminal as any)._isActive = false; // tab is hidden
+
+    (terminal as any).fontSizeProp = 16;
+
+    expect(fakeXterm.options.fontSize).toBe(16);
+    expect(fakeFitAddon.fit).not.toHaveBeenCalled();
+    expect(onResize).not.toHaveBeenCalled();
+    expect((terminal as any).pendingFontRefit).toBe(true);
   });
 
   it('re-assigning the same fontFamilyProp value does not fit/resize', () => {
@@ -168,7 +189,7 @@ describe('Terminal activation does not re-fit or resize', () => {
     expect(onResize).not.toHaveBeenCalled();
   });
 
-  it('assigning a genuinely different fontFamilyProp updates xterm options and fits/resizes', () => {
+  it('assigning a genuinely different fontFamilyProp updates xterm options and fits/resizes while active', () => {
     const onResize = jest.fn();
     const terminal = new Terminal({ terminalId: 'test-term-fontfamily-2', onResize, fontFamily: 'DejaVu Sans Mono' });
 
@@ -178,12 +199,83 @@ describe('Terminal activation does not re-fit or resize', () => {
     (terminal as any).fitAddon = fakeFitAddon;
     (terminal as any).ptyCreated = true;
     (terminal as any).isReady = true;
+    (terminal as any)._isActive = true;
 
     (terminal as any).fontFamilyProp = 'Consolas';
 
     expect(fakeXterm.options.fontFamily).toBe("'Consolas', monospace");
     expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
     expect(onResize).toHaveBeenCalledTimes(1);
+  });
+
+  it('assigning a genuinely different fontFamilyProp while INACTIVE updates the xterm option but defers the fit', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-fontfamily-hidden', onResize, fontFamily: 'DejaVu Sans Mono' });
+
+    const fakeXterm = makeFakeXterm();
+    const fakeFitAddon = { fit: jest.fn() };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+    (terminal as any)._isActive = false; // tab is hidden
+
+    (terminal as any).fontFamilyProp = 'Consolas';
+
+    expect(fakeXterm.options.fontFamily).toBe("'Consolas', monospace");
+    expect(fakeFitAddon.fit).not.toHaveBeenCalled();
+    expect(onResize).not.toHaveBeenCalled();
+    expect((terminal as any).pendingFontRefit).toBe(true);
+  });
+
+  it('reactivating a terminal with a pending font refit does NOT arm suppressNextResize, so the deferred resize is allowed to actually run', () => {
+    const terminal = new Terminal({ terminalId: 'test-term-pending-refit' });
+
+    const fakeXterm = makeFakeXterm();
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = { fit: jest.fn() };
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+    (terminal as any)._isActive = false;
+
+    // Font size changed while this tab was hidden — defers instead of fitting.
+    (terminal as any).fontSizeProp = 20;
+    expect((terminal as any).pendingFontRefit).toBe(true);
+
+    terminal.isActive = true;
+
+    expect((terminal as any).pendingFontRefit).toBe(false);
+    expect((terminal as any).suppressNextResize).toBe(false);
+  });
+
+  it('end-to-end: a font change while hidden actually resizes once the persistent observer fires on reactivation', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-pending-refit-e2e', onResize });
+
+    const fakeXterm = makeFakeXterm();
+    fakeXterm.cols = 80;
+    fakeXterm.rows = 24;
+    const fakeFitAddon = {
+      fit: jest.fn(() => { fakeXterm.cols = 70; fakeXterm.rows = 20; }),
+    };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+    (terminal as any)._isActive = false;
+
+    (terminal as any).fontSizeProp = 20; // deferred, no fit while hidden
+    expect(fakeFitAddon.fit).not.toHaveBeenCalled();
+
+    // Reactivating: App.ts flips container display to flex, then assigns isActive.
+    terminal.isActive = true;
+    // The persistent ResizeObserver's callback, triggered by that display
+    // flip, runs next — since pendingFontRefit consumed suppressNextResize
+    // instead of arming it, this call is allowed through.
+    (terminal as any).handleContainerResize();
+
+    expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
+    expect(onResize).toHaveBeenCalledWith(70, 20);
   });
 
   it('activation arms suppressNextResize, so the persistent ResizeObserver skips the callback caused by the display:none->flex flip', () => {

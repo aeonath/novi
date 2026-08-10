@@ -79,6 +79,7 @@ export class Terminal extends Component {
   private ptyCols = 0;
   private ptyRows = 0;
   private suppressNextResize = false;
+  private pendingFontRefit = false;
 
   constructor(config: TerminalConfig) {
     super('div');
@@ -114,17 +115,29 @@ export class Terminal extends Component {
     this._isActive = active;
 
     if (active) {
-      // The caller flips this.container's display from 'none' to 'flex'
-      // right before assigning isActive — a genuine size change from the
-      // persistent ResizeObserver's point of view (see initDisplay()), which
-      // would otherwise fire its own fit()+onResize() (a SIGWINCH) the
-      // moment the observer's callback runs. On Windows/conpty that resize
-      // can repaint the whole console buffer, which is exactly what made
-      // tab switches flash the old content then clear it down to a bare
-      // prompt. Activation must never resize — only genuine container size
-      // changes that happen *while already active* should, so the very next
-      // observer callback (the one caused by this activation) is skipped.
-      this.suppressNextResize = true;
+      if (this.pendingFontRefit) {
+        // Font size/family changed via fontSizeProp/fontFamilyProp while this
+        // terminal was hidden — those setters deliberately skip fit() while
+        // inactive (see their comments) to avoid the destructive hidden-fit
+        // bug, so cols/rows are now stale relative to the new font metrics.
+        // Let the persistent ResizeObserver's callback (about to fire from
+        // the display:none->flex flip below) actually run this time so it
+        // can recompute them against the container's real dimensions now
+        // that it's visible again — do NOT arm the usual suppression.
+        this.pendingFontRefit = false;
+      } else {
+        // The caller flips this.container's display from 'none' to 'flex'
+        // right before assigning isActive — a genuine size change from the
+        // persistent ResizeObserver's point of view (see initDisplay()), which
+        // would otherwise fire its own fit()+onResize() (a SIGWINCH) the
+        // moment the observer's callback runs. On Windows/conpty that resize
+        // can repaint the whole console buffer, which is exactly what made
+        // tab switches flash the old content then clear it down to a bare
+        // prompt. Activation must never resize — only genuine container size
+        // changes that happen *while already active* should, so the very next
+        // observer callback (the one caused by this activation) is skipped.
+        this.suppressNextResize = true;
+      }
     }
 
     if (active && !this.ptyCreated) {
@@ -162,12 +175,7 @@ export class Terminal extends Component {
     this.fontSize = size;
     if (this.terminal && this.fitAddon) {
       this.terminal.options.fontSize = size;
-      try {
-        this.fitAddon.fit();
-        if (this.onResize && this.terminal.cols && this.terminal.rows) {
-          this.onResize(this.terminal.cols, this.terminal.rows);
-        }
-      } catch (_) {}
+      this.refitOrDefer();
     }
   }
 
@@ -177,13 +185,36 @@ export class Terminal extends Component {
     this.fontFamily = family;
     if (this.terminal && this.fitAddon) {
       this.terminal.options.fontFamily = this.cssFontFamily();
-      try {
-        this.fitAddon.fit();
-        if (this.onResize && this.terminal.cols && this.terminal.rows) {
-          this.onResize(this.terminal.cols, this.terminal.rows);
-        }
-      } catch (_) {}
+      this.refitOrDefer();
     }
+  }
+
+  /**
+   * fitAddon.fit() while this.container is display:none (hidden/inactive)
+   * reports a 0x0 contentRect. FitAddon doesn't bail out on that — it clamps
+   * to 2 cols x 1 row and terminal.resize(2, 1) DESTRUCTIVELY reflows the
+   * entire scrollback buffer down to a 2-column-wide terminal, permanently
+   * mangling it (same failure mode documented on handleContainerResize()).
+   * fontSizeProp/fontFamilyProp can be assigned to hidden terminals too —
+   * syncTerminalActiveState() (App.ts) applies both to every terminal
+   * instance, not just the active one, e.g. whenever the Settings panel's
+   * default font size/family changes. So: only fit() immediately while
+   * active; otherwise defer via pendingFontRefit, which the isActive setter
+   * consumes to let the *next* activation's resize actually run instead of
+   * being suppressed as a no-op reactivation.
+   */
+  private refitOrDefer(): void {
+    if (!this._isActive) {
+      this.pendingFontRefit = true;
+      return;
+    }
+    if (!this.terminal || !this.fitAddon) return;
+    try {
+      this.fitAddon.fit();
+      if (this.onResize && this.terminal.cols && this.terminal.rows) {
+        this.onResize(this.terminal.cols, this.terminal.rows);
+      }
+    } catch (_) {}
   }
 
   private cssFontFamily(): string {
