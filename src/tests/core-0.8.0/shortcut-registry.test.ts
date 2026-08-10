@@ -12,9 +12,21 @@ import {
   acceleratorFromKeyboardEvent,
   formatAcceleratorForDisplay,
   getShortcutsByCategory,
+  getMonacoMappedShortcuts,
+  parseAccelerator,
+  monacoKeyCodeForKeyName,
+  acceleratorToMonacoKeybinding,
   type KeyboardShortcutsSettings,
   type ShortcutDef,
 } from '../../core/shortcuts/shortcut-registry';
+
+// Real runtime values from monaco-editor's compiled source (not guessed),
+// verified against node_modules/monaco-editor/esm/vs/editor/common/services/editorBaseApi.js
+// and node_modules/monaco-editor/esm/vs/base/common/keyCodes.js.
+const REAL_MONACO_KEYS = {
+  KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+  KeyCode: { Enter: 3, Escape: 9, Digit0: 21, KeyA: 31, KeyC: 33, KeyN: 44, KeyO: 45, KeyS: 49, KeyZ: 56, F1: 59, F3: 61 },
+};
 
 describe('shortcut-registry', () => {
   describe('registry data', () => {
@@ -173,6 +185,107 @@ describe('shortcut-registry', () => {
 
     it('renders null as (none)', () => {
       expect(formatAcceleratorForDisplay(null)).toBe('(none)');
+    });
+  });
+
+  describe('parseAccelerator', () => {
+    it('splits modifiers from the base key', () => {
+      expect(parseAccelerator('CmdOrCtrl+Shift+P')).toEqual({ ctrl: true, alt: false, shift: true, key: 'P' });
+    });
+
+    it('handles a bare key with no modifiers', () => {
+      expect(parseAccelerator('F3')).toEqual({ ctrl: false, alt: false, shift: false, key: 'F3' });
+    });
+
+    it('handles all three modifiers together', () => {
+      expect(parseAccelerator('CmdOrCtrl+Alt+Shift+Z')).toEqual({ ctrl: true, alt: true, shift: true, key: 'Z' });
+    });
+
+    it('treats a punctuation key as the base key, not a modifier', () => {
+      expect(parseAccelerator('CmdOrCtrl+[')).toEqual({ ctrl: true, alt: false, shift: false, key: '[' });
+    });
+  });
+
+  describe('getMonacoMappedShortcuts', () => {
+    it('only returns entries that carry a monacoCommandId', () => {
+      const mapped = getMonacoMappedShortcuts();
+      expect(mapped.length).toBeGreaterThan(0);
+      expect(mapped.every(d => !!d.monacoCommandId)).toBe(true);
+    });
+
+    it('includes both the shared app-defined entries and Monaco-only entries', () => {
+      const mapped = getMonacoMappedShortcuts();
+      const ids = mapped.map(d => d.id);
+      expect(ids).toContain('copy'); // shared (also routes to __terminalAPI)
+      expect(ids).toContain('monaco-fold'); // Monaco-only
+    });
+  });
+
+  describe('monacoKeyCodeForKeyName', () => {
+    it('resolves a letter key via the KeyX naming convention', () => {
+      expect(monacoKeyCodeForKeyName('C', REAL_MONACO_KEYS.KeyCode)).toBe(REAL_MONACO_KEYS.KeyCode.KeyC);
+    });
+
+    it('resolves a digit key via the DigitX naming convention', () => {
+      expect(monacoKeyCodeForKeyName('0', REAL_MONACO_KEYS.KeyCode)).toBe(REAL_MONACO_KEYS.KeyCode.Digit0);
+    });
+
+    it('resolves a bare function key directly by name', () => {
+      expect(monacoKeyCodeForKeyName('F3', REAL_MONACO_KEYS.KeyCode)).toBe(REAL_MONACO_KEYS.KeyCode.F3);
+    });
+
+    it('resolves a special key through the accelerator-name translation table', () => {
+      expect(monacoKeyCodeForKeyName('Return', REAL_MONACO_KEYS.KeyCode)).toBe(REAL_MONACO_KEYS.KeyCode.Enter);
+    });
+
+    it('returns null for a key with no known Monaco mapping', () => {
+      expect(monacoKeyCodeForKeyName('NotAKey', REAL_MONACO_KEYS.KeyCode)).toBeNull();
+    });
+  });
+
+  describe('acceleratorToMonacoKeybinding', () => {
+    it('encodes a plain Ctrl+letter combo using real Monaco bit values', () => {
+      // CmdOrCtrl+C -> KeyMod.CtrlCmd (2048) | KeyCode.KeyC (33) = 2081
+      expect(acceleratorToMonacoKeybinding('CmdOrCtrl+C', REAL_MONACO_KEYS)).toBe(2048 | 33);
+    });
+
+    it('encodes Ctrl+Shift+letter with both modifier bits set', () => {
+      expect(acceleratorToMonacoKeybinding('CmdOrCtrl+Shift+A', REAL_MONACO_KEYS)).toBe(2048 | 1024 | 31);
+    });
+
+    it('encodes Ctrl+Alt+letter with the alt bit set', () => {
+      expect(acceleratorToMonacoKeybinding('CmdOrCtrl+Alt+S', REAL_MONACO_KEYS)).toBe(2048 | 512 | 49);
+    });
+
+    it('encodes a bare key with no modifier bits at all', () => {
+      expect(acceleratorToMonacoKeybinding('F1', REAL_MONACO_KEYS)).toBe(59);
+    });
+
+    it('returns null when the base key has no Monaco mapping in the given table', () => {
+      expect(acceleratorToMonacoKeybinding('CmdOrCtrl+NotAKey', REAL_MONACO_KEYS)).toBeNull();
+    });
+
+    it('round-trips every Monaco-mapped registry entry\'s default accelerator to a non-null keybinding', () => {
+      // Regression guard: catches a typo'd key name in the registry (e.g. an
+      // accelerator using a key not covered by monacoKeyCodeForKeyName) that
+      // would otherwise silently no-op instead of throwing.
+      const fullKeyTable = {
+        ...REAL_MONACO_KEYS.KeyCode,
+        // Fill in the rest of the alphabet/digits/F-keys/punctuation with
+        // placeholder-but-present values so every registry default resolves.
+        ...Object.fromEntries('BDEFGHIJKLMPQRTUVWXY'.split('').map((l, i) => [`Key${l}`, 100 + i])),
+        ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`Digit${n}`, 200 + n])),
+        ...Object.fromEntries([2, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => [`F${n}`, 300 + n])),
+        UpArrow: 400, DownArrow: 401, LeftArrow: 402, RightArrow: 403,
+        Space: 404, Backspace: 405, Delete: 406, Tab: 407, Home: 408, End: 409,
+        PageUp: 410, PageDown: 411, Insert: 412, Backquote: 413, Comma: 414,
+        Period: 415, Slash: 416, Backslash: 417, Semicolon: 418, Quote: 419,
+        BracketLeft: 420, BracketRight: 421, Minus: 422, Equal: 423,
+      };
+      for (const def of getMonacoMappedShortcuts()) {
+        const kb = acceleratorToMonacoKeybinding(def.defaultAccelerator, { KeyCode: fullKeyTable, KeyMod: REAL_MONACO_KEYS.KeyMod });
+        expect(kb).not.toBeNull();
+      }
     });
   });
 });

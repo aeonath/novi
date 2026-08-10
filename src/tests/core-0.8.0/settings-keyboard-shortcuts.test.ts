@@ -157,6 +157,12 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     expect(text).toContain('Select All');
     expect(text).toContain('Ctrl+A');
     expect(text).toContain('Save');
+    // Phase 3: Monaco's own built-in commands (editor-only) render in the
+    // same list, and the list is now long enough to show the filter box.
+    expect(text).toContain('Fold');
+    expect(text).toContain('Rename Symbol');
+    const filterInput = tab.getElement().querySelector('input[placeholder="Filter shortcuts…"]');
+    expect(filterInput).not.toBeNull();
   });
 
   it('recording a Terminal + Editor shortcut (Select All) persists under the editorTerminal category', async () => {

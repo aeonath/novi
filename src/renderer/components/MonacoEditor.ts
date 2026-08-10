@@ -13,6 +13,11 @@ import { bus } from '../core/event-bus.js';
 import { EditorService } from '../services/editor-service.js';
 import { markReady } from '../utils/ready-events.js';
 import { convertTmToMonarch } from '../../core/tm-to-monarch.js';
+import {
+  getMonacoMappedShortcuts, computeEffectiveAccelerator, acceleratorToMonacoKeybinding,
+  defaultKeyboardShortcutsSettings,
+} from '../../core/shortcuts/shortcut-registry.js';
+import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
 
 declare const monaco: typeof import('monaco-editor');
 
@@ -45,6 +50,7 @@ export class MonacoEditor extends Component {
   private _columnBreakEnabled = false;
   private _columnBreakValue = 90;
   private _columnBreakHard = false;
+  private keybindingOverridesDisposable: { dispose: () => void } | null = null;
 
   constructor(config: MonacoEditorConfig = {}) {
     super('div');
@@ -277,6 +283,16 @@ export class MonacoEditor extends Component {
       this.editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Insert, () => {
         void this.handlePaste();
       });
+
+      // Keyboard Shortcuts settings: apply once at startup, then again
+      // whenever the user changes one (Options -> Keyboard Shortcuts).
+      // addKeybindingRules is a static/global API — safe to call just once
+      // per editor instance's lifetime rather than per-tab, since this app
+      // only ever creates a single shared MonacoEditor instance.
+      void this.applyKeyboardShortcutOverrides();
+      const ksHandler = () => { void this.applyKeyboardShortcutOverrides(); };
+      window.addEventListener('novi-keyboardshortcuts-changed', ksHandler);
+      this.addCleanup(() => window.removeEventListener('novi-keyboardshortcuts-changed', ksHandler));
 
       // Context menu
       const handleCtxMenu = (e: MouseEvent) => {
@@ -603,9 +619,51 @@ export class MonacoEditor extends Component {
     this.hideContextMenu();
   }
 
+  // --- Keyboard Shortcuts settings (Options -> Keyboard Shortcuts) ---
+
+  /** Rebinds Monaco's own default keybindings for every registry entry the
+   * user has customized (or explicitly unbound) in Options -> Keyboard
+   * Shortcuts. Entries left at their default are untouched — Monaco's
+   * built-in binding for them already works, no rule needed. Re-run from
+   * scratch (disposing the previous rule set first) on every call so
+   * resetting a shortcut back to default correctly un-does an earlier
+   * override instead of leaving it stuck. The actual key-name/bitmask
+   * encoding lives in shortcut-registry.ts (acceleratorToMonacoKeybinding) —
+   * kept there so it's testable as a pure function. */
+  private async applyKeyboardShortcutOverrides(): Promise<void> {
+    this.keybindingOverridesDisposable?.dispose();
+    this.keybindingOverridesDisposable = null;
+
+    const stored = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
+    const defaults = defaultKeyboardShortcutsSettings();
+    const settings: KeyboardShortcutsSettings = {
+      novi: stored?.novi ?? defaults.novi,
+      editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
+    };
+
+    const rules: { keybinding: number; command: string | null }[] = [];
+    for (const def of getMonacoMappedShortcuts()) {
+      const effective = computeEffectiveAccelerator(def, settings);
+      if (effective === def.defaultAccelerator) continue; // untouched — Monaco's own default already applies
+
+      const defaultKb = acceleratorToMonacoKeybinding(def.defaultAccelerator, monaco);
+      if (defaultKb !== null) rules.push({ keybinding: defaultKb, command: null });
+
+      if (effective) {
+        const newKb = acceleratorToMonacoKeybinding(effective, monaco);
+        if (newKb !== null) rules.push({ keybinding: newKb, command: def.monacoCommandId! });
+      }
+    }
+
+    if (rules.length > 0) {
+      this.keybindingOverridesDisposable = monaco.editor.addKeybindingRules(rules);
+    }
+  }
+
   protected onDestroy(): void {
     this.hideContextMenu();
     if (this.vimAdapter) { try { this.vimAdapter.dispose(); } catch (_) {} }
+    this.keybindingOverridesDisposable?.dispose();
     this.editorService?.dispose();
     this.editor?.dispose();
     delete (window as any).__monacoEditorAPI;
