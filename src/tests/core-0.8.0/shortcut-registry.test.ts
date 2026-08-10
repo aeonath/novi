@@ -6,6 +6,7 @@ import {
   NOVI_SHORTCUTS,
   SHORTCUT_REGISTRY,
   defaultKeyboardShortcutsSettings,
+  mergeKeyboardShortcutsSettings,
   computeEffectiveAccelerator,
   normalizeAccelerator,
   findConflict,
@@ -16,7 +17,6 @@ import {
   parseAccelerator,
   monacoKeyCodeForKeyName,
   acceleratorToMonacoKeybinding,
-  type KeyboardShortcutsSettings,
   type ShortcutDef,
 } from '../../core/shortcuts/shortcut-registry';
 
@@ -63,34 +63,30 @@ describe('shortcut-registry', () => {
     const def: ShortcutDef = { id: 'test-cmd', category: 'novi', label: 'Test', defaultAccelerator: 'CmdOrCtrl+N' };
 
     it('returns the default when useDefaults is true, even with an override present', () => {
-      const settings: KeyboardShortcutsSettings = {
+      const settings = mergeKeyboardShortcutsSettings({
         novi: { useDefaults: true, overrides: { 'test-cmd': 'CmdOrCtrl+Shift+N' } },
-        editorTerminal: { useDefaults: true, overrides: {} },
-      };
+      });
       expect(computeEffectiveAccelerator(def, settings)).toBe('CmdOrCtrl+N');
     });
 
     it('returns the override when useDefaults is false and an override exists', () => {
-      const settings: KeyboardShortcutsSettings = {
+      const settings = mergeKeyboardShortcutsSettings({
         novi: { useDefaults: false, overrides: { 'test-cmd': 'CmdOrCtrl+Shift+N' } },
-        editorTerminal: { useDefaults: true, overrides: {} },
-      };
+      });
       expect(computeEffectiveAccelerator(def, settings)).toBe('CmdOrCtrl+Shift+N');
     });
 
     it('falls back to the default when useDefaults is false but no override is recorded', () => {
-      const settings: KeyboardShortcutsSettings = {
+      const settings = mergeKeyboardShortcutsSettings({
         novi: { useDefaults: false, overrides: {} },
-        editorTerminal: { useDefaults: true, overrides: {} },
-      };
+      });
       expect(computeEffectiveAccelerator(def, settings)).toBe('CmdOrCtrl+N');
     });
 
     it('returns null when the override explicitly unbinds the shortcut', () => {
-      const settings: KeyboardShortcutsSettings = {
+      const settings = mergeKeyboardShortcutsSettings({
         novi: { useDefaults: false, overrides: { 'test-cmd': null } },
-        editorTerminal: { useDefaults: true, overrides: {} },
-      };
+      });
       expect(computeEffectiveAccelerator(def, settings)).toBeNull();
     });
   });
@@ -134,20 +130,30 @@ describe('shortcut-registry', () => {
     });
 
     it('detects a conflict against a customized override, not just defaults', () => {
-      const customized: KeyboardShortcutsSettings = {
-        novi: { useDefaults: false, overrides: { 'close-file': 'CmdOrCtrl+Alt+Shift+Z' } },
-        editorTerminal: { useDefaults: true, overrides: {} },
-      };
+      // 'save' is in the editor category, not novi — the override must be
+      // recorded under the shortcut's own category to take effect.
+      const customized = mergeKeyboardShortcutsSettings({
+        editor: { useDefaults: false, overrides: { save: 'CmdOrCtrl+Alt+Shift+Z' } },
+      });
       const conflict = findConflict('CmdOrCtrl+Alt+Shift+Z', 'new-file', customized);
-      expect(conflict?.id).toBe('close-file');
+      expect(conflict?.id).toBe('save');
     });
 
     it('ignores a command that has been explicitly unbound', () => {
-      const unbound: KeyboardShortcutsSettings = {
+      const unbound = mergeKeyboardShortcutsSettings({
         novi: { useDefaults: false, overrides: { 'open-file': null } },
-        editorTerminal: { useDefaults: true, overrides: {} },
-      };
+      });
       expect(findConflict('CmdOrCtrl+O', 'new-file', unbound)).toBeNull();
+    });
+
+    it('detects conflicts across categories (Novi vs Editor vs Terminal+Editor)', () => {
+      // 'select-all' (editorTerminal) defaults to CmdOrCtrl+A — a Novi
+      // shortcut being customized to the same combo must be flagged too.
+      const settings = mergeKeyboardShortcutsSettings({
+        novi: { useDefaults: false, overrides: {} },
+      });
+      const conflict = findConflict('CmdOrCtrl+A', 'new-file', settings);
+      expect(conflict?.id).toBe('select-all');
     });
   });
 

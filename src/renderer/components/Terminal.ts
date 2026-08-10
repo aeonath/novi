@@ -13,7 +13,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import {
   EDITOR_TERMINAL_SHORTCUTS, computeEffectiveAccelerator, normalizeAccelerator,
-  acceleratorFromKeyboardEvent, defaultKeyboardShortcutsSettings,
+  acceleratorFromKeyboardEvent, defaultKeyboardShortcutsSettings, mergeKeyboardShortcutsSettings,
 } from '../../core/shortcuts/shortcut-registry.js';
 import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
 
@@ -24,18 +24,19 @@ let cachedShortcutSettings: KeyboardShortcutsSettings = defaultKeyboardShortcuts
 
 async function refreshCachedShortcutSettings(): Promise<void> {
   const stored = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
-  const defaults = defaultKeyboardShortcutsSettings();
-  cachedShortcutSettings = {
-    novi: stored?.novi ?? defaults.novi,
-    editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
-  };
+  cachedShortcutSettings = mergeKeyboardShortcutsSettings(stored);
 }
 void refreshCachedShortcutSettings();
 window.addEventListener('novi-keyboardshortcuts-changed', () => { void refreshCachedShortcutSettings(); });
 
 /** True when the pressed combo is claimed by a Terminal+Editor shortcut —
- * xterm should not process it; App.ts's own keydown handler will. Exported
- * for direct unit testing without needing to mount a real xterm instance. */
+ * xterm should not process it; App.ts's own keydown handler will. Only ever
+ * checks EDITOR_TERMINAL_SHORTCUTS, deliberately NOT the Editor-only
+ * category (Save, Undo, Find, ...) — those have no terminal meaning and
+ * must be left alone so real terminal semantics for the same keys (Ctrl+S =
+ * XOFF, Ctrl+Z = SIGTSTP) keep working while a terminal is focused.
+ * Exported for direct unit testing without needing to mount a real xterm
+ * instance. */
 export function isClaimedByAppShortcut(e: KeyboardEvent): boolean {
   const pressed = acceleratorFromKeyboardEvent(e);
   if (!pressed) return false;

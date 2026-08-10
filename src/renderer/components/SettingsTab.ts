@@ -12,7 +12,7 @@ import { el, clearChildren, setStyles } from '../core/dom.js';
 import { ShortcutRecorder } from './ShortcutRecorder.js';
 import {
   getShortcutsByCategory, computeEffectiveAccelerator, findConflict,
-  formatAcceleratorForDisplay, defaultKeyboardShortcutsSettings,
+  formatAcceleratorForDisplay, defaultKeyboardShortcutsSettings, mergeKeyboardShortcutsSettings,
 } from '../../core/shortcuts/shortcut-registry.js';
 import type { KeyboardShortcutsSettings, ShortcutCategory, ShortcutDef } from '../../core/shortcuts/shortcut-registry.js';
 
@@ -130,11 +130,7 @@ export class SettingsTab extends Component {
       this.columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
       this.showRulerEnabled = !!(await window.api?.getSetting<boolean>('showruler', false));
       const storedShortcuts = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
-      const defaultShortcuts = defaultKeyboardShortcutsSettings();
-      this.shortcutSettings = {
-        novi: storedShortcuts?.novi ?? defaultShortcuts.novi,
-        editorTerminal: storedShortcuts?.editorTerminal ?? defaultShortcuts.editorTerminal,
-      };
+      this.shortcutSettings = mergeKeyboardShortcutsSettings(storedShortcuts);
     } catch { /* use defaults */ }
   }
 
@@ -258,6 +254,7 @@ export class SettingsTab extends Component {
     const subTabs: { id: ShortcutCategory; label: string }[] = [
       { id: 'novi', label: 'Novi' },
       { id: 'editorTerminal', label: 'Terminal + Editor' },
+      { id: 'editor', label: 'Editor' },
     ];
     for (const tab of subTabs) {
       const isActive = this.shortcutsSubTab === tab.id;

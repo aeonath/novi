@@ -15,7 +15,7 @@ import { markReady } from '../utils/ready-events.js';
 import { convertTmToMonarch } from '../../core/tm-to-monarch.js';
 import {
   getMonacoMappedShortcuts, computeEffectiveAccelerator, acceleratorToMonacoKeybinding,
-  defaultKeyboardShortcutsSettings,
+  mergeKeyboardShortcutsSettings,
 } from '../../core/shortcuts/shortcut-registry.js';
 import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
 
@@ -635,11 +635,7 @@ export class MonacoEditor extends Component {
     this.keybindingOverridesDisposable = null;
 
     const stored = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
-    const defaults = defaultKeyboardShortcutsSettings();
-    const settings: KeyboardShortcutsSettings = {
-      novi: stored?.novi ?? defaults.novi,
-      editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
-    };
+    const settings = mergeKeyboardShortcutsSettings(stored);
 
     const rules: { keybinding: number; command: string | null }[] = [];
     for (const def of getMonacoMappedShortcuts()) {

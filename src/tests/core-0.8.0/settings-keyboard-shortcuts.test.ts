@@ -45,11 +45,12 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     container.remove();
   });
 
-  it('renders the heading and Novi/Terminal+Editor sub-tabs', () => {
+  it('renders the heading and Novi/Terminal+Editor/Editor sub-tabs', () => {
     const text = tab.getElement().textContent || '';
     expect(text).toContain('Keyboard Shortcuts');
     expect(text).toContain('Novi');
     expect(text).toContain('Terminal + Editor');
+    expect(text).toContain('Editor');
   });
 
   it('defaults to Use Defaults checked, showing read-only accelerator badges', () => {
@@ -151,18 +152,57 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     expect(text).toContain('Terminal + Editor');
     const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(checkbox).not.toBeNull();
-    // Phase 2: Copy/Paste/Select All/etc. are shared between the terminal and
-    // the editor, with one config entry each — confirm they actually render.
+    // Copy/Paste/Select All/etc. are shared between the terminal and the
+    // editor, with one config entry each — confirm they actually render.
     expect(text).toContain('Copy');
     expect(text).toContain('Select All');
     expect(text).toContain('Ctrl+A');
+    // Save/Close File/Fold/Rename Symbol etc. have no meaning in a terminal
+    // (and Ctrl+S/Ctrl+Z collide with real terminal XOFF/SIGTSTP semantics)
+    // so they must NOT appear here — they live under the Editor sub-tab only.
+    expect(text).not.toContain('Save');
+    expect(text).not.toContain('Fold');
+    expect(text).not.toContain('Rename Symbol');
+  });
+
+  it('switching to the Editor sub-tab shows editor-only commands (Save, Close File, Monaco built-ins) but not terminal ones', () => {
+    const pills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Editor');
+    expect(pills.length).toBeGreaterThan(0);
+    pills[0].click();
+    const text = tab.getElement().textContent || '';
     expect(text).toContain('Save');
-    // Phase 3: Monaco's own built-in commands (editor-only) render in the
-    // same list, and the list is now long enough to show the filter box.
+    expect(text).toContain('Close File');
+    // Phase 3: Monaco's own built-in commands render here, and the list is
+    // long enough to show the filter box.
     expect(text).toContain('Fold');
     expect(text).toContain('Rename Symbol');
+    // Shared Terminal + Editor shortcuts (e.g. Cut/Copy/Paste) belong on their
+    // own sub-tab, not here.
+    expect(text).not.toContain('Paste');
     const filterInput = tab.getElement().querySelector('input[placeholder="Filter shortcuts…"]');
     expect(filterInput).not.toBeNull();
+  });
+
+  it('recording an Editor shortcut (Save) persists under the editor category', async () => {
+    const pills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Editor');
+    pills[0].click();
+
+    const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
+    checkbox.click();
+    await flush();
+
+    const saveRow = findRowByLabel(tab.getElement(), 'Save')!;
+    const recorderBox = saveRow.querySelector('[title="Click, then press a key combination"]') as HTMLElement;
+    recorderBox.click();
+    dispatchKey({ key: 'L', ctrlKey: true, altKey: true });
+    await flush();
+
+    expect(mockApi.setSetting).toHaveBeenLastCalledWith(
+      'keyboardShortcuts',
+      expect.objectContaining({
+        editor: expect.objectContaining({ overrides: expect.objectContaining({ save: 'CmdOrCtrl+Alt+L' }) }),
+      })
+    );
   });
 
   it('recording a Terminal + Editor shortcut (Select All) persists under the editorTerminal category', async () => {

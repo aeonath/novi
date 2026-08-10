@@ -31,7 +31,8 @@ import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
 import {
   computeEffectiveAccelerator, acceleratorFromKeyboardEvent, normalizeAccelerator,
-  defaultKeyboardShortcutsSettings, NOVI_SHORTCUTS, EDITOR_TERMINAL_SHORTCUTS,
+  defaultKeyboardShortcutsSettings, mergeKeyboardShortcutsSettings,
+  NOVI_SHORTCUTS, EDITOR_TERMINAL_SHORTCUTS, EDITOR_SHORTCUTS,
 } from '../../core/shortcuts/shortcut-registry.js';
 import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
 
@@ -566,14 +567,22 @@ export class App extends Component {
 
   /** Novi-category commands with no Electron menu item of their own — the
    * only ones that need matching here off their customizable accelerator.
-   * Menu-backed Novi commands (New File, Save, Settings, etc.) apply through
+   * Menu-backed Novi commands (New File, Settings, etc.) apply through
    * the native OS accelerator via menu.ts instead. */
   private static readonly APP_ONLY_NOVI_ACTIONS: Record<string, (self: App) => void> = {
-    'reload-file': (self) => self.reloadFileFromDisk(),
     'git-refresh': (self) => void self.actionContext.onGitRefresh?.(),
     'cycle-tab-next': (self) => self.cycleTab(false),
     'cycle-tab-prev': (self) => self.cycleTab(true),
   };
+
+  /** Editor-category ids that have a real handleMenuCommand case. The rest
+   * of the Editor category is Monaco's own built-in commands (Fold, Rename
+   * Symbol, ...), which apply entirely through Monaco's internal keybinding
+   * service (MonacoEditor.ts's applyKeyboardShortcutOverrides) and need no
+   * dispatch here — Monaco handles them itself while the editor has focus. */
+  private static readonly APP_DISPATCHED_EDITOR_IDS = new Set([
+    'save', 'save-as', 'close-file', 'reload-file', 'undo', 'redo', 'find', 'replace',
+  ]);
 
   private setupKeyboardShortcuts(): void {
     this.listen(document, 'keydown', (e: Event) => {
@@ -604,17 +613,35 @@ export class App extends Component {
           return;
         }
 
-        // Terminal+Editor shortcuts (Save, Copy, Select All, font size, ...):
-        // the menu items for the ones that still have one use
-        // registerAccelerator: false (see menu.ts), so this is their only
-        // real trigger. handleMenuCommand already does the activeTab-based
-        // editor-vs-terminal routing — reuse it rather than duplicating it.
+        // Terminal+Editor shortcuts (Copy, Select All, font size, ...):
+        // genuinely apply to both contexts, so these always dispatch —
+        // handleMenuCommand does the activeTab-based editor-vs-terminal
+        // routing itself, reused here rather than duplicated.
         for (const def of EDITOR_TERMINAL_SHORTCUTS) {
           const effective = computeEffectiveAccelerator(def, this.keyboardShortcutsSettings);
           if (effective && normalizeAccelerator(effective) === normalizedPressed) {
             ke.preventDefault();
             void this.handleMenuCommand(def.id);
             return;
+          }
+        }
+
+        // Editor-only shortcuts (Save, Undo, Find, Close File, Reload...):
+        // only fire while a file/image tab is actually focused. If some
+        // other tab (or none) is focused, deliberately skip entirely —
+        // don't preventDefault, don't dispatch — so e.g. a terminal keeps
+        // its native behavior for the same keys (Ctrl+S = XOFF, Ctrl+Z =
+        // SIGTSTP) instead of the app silently swallowing them.
+        const isEditorContext = this.activeTab?.type === 'file' || this.activeTab?.type === 'image';
+        if (isEditorContext) {
+          for (const def of EDITOR_SHORTCUTS) {
+            if (!App.APP_DISPATCHED_EDITOR_IDS.has(def.id)) continue;
+            const effective = computeEffectiveAccelerator(def, this.keyboardShortcutsSettings);
+            if (effective && normalizeAccelerator(effective) === normalizedPressed) {
+              ke.preventDefault();
+              void this.handleMenuCommand(def.id);
+              return;
+            }
           }
         }
       }
@@ -659,11 +686,7 @@ export class App extends Component {
 
   private async reloadKeyboardShortcutsSettings(): Promise<void> {
     const stored = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
-    const defaults = defaultKeyboardShortcutsSettings();
-    this.keyboardShortcutsSettings = {
-      novi: stored?.novi ?? defaults.novi,
-      editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
-    };
+    this.keyboardShortcutsSettings = mergeKeyboardShortcutsSettings(stored);
   }
 
   private shellTypeToLabel(shellType?: string | null): string {

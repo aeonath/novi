@@ -9,7 +9,7 @@
  * and to import from both the main and renderer processes.
  */
 
-export type ShortcutCategory = 'novi' | 'editorTerminal';
+export type ShortcutCategory = 'novi' | 'editorTerminal' | 'editor';
 
 export interface ShortcutDef {
   /** Stable id used as the settings-override key. Never rename once shipped. */
@@ -32,6 +32,7 @@ export interface ShortcutCategorySettings {
 export interface KeyboardShortcutsSettings {
   novi: ShortcutCategorySettings;
   editorTerminal: ShortcutCategorySettings;
+  editor: ShortcutCategorySettings;
 }
 
 export function defaultShortcutCategorySettings(): ShortcutCategorySettings {
@@ -42,6 +43,19 @@ export function defaultKeyboardShortcutsSettings(): KeyboardShortcutsSettings {
   return {
     novi: defaultShortcutCategorySettings(),
     editorTerminal: defaultShortcutCategorySettings(),
+    editor: defaultShortcutCategorySettings(),
+  };
+}
+
+/** Merges a possibly-partial/older-shape stored settings blob with defaults
+ * for every category — used everywhere a `keyboardShortcuts` setting is
+ * read, so adding a new category later never crashes on old saved settings. */
+export function mergeKeyboardShortcutsSettings(stored: Partial<KeyboardShortcutsSettings> | null | undefined): KeyboardShortcutsSettings {
+  const defaults = defaultKeyboardShortcutsSettings();
+  return {
+    novi: stored?.novi ?? defaults.novi,
+    editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
+    editor: stored?.editor ?? defaults.editor,
   };
 }
 
@@ -53,7 +67,6 @@ export function defaultKeyboardShortcutsSettings(): KeyboardShortcutsSettings {
 export const NOVI_SHORTCUTS: ShortcutDef[] = [
   { id: 'new-file', category: 'novi', label: 'New File', defaultAccelerator: 'CmdOrCtrl+N' },
   { id: 'open-file', category: 'novi', label: 'Open File', defaultAccelerator: 'CmdOrCtrl+O' },
-  { id: 'close-file', category: 'novi', label: 'Close File', defaultAccelerator: 'CmdOrCtrl+W' },
   // menu.ts branches this to 'Cmd+Q' on macOS at the actual OS-accelerator layer;
   // this module has no `process` access in the renderer, and the target
   // platform for this app is Windows, so the registry's reference default is Alt+F4.
@@ -65,30 +78,31 @@ export const NOVI_SHORTCUTS: ShortcutDef[] = [
   { id: 'settings', category: 'novi', label: 'Open Settings', defaultAccelerator: 'CmdOrCtrl+,' },
   { id: 'new-terminal', category: 'novi', label: 'New Terminal', defaultAccelerator: 'CmdOrCtrl+`' },
   { id: 'toggle-devtools', category: 'novi', label: 'Toggle Developer Tools', defaultAccelerator: 'CmdOrCtrl+Shift+I' },
-  { id: 'reload-file', category: 'novi', label: 'Reload File from Disk', defaultAccelerator: 'CmdOrCtrl+R' },
   { id: 'git-refresh', category: 'novi', label: 'Refresh Git Status', defaultAccelerator: 'CmdOrCtrl+Shift+G' },
   { id: 'cycle-tab-next', category: 'novi', label: 'Cycle to Next Tab', defaultAccelerator: 'CmdOrCtrl+Tab' },
   { id: 'cycle-tab-prev', category: 'novi', label: 'Cycle to Previous Tab', defaultAccelerator: 'CmdOrCtrl+Shift+Tab' },
 ];
 
 /**
- * Terminal + Editor shortcuts — combined into one section because several
- * commands (Copy, Paste, Select All, etc.) are a single shared binding that
- * must behave identically whether a file/image tab or a terminal tab is
- * focused. `monacoCommandId`, when present, is also applied to Monaco's own
- * keybinding table (phase 3's addKeybindingRules wiring) so Monaco's
- * internal default un-registers when the user rebinds the shared command.
+ * Terminal + Editor shortcuts — commands that have a real, meaningful
+ * behavior in BOTH contexts and must use the same key either way (e.g.
+ * Select All selects terminal buffer text or editor text depending on
+ * which is focused). `monacoCommandId`, when present, is also applied to
+ * Monaco's own keybinding table (phase 3's addKeybindingRules wiring) so
+ * Monaco's internal default un-registers when the user rebinds it.
+ *
+ * Deliberately does NOT include commands that only make sense for a file
+ * (Save, Undo, Find, ...) — those live in EDITOR_SHORTCUTS instead. Save,
+ * Undo, etc. used to live here, globally intercepted regardless of focus,
+ * which silently broke real terminal semantics for the same keys (Ctrl+S is
+ * the classic terminal XOFF/pause-output signal, Ctrl+Z is SIGTSTP/suspend)
+ * — moving them out means Terminal.ts's block list (which only ever reads
+ * this array) no longer swallows those keys while a terminal is focused.
  */
 export const EDITOR_TERMINAL_SHORTCUTS: ShortcutDef[] = [
-  { id: 'save', category: 'editorTerminal', label: 'Save', defaultAccelerator: 'CmdOrCtrl+S' },
-  { id: 'save-as', category: 'editorTerminal', label: 'Save As', defaultAccelerator: 'CmdOrCtrl+Shift+S' },
-  { id: 'undo', category: 'editorTerminal', label: 'Undo', defaultAccelerator: 'CmdOrCtrl+Z', monacoCommandId: 'undo' },
-  { id: 'redo', category: 'editorTerminal', label: 'Redo', defaultAccelerator: 'CmdOrCtrl+Y', monacoCommandId: 'redo' },
   { id: 'cut', category: 'editorTerminal', label: 'Cut', defaultAccelerator: 'CmdOrCtrl+X', monacoCommandId: 'editor.action.clipboardCutAction' },
   { id: 'copy', category: 'editorTerminal', label: 'Copy', defaultAccelerator: 'CmdOrCtrl+C', monacoCommandId: 'editor.action.clipboardCopyAction' },
   { id: 'paste', category: 'editorTerminal', label: 'Paste', defaultAccelerator: 'CmdOrCtrl+V', monacoCommandId: 'editor.action.clipboardPasteAction' },
-  { id: 'find', category: 'editorTerminal', label: 'Find', description: 'Editor only — no find UI in the terminal', defaultAccelerator: 'CmdOrCtrl+F', monacoCommandId: 'actions.find' },
-  { id: 'replace', category: 'editorTerminal', label: 'Replace', description: 'Editor only — no replace UI in the terminal', defaultAccelerator: 'CmdOrCtrl+H', monacoCommandId: 'editor.action.startFindReplaceAction' },
   { id: 'select-all', category: 'editorTerminal', label: 'Select All', defaultAccelerator: 'CmdOrCtrl+A', monacoCommandId: 'editor.action.selectAll' },
   {
     id: 'increase-font-size', category: 'editorTerminal', label: 'Increase Font Size',
@@ -108,72 +122,88 @@ export const EDITOR_TERMINAL_SHORTCUTS: ShortcutDef[] = [
 ];
 
 /**
- * Monaco's own built-in editor commands, mined directly from monaco-editor's
- * source (not guessed) rather than Monaco's public API, which has no way to
- * enumerate its defaults. Scope deliberately trimmed from the full set
- * found:
- *  - Excludes two-key chord defaults (e.g. "Ctrl+K Ctrl+C") — Electron's
- *    accelerator string format, used everywhere else in this registry for
- *    storage/display/conflict-checking, has no chord representation.
- *  - Excludes commands Monaco itself ships with no default keybinding
- *    (nothing to "override").
- *  - Excludes bare internal commands with no user-facing label (e.g. the
- *    find widget's internal replace-one/replace-all commands, core cursor
- *    commands like cursorWordLeft) — not meant to be surfaced individually.
- * All apply only while a file/image tab is focused (Editor only — no
- * terminal equivalent), unlike the app-defined shared shortcuts above.
+ * Editor-only shortcuts — commands with no terminal meaning at all: file
+ * operations (Save, Close, Reload), Undo/Redo, Find/Replace, and Monaco's
+ * own built-in editor commands. These only fire while a file/image tab is
+ * focused; while a terminal is focused they're left alone entirely (not
+ * even intercepted — see Terminal.ts, which only ever reads
+ * EDITOR_TERMINAL_SHORTCUTS, never this array), so real terminal semantics
+ * for the same keys (Ctrl+S = XOFF, Ctrl+Z = SIGTSTP, etc.) keep working.
  */
-const MONACO_BUILTIN_SHORTCUTS: ShortcutDef[] = [
+export const EDITOR_SHORTCUTS: ShortcutDef[] = [
+  { id: 'save', category: 'editor', label: 'Save', defaultAccelerator: 'CmdOrCtrl+S' },
+  { id: 'save-as', category: 'editor', label: 'Save As', defaultAccelerator: 'CmdOrCtrl+Shift+S' },
+  { id: 'close-file', category: 'editor', label: 'Close File', defaultAccelerator: 'CmdOrCtrl+W' },
+  { id: 'reload-file', category: 'editor', label: 'Reload File from Disk', defaultAccelerator: 'CmdOrCtrl+R' },
+  { id: 'undo', category: 'editor', label: 'Undo', defaultAccelerator: 'CmdOrCtrl+Z', monacoCommandId: 'undo' },
+  { id: 'redo', category: 'editor', label: 'Redo', defaultAccelerator: 'CmdOrCtrl+Y', monacoCommandId: 'redo' },
+  { id: 'find', category: 'editor', label: 'Find', defaultAccelerator: 'CmdOrCtrl+F', monacoCommandId: 'actions.find' },
+  { id: 'replace', category: 'editor', label: 'Replace', defaultAccelerator: 'CmdOrCtrl+H', monacoCommandId: 'editor.action.startFindReplaceAction' },
+
+  // --- Monaco's own built-in commands below, mined directly from
+  // monaco-editor's source (not guessed) rather than Monaco's public API,
+  // which has no way to enumerate its defaults. Scope deliberately trimmed
+  // from the full set found:
+  //  - Excludes two-key chord defaults (e.g. "Ctrl+K Ctrl+C") — Electron's
+  //    accelerator string format, used everywhere else in this registry for
+  //    storage/display/conflict-checking, has no chord representation.
+  //  - Excludes commands Monaco itself ships with no default keybinding
+  //    (nothing to "override").
+  //  - Excludes bare internal commands with no user-facing label (e.g. the
+  //    find widget's internal replace-one/replace-all commands, core
+  //    cursor commands like cursorWordLeft) — not meant to be surfaced
+  //    individually.
+
   // Find
-  { id: 'monaco-find-next', category: 'editorTerminal', label: 'Find Next', description: 'Editor only', defaultAccelerator: 'F3', monacoCommandId: 'editor.action.nextMatchFindAction' },
-  { id: 'monaco-find-previous', category: 'editorTerminal', label: 'Find Previous', description: 'Editor only', defaultAccelerator: 'Shift+F3', monacoCommandId: 'editor.action.previousMatchFindAction' },
-  { id: 'monaco-find-next-selection', category: 'editorTerminal', label: 'Find Next Selection', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+F3', monacoCommandId: 'editor.action.nextSelectionMatchFindAction' },
-  { id: 'monaco-find-previous-selection', category: 'editorTerminal', label: 'Find Previous Selection', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+F3', monacoCommandId: 'editor.action.previousSelectionMatchFindAction' },
+  { id: 'monaco-find-next', category: 'editor', label: 'Find Next', defaultAccelerator: 'F3', monacoCommandId: 'editor.action.nextMatchFindAction' },
+  { id: 'monaco-find-previous', category: 'editor', label: 'Find Previous', defaultAccelerator: 'Shift+F3', monacoCommandId: 'editor.action.previousMatchFindAction' },
+  { id: 'monaco-find-next-selection', category: 'editor', label: 'Find Next Selection', defaultAccelerator: 'CmdOrCtrl+F3', monacoCommandId: 'editor.action.nextSelectionMatchFindAction' },
+  { id: 'monaco-find-previous-selection', category: 'editor', label: 'Find Previous Selection', defaultAccelerator: 'CmdOrCtrl+Shift+F3', monacoCommandId: 'editor.action.previousSelectionMatchFindAction' },
 
   // Line operations
-  { id: 'monaco-copy-line-up', category: 'editorTerminal', label: 'Copy Line Up', description: 'Editor only', defaultAccelerator: 'Shift+Alt+Up', monacoCommandId: 'editor.action.copyLinesUpAction' },
-  { id: 'monaco-copy-line-down', category: 'editorTerminal', label: 'Copy Line Down', description: 'Editor only', defaultAccelerator: 'Shift+Alt+Down', monacoCommandId: 'editor.action.copyLinesDownAction' },
-  { id: 'monaco-move-line-up', category: 'editorTerminal', label: 'Move Line Up', description: 'Editor only', defaultAccelerator: 'Alt+Up', monacoCommandId: 'editor.action.moveLinesUpAction' },
-  { id: 'monaco-move-line-down', category: 'editorTerminal', label: 'Move Line Down', description: 'Editor only', defaultAccelerator: 'Alt+Down', monacoCommandId: 'editor.action.moveLinesDownAction' },
-  { id: 'monaco-delete-line', category: 'editorTerminal', label: 'Delete Line', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+K', monacoCommandId: 'editor.action.deleteLines' },
-  { id: 'monaco-indent-line', category: 'editorTerminal', label: 'Indent Line', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+]', monacoCommandId: 'editor.action.indentLines' },
-  { id: 'monaco-outdent-line', category: 'editorTerminal', label: 'Outdent Line', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+[', monacoCommandId: 'editor.action.outdentLines' },
-  { id: 'monaco-insert-line-above', category: 'editorTerminal', label: 'Insert Line Above', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+Return', monacoCommandId: 'editor.action.insertLineBefore' },
-  { id: 'monaco-insert-line-below', category: 'editorTerminal', label: 'Insert Line Below', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Return', monacoCommandId: 'editor.action.insertLineAfter' },
+  { id: 'monaco-copy-line-up', category: 'editor', label: 'Copy Line Up', defaultAccelerator: 'Shift+Alt+Up', monacoCommandId: 'editor.action.copyLinesUpAction' },
+  { id: 'monaco-copy-line-down', category: 'editor', label: 'Copy Line Down', defaultAccelerator: 'Shift+Alt+Down', monacoCommandId: 'editor.action.copyLinesDownAction' },
+  { id: 'monaco-move-line-up', category: 'editor', label: 'Move Line Up', defaultAccelerator: 'Alt+Up', monacoCommandId: 'editor.action.moveLinesUpAction' },
+  { id: 'monaco-move-line-down', category: 'editor', label: 'Move Line Down', defaultAccelerator: 'Alt+Down', monacoCommandId: 'editor.action.moveLinesDownAction' },
+  { id: 'monaco-delete-line', category: 'editor', label: 'Delete Line', defaultAccelerator: 'CmdOrCtrl+Shift+K', monacoCommandId: 'editor.action.deleteLines' },
+  { id: 'monaco-indent-line', category: 'editor', label: 'Indent Line', defaultAccelerator: 'CmdOrCtrl+]', monacoCommandId: 'editor.action.indentLines' },
+  { id: 'monaco-outdent-line', category: 'editor', label: 'Outdent Line', defaultAccelerator: 'CmdOrCtrl+[', monacoCommandId: 'editor.action.outdentLines' },
+  { id: 'monaco-insert-line-above', category: 'editor', label: 'Insert Line Above', defaultAccelerator: 'CmdOrCtrl+Shift+Return', monacoCommandId: 'editor.action.insertLineBefore' },
+  { id: 'monaco-insert-line-below', category: 'editor', label: 'Insert Line Below', defaultAccelerator: 'CmdOrCtrl+Return', monacoCommandId: 'editor.action.insertLineAfter' },
 
   // Commenting
-  { id: 'monaco-toggle-line-comment', category: 'editorTerminal', label: 'Toggle Line Comment', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+/', monacoCommandId: 'editor.action.commentLine' },
-  { id: 'monaco-toggle-block-comment', category: 'editorTerminal', label: 'Toggle Block Comment', description: 'Editor only', defaultAccelerator: 'Shift+Alt+A', monacoCommandId: 'editor.action.blockComment' },
+  { id: 'monaco-toggle-line-comment', category: 'editor', label: 'Toggle Line Comment', defaultAccelerator: 'CmdOrCtrl+/', monacoCommandId: 'editor.action.commentLine' },
+  { id: 'monaco-toggle-block-comment', category: 'editor', label: 'Toggle Block Comment', defaultAccelerator: 'Shift+Alt+A', monacoCommandId: 'editor.action.blockComment' },
 
   // Multi-cursor
-  { id: 'monaco-add-cursor-above', category: 'editorTerminal', label: 'Add Cursor Above', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Alt+Up', monacoCommandId: 'editor.action.insertCursorAbove' },
-  { id: 'monaco-add-cursor-below', category: 'editorTerminal', label: 'Add Cursor Below', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Alt+Down', monacoCommandId: 'editor.action.insertCursorBelow' },
-  { id: 'monaco-add-cursors-to-line-ends', category: 'editorTerminal', label: 'Add Cursors to Line Ends', description: 'Editor only', defaultAccelerator: 'Shift+Alt+I', monacoCommandId: 'editor.action.insertCursorAtEndOfEachLineSelected' },
-  { id: 'monaco-add-selection-to-next-find-match', category: 'editorTerminal', label: 'Add Selection to Next Find Match', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+D', monacoCommandId: 'editor.action.addSelectionToNextFindMatch' },
-  { id: 'monaco-select-all-occurrences', category: 'editorTerminal', label: 'Select All Occurrences of Find Match', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+L', monacoCommandId: 'editor.action.selectHighlights' },
-  { id: 'monaco-change-all-occurrences', category: 'editorTerminal', label: 'Change All Occurrences', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+F2', monacoCommandId: 'editor.action.changeAll' },
+  { id: 'monaco-add-cursor-above', category: 'editor', label: 'Add Cursor Above', defaultAccelerator: 'CmdOrCtrl+Alt+Up', monacoCommandId: 'editor.action.insertCursorAbove' },
+  { id: 'monaco-add-cursor-below', category: 'editor', label: 'Add Cursor Below', defaultAccelerator: 'CmdOrCtrl+Alt+Down', monacoCommandId: 'editor.action.insertCursorBelow' },
+  { id: 'monaco-add-cursors-to-line-ends', category: 'editor', label: 'Add Cursors to Line Ends', defaultAccelerator: 'Shift+Alt+I', monacoCommandId: 'editor.action.insertCursorAtEndOfEachLineSelected' },
+  { id: 'monaco-add-selection-to-next-find-match', category: 'editor', label: 'Add Selection to Next Find Match', defaultAccelerator: 'CmdOrCtrl+D', monacoCommandId: 'editor.action.addSelectionToNextFindMatch' },
+  { id: 'monaco-select-all-occurrences', category: 'editor', label: 'Select All Occurrences of Find Match', defaultAccelerator: 'CmdOrCtrl+Shift+L', monacoCommandId: 'editor.action.selectHighlights' },
+  { id: 'monaco-change-all-occurrences', category: 'editor', label: 'Change All Occurrences', defaultAccelerator: 'CmdOrCtrl+F2', monacoCommandId: 'editor.action.changeAll' },
 
   // Navigation
-  { id: 'monaco-go-to-line', category: 'editorTerminal', label: 'Go to Line/Column…', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+G', monacoCommandId: 'editor.action.gotoLine' },
-  { id: 'monaco-go-to-bracket', category: 'editorTerminal', label: 'Go to Bracket', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+\\', monacoCommandId: 'editor.action.jumpToBracket' },
+  { id: 'monaco-go-to-line', category: 'editor', label: 'Go to Line/Column…', defaultAccelerator: 'CmdOrCtrl+G', monacoCommandId: 'editor.action.gotoLine' },
+  { id: 'monaco-go-to-bracket', category: 'editor', label: 'Go to Bracket', defaultAccelerator: 'CmdOrCtrl+Shift+\\', monacoCommandId: 'editor.action.jumpToBracket' },
 
   // Folding
-  { id: 'monaco-fold', category: 'editorTerminal', label: 'Fold', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+[', monacoCommandId: 'editor.fold' },
-  { id: 'monaco-unfold', category: 'editorTerminal', label: 'Unfold', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+]', monacoCommandId: 'editor.unfold' },
+  { id: 'monaco-fold', category: 'editor', label: 'Fold', defaultAccelerator: 'CmdOrCtrl+Shift+[', monacoCommandId: 'editor.fold' },
+  { id: 'monaco-unfold', category: 'editor', label: 'Unfold', defaultAccelerator: 'CmdOrCtrl+Shift+]', monacoCommandId: 'editor.unfold' },
 
   // Formatting
-  { id: 'monaco-format-document', category: 'editorTerminal', label: 'Format Document', description: 'Editor only', defaultAccelerator: 'Shift+Alt+F', monacoCommandId: 'editor.action.formatDocument' },
+  { id: 'monaco-format-document', category: 'editor', label: 'Format Document', defaultAccelerator: 'Shift+Alt+F', monacoCommandId: 'editor.action.formatDocument' },
 
   // Suggest / navigation / misc
-  { id: 'monaco-trigger-suggest', category: 'editorTerminal', label: 'Trigger Suggest', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Space', monacoCommandId: 'editor.action.triggerSuggest' },
-  { id: 'monaco-trigger-parameter-hints', category: 'editorTerminal', label: 'Trigger Parameter Hints', description: 'Editor only', defaultAccelerator: 'CmdOrCtrl+Shift+Space', monacoCommandId: 'editor.action.triggerParameterHints' },
-  { id: 'monaco-rename-symbol', category: 'editorTerminal', label: 'Rename Symbol', description: 'Editor only', defaultAccelerator: 'F2', monacoCommandId: 'editor.action.rename' },
-  { id: 'monaco-go-to-definition', category: 'editorTerminal', label: 'Go to Definition', description: 'Editor only', defaultAccelerator: 'F12', monacoCommandId: 'editor.action.revealDefinition' },
-  { id: 'monaco-peek-definition', category: 'editorTerminal', label: 'Peek Definition', description: 'Editor only', defaultAccelerator: 'Alt+F12', monacoCommandId: 'editor.action.peekDefinition' },
-  { id: 'monaco-command-palette', category: 'editorTerminal', label: 'Editor Command Palette', description: 'Editor only — Monaco\'s own internal command palette', defaultAccelerator: 'F1', monacoCommandId: 'editor.action.quickCommand' },
+  { id: 'monaco-trigger-suggest', category: 'editor', label: 'Trigger Suggest', defaultAccelerator: 'CmdOrCtrl+Space', monacoCommandId: 'editor.action.triggerSuggest' },
+  { id: 'monaco-trigger-parameter-hints', category: 'editor', label: 'Trigger Parameter Hints', defaultAccelerator: 'CmdOrCtrl+Shift+Space', monacoCommandId: 'editor.action.triggerParameterHints' },
+  { id: 'monaco-rename-symbol', category: 'editor', label: 'Rename Symbol', defaultAccelerator: 'F2', monacoCommandId: 'editor.action.rename' },
+  { id: 'monaco-go-to-definition', category: 'editor', label: 'Go to Definition', defaultAccelerator: 'F12', monacoCommandId: 'editor.action.revealDefinition' },
+  { id: 'monaco-peek-definition', category: 'editor', label: 'Peek Definition', defaultAccelerator: 'Alt+F12', monacoCommandId: 'editor.action.peekDefinition' },
+  { id: 'monaco-command-palette', category: 'editor', label: 'Editor Command Palette', description: 'Monaco\'s own internal command palette', defaultAccelerator: 'F1', monacoCommandId: 'editor.action.quickCommand' },
 ];
 
-export const SHORTCUT_REGISTRY: ShortcutDef[] = [...NOVI_SHORTCUTS, ...EDITOR_TERMINAL_SHORTCUTS, ...MONACO_BUILTIN_SHORTCUTS];
+export const SHORTCUT_REGISTRY: ShortcutDef[] = [...NOVI_SHORTCUTS, ...EDITOR_TERMINAL_SHORTCUTS, ...EDITOR_SHORTCUTS];
 
 export function getShortcutsByCategory(category: ShortcutCategory, registry: ShortcutDef[] = SHORTCUT_REGISTRY): ShortcutDef[] {
   return registry.filter(d => d.category === category);

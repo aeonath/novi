@@ -10,16 +10,11 @@
 import { Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron';
 import { logInfo } from './logger';
 import { getSetting } from './settings';
-import { NOVI_SHORTCUTS, EDITOR_TERMINAL_SHORTCUTS, computeEffectiveAccelerator, defaultKeyboardShortcutsSettings } from '../core/shortcuts/shortcut-registry';
+import { NOVI_SHORTCUTS, EDITOR_TERMINAL_SHORTCUTS, EDITOR_SHORTCUTS, computeEffectiveAccelerator, mergeKeyboardShortcutsSettings } from '../core/shortcuts/shortcut-registry';
 import type { KeyboardShortcutsSettings, ShortcutDef } from '../core/shortcuts/shortcut-registry';
 
 function loadKeyboardShortcutsSettings(): KeyboardShortcutsSettings {
-  const stored = getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts', undefined);
-  const defaults = defaultKeyboardShortcutsSettings();
-  return {
-    novi: stored?.novi ?? defaults.novi,
-    editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
-  };
+  return mergeKeyboardShortcutsSettings(getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts', undefined));
 }
 
 function getEffectiveAccelerators(defs: ShortcutDef[], settings: KeyboardShortcutsSettings): Record<string, string | undefined> {
@@ -51,6 +46,19 @@ function getEffectiveNoviAccelerators(): Record<string, string | undefined> {
  */
 function getEffectiveEditorTerminalAccelerators(): Record<string, string | undefined> {
   return getEffectiveAccelerators(EDITOR_TERMINAL_SHORTCUTS, loadKeyboardShortcutsSettings());
+}
+
+/**
+ * Resolves the current effective accelerator for every Editor-only shortcut
+ * that still has a menu item (Save, Undo, Find, Close File, etc.). Like the
+ * Terminal+Editor ones, these use `registerAccelerator: false` — display
+ * only. The real key handling lives in the renderer (App.ts), and only
+ * fires while a file/image tab is actually focused, so these keys are left
+ * alone entirely while a terminal is focused (restoring native terminal
+ * behavior for e.g. Ctrl+S/Ctrl+Z instead of the app swallowing them).
+ */
+function getEffectiveEditorAccelerators(): Record<string, string | undefined> {
+  return getEffectiveAccelerators(EDITOR_SHORTCUTS, loadKeyboardShortcutsSettings());
 }
 
 export type MenuCommand = 
@@ -101,6 +109,7 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
   const isMac = process.platform === 'darwin';
   const accel = getEffectiveNoviAccelerators();
   const sharedAccel = getEffectiveEditorTerminalAccelerators();
+  const editorAccel = getEffectiveEditorAccelerators();
 
   const template: MenuItemConstructorOptions[] = [
     {
@@ -118,24 +127,26 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         },
         { type: 'separator' },
         {
-          // Save/Save As live in the Terminal+Editor shortcut category (they
-          // route to whichever tab is focused), so the actual key handling
-          // is done in the renderer — this accelerator is display-only.
+          // Save/Save As/Close File are Editor-only (no terminal meaning),
+          // so the actual key handling is done in the renderer and only
+          // fires while a file/image tab is focused — this accelerator is
+          // display-only.
           label: 'Save',
-          accelerator: sharedAccel['save'],
+          accelerator: editorAccel['save'],
           registerAccelerator: false,
           click: () => executeCommand('save', mainWindow),
         },
         {
           label: 'Save As…',
-          accelerator: sharedAccel['save-as'],
+          accelerator: editorAccel['save-as'],
           registerAccelerator: false,
           click: () => executeCommand('save-as', mainWindow),
         },
         { type: 'separator' },
         {
           label: 'Close File',
-          accelerator: accel['close-file'],
+          accelerator: editorAccel['close-file'],
+          registerAccelerator: false,
           click: () => executeCommand('close-file', mainWindow),
         },
         { type: 'separator' },
@@ -154,18 +165,20 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
       label: 'Edit',
       submenu: [
         {
-          // Undo/Redo/Cut/Copy/Paste/Find/Replace all live in the
-          // Terminal+Editor shortcut category and route to whichever tab is
-          // focused — real key handling is in the renderer, so these
+          // Undo/Redo/Find/Replace are Editor-only (no terminal meaning —
+          // Ctrl+Z is SIGTSTP in a real terminal, which this used to break
+          // by intercepting it globally). Cut/Copy/Paste genuinely apply to
+          // both contexts and stay in the Terminal+Editor category. Either
+          // way, real key handling is in the renderer, so these
           // accelerators are display-only (registerAccelerator: false).
           label: 'Undo',
-          accelerator: sharedAccel['undo'],
+          accelerator: editorAccel['undo'],
           registerAccelerator: false,
           click: () => executeCommand('undo', mainWindow),
         },
         {
           label: 'Redo',
-          accelerator: sharedAccel['redo'],
+          accelerator: editorAccel['redo'],
           registerAccelerator: false,
           click: () => executeCommand('redo', mainWindow),
         },
@@ -191,13 +204,13 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         { type: 'separator' },
         {
           label: 'Find…',
-          accelerator: sharedAccel['find'],
+          accelerator: editorAccel['find'],
           registerAccelerator: false,
           click: () => executeCommand('find', mainWindow),
         },
         {
           label: 'Replace…',
-          accelerator: sharedAccel['replace'],
+          accelerator: editorAccel['replace'],
           registerAccelerator: false,
           click: () => executeCommand('replace', mainWindow),
         },
