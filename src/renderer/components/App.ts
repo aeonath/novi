@@ -811,6 +811,7 @@ export class App extends Component {
           const tabBarAPI = (window as any).__tabBarAPI;
           if (!monacoAPI || !tabBarAPI || !window.api?.readFile) return;
           let count = 0;
+          const restoreFailures: string[] = [];
           for (let i = 0; i < workspace.openFiles.length; i++) {
             const file = workspace.openFiles[i];
             if (!file?.filePath) continue;
@@ -819,7 +820,15 @@ export class App extends Component {
               const fileName = file.filePath.split(/[\\/]/).pop() || 'untitled';
               tabBarAPI.addTab({ id: `tab-${Date.now()}-${i}`, type: 'file', filePath: file.filePath, fileName, isDirty: false, content: fileData.content, language: 'typescript' });
               count++;
-            } catch { /* skip */ }
+            } catch (error) {
+              console.error(`[App] Failed to restore file: ${file.filePath}`, error);
+              restoreFailures.push(this.describeFileOpenError(error, file.filePath));
+            }
+          }
+          if (restoreFailures.length) {
+            (window as any).__statusBarAPI?.setStatus(
+              restoreFailures.length === 1 ? restoreFailures[0] : `${restoreFailures.length} files could not be restored`
+            );
           }
           const aIdx = typeof workspace.activeFileIndex === 'number' ? workspace.activeFileIndex : -1;
           if (aIdx >= 0 && aIdx < count) {
@@ -1221,6 +1230,22 @@ export class App extends Component {
     this.savePromptInst.show(fileName, callbacks);
   }
 
+  /**
+   * Turns a failed window.api.readFile() rejection into a short, user-facing
+   * status-bar message. Previously these failures only reached
+   * console.error (or, for session restore, nowhere at all) — a file the
+   * user can't open (e.g. a permission-denied Windows junction like
+   * `C:\Users\<name>\Application Data`) looked like nothing happened.
+   */
+  private describeFileOpenError(error: unknown, filePath: string): string {
+    const fileName = filePath.split(/[\\/]/).pop() || filePath;
+    const code = (error as { code?: string } | null | undefined)?.code;
+    if (code === 'EPERM' || code === 'EACCES') return `Permission denied: ${fileName}`;
+    if (code === 'ENOENT') return `File not found: ${fileName}`;
+    if (code === 'EISDIR') return `${fileName} is a directory`;
+    return `Failed to open ${fileName}`;
+  }
+
   // ============================================================
   // FileTree callbacks
   // ============================================================
@@ -1254,6 +1279,7 @@ export class App extends Component {
       }
     } catch (error) {
       console.error('[App] Failed to open file from tree:', error);
+      (window as any).__statusBarAPI?.setStatus(this.describeFileOpenError(error, filePath));
     }
   }
 
@@ -1321,6 +1347,7 @@ export class App extends Component {
       this.setActiveTab({ id: tabId, type: 'file' });
     } catch (error) {
       console.error('[App] Failed to open file from CLI:', error);
+      (window as any).__statusBarAPI?.setStatus(this.describeFileOpenError(error, filePath));
     }
   }
 
@@ -1368,8 +1395,9 @@ export class App extends Component {
     this.actionContext = {
       onOpenFile: async () => {
         if (!window.api?.openFile || !window.api?.readFile) return;
+        let filePath: string | null | undefined;
         try {
-          const filePath = await window.api.openFile();
+          filePath = await window.api.openFile();
           if (!filePath) return;
           this.showWelcome = false;
           this.updateContentVisibility();
@@ -1395,6 +1423,7 @@ export class App extends Component {
           (window as any).__statusBarAPI?.setStatus(`Editing: ${filePath.split(/[\\/]/).pop()}`);
         } catch (error) {
           console.error('[App] Failed to open file:', error);
+          (window as any).__statusBarAPI?.setStatus(filePath ? this.describeFileOpenError(error, filePath) : 'Failed to open file');
         }
       },
       onSaveFile: async () => {
