@@ -58,6 +58,8 @@ export class App extends Component {
   private isResizing = false;
   private editorFontSize = 14;
   private terminalFontSize = 14;
+  private editorFontFamily = 'DejaVu Sans Mono';
+  private terminalFontFamily = 'DejaVu Sans Mono';
   private editorWordWrap = false;
   private editorLineNumbers = true;
   private showAbout = false;
@@ -299,6 +301,7 @@ export class App extends Component {
     // MonacoEditor
     this.monacoEditor = new MonacoEditor({
       fontSize: this.editorFontSize,
+      fontFamily: this.editorFontFamily,
       wordWrap: this.editorWordWrap,
       lineNumbers: this.editorLineNumbers,
       onDirtyChange: (isDirty) => {
@@ -545,6 +548,46 @@ export class App extends Component {
     window.addEventListener('novi-wordwrap-changed', wwHandler);
     this.addCleanup(() => window.removeEventListener('novi-wordwrap-changed', wwHandler));
 
+    // Default font size/family changes from Settings' Editor and Terminal sections —
+    // the View menu's Increase/Decrease/Reset Font Size shortcuts already apply live
+    // by updating these same fields (and the same 'fontSize'/'terminalFontSize' keys)
+    // directly in handleFontSizeCommand(), without needing an event round-trip.
+    const efsHandler = () => {
+      window.api?.getSetting<number>('fontSize', 14).then((v) => {
+        this.editorFontSize = v ?? 14;
+        this.monacoEditor.fontSize = this.editorFontSize;
+      });
+    };
+    window.addEventListener('novi-fontsize-changed', efsHandler);
+    this.addCleanup(() => window.removeEventListener('novi-fontsize-changed', efsHandler));
+
+    const tfsHandler = () => {
+      window.api?.getSetting<number>('terminalFontSize', 14).then((v) => {
+        this.terminalFontSize = v ?? 14;
+        this.syncTerminalActiveState();
+      });
+    };
+    window.addEventListener('novi-terminalfontsize-changed', tfsHandler);
+    this.addCleanup(() => window.removeEventListener('novi-terminalfontsize-changed', tfsHandler));
+
+    const effHandler = () => {
+      window.api?.getSetting<string>('editorFontFamily', 'DejaVu Sans Mono').then((v) => {
+        this.editorFontFamily = v ?? 'DejaVu Sans Mono';
+        this.monacoEditor.fontFamily = this.editorFontFamily;
+      });
+    };
+    window.addEventListener('novi-editorfontfamily-changed', effHandler);
+    this.addCleanup(() => window.removeEventListener('novi-editorfontfamily-changed', effHandler));
+
+    const tffHandler = () => {
+      window.api?.getSetting<string>('terminalFontFamily', 'DejaVu Sans Mono').then((v) => {
+        this.terminalFontFamily = v ?? 'DejaVu Sans Mono';
+        this.syncTerminalActiveState();
+      });
+    };
+    window.addEventListener('novi-terminalfontfamily-changed', tffHandler);
+    this.addCleanup(() => window.removeEventListener('novi-terminalfontfamily-changed', tffHandler));
+
     // keyboardShortcuts setting changes from Options -> Keyboard Shortcuts —
     // the Novi (Electron menu) side applies itself via a main-process menu
     // rebuild; this keeps setupKeyboardShortcuts()'s in-renderer copy (used
@@ -663,6 +706,11 @@ export class App extends Component {
       this.editorFontSize = ef ?? 14;
       this.terminalFontSize = tf ?? 14;
       this.monacoEditor.fontSize = this.editorFontSize;
+      const eff = await window.api?.getSetting<string>('editorFontFamily', 'DejaVu Sans Mono');
+      const tff = await window.api?.getSetting<string>('terminalFontFamily', 'DejaVu Sans Mono');
+      this.editorFontFamily = eff ?? 'DejaVu Sans Mono';
+      this.terminalFontFamily = tff ?? 'DejaVu Sans Mono';
+      this.monacoEditor.fontFamily = this.editorFontFamily;
       const ww = await window.api?.getSetting<boolean>('wordwrap', false);
       const ln = await window.api?.getSetting<boolean>('linenumbers', true);
       this.editorWordWrap = ww ?? false;
@@ -1018,6 +1066,7 @@ export class App extends Component {
           onResize: (cols: number, rows: number) => { if (window.api?.terminalResize) window.api.terminalResize(tab.id, cols, rows); },
           onNewTerminal: () => this.actionContext.onNewTerminal?.(),
           fontSize: this.terminalFontSize,
+          fontFamily: this.terminalFontFamily,
         });
         terminal.mount(wrapper);
         this.terminalInstances.set(tab.id, { instance: terminal, container: wrapper });
@@ -1041,6 +1090,7 @@ export class App extends Component {
       entry.container.style.display = isAct ? 'flex' : 'none';
       entry.instance.isActive = isAct;
       entry.instance.fontSizeProp = this.terminalFontSize;
+      entry.instance.fontFamilyProp = this.terminalFontFamily;
     }
   }
 

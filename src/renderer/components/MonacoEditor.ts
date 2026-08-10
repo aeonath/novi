@@ -26,6 +26,7 @@ const WORD_WRAP_COLUMN = 90;
 export interface MonacoEditorConfig {
   onDirtyChange?: (isDirty: boolean) => void;
   fontSize?: number;
+  fontFamily?: string;
   wordWrap?: boolean;
   lineNumbers?: boolean;
 }
@@ -44,6 +45,7 @@ export class MonacoEditor extends Component {
   private isDirtyFlag = false;
   private onDirtyChange?: (isDirty: boolean) => void;
   private _fontSize: number;
+  private _fontFamily: string;
   private _wordWrap: boolean;
   private _lineNumbers: boolean;
   private _showRuler = false;
@@ -56,6 +58,7 @@ export class MonacoEditor extends Component {
     super('div');
     this.onDirtyChange = config.onDirtyChange;
     this._fontSize = config.fontSize ?? 14;
+    this._fontFamily = config.fontFamily ?? 'DejaVu Sans Mono';
     this._wordWrap = config.wordWrap ?? false;
     this._lineNumbers = config.lineNumbers ?? true;
 
@@ -88,6 +91,17 @@ export class MonacoEditor extends Component {
     if (this.editor) {
       this.editor.updateOptions({ fontSize: size, lineHeight: size + 8 });
     }
+  }
+
+  set fontFamily(family: string) {
+    this._fontFamily = family;
+    if (this.editor) {
+      this.editor.updateOptions({ fontFamily: this.cssFontFamily() });
+    }
+  }
+
+  private cssFontFamily(): string {
+    return `'${this._fontFamily}', monospace`;
   }
 
   set wordWrap(enabled: boolean) {
@@ -258,7 +272,7 @@ export class MonacoEditor extends Component {
         value: '', language: 'typescript',
         theme: theme?.name === 'light' ? 'novi-light' : 'novi-dark',
         fontSize: this._fontSize,
-        fontFamily: "'DejaVu Sans Mono', monospace",
+        fontFamily: this.cssFontFamily(),
         wordWrap: this._wordWrap ? 'wordWrapColumn' : 'off', wordWrapColumn: this.effectiveWrapColumn(),
         wrappingStrategy: 'advanced', wrappingIndent: 'same',
         lineHeight: this._fontSize + 8,

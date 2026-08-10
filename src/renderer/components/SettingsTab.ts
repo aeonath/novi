@@ -19,6 +19,19 @@ import type { KeyboardShortcutsSettings, ShortcutCategory, ShortcutDef } from '.
 export type SettingsSection = 'terminal' | 'editor' | 'extensions' | 'keyboard-shortcuts' | 'novi';
 export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
+const DEFAULT_FONT_FAMILY = 'DejaVu Sans Mono';
+const FONT_FAMILY_OPTIONS = [
+  'DejaVu Sans Mono',
+  'Cascadia Code',
+  'Cascadia Mono',
+  'Consolas',
+  'Courier New',
+  'Fira Code',
+  'JetBrains Mono',
+  'Lucida Console',
+  'Source Code Pro',
+];
+
 interface ShellOption {
   type: ShellType;
   label: string;
@@ -59,6 +72,10 @@ export class SettingsTab extends Component {
   private columnBreakValue = 90;
   private columnBreakHard = false;
   private showRulerEnabled = false;
+  private editorFontSize = 14;
+  private editorFontFamily = DEFAULT_FONT_FAMILY;
+  private terminalFontSize = 14;
+  private terminalFontFamily = DEFAULT_FONT_FAMILY;
   private shortcutsSubTab: ShortcutCategory = 'novi';
   private shortcutSettings: KeyboardShortcutsSettings = defaultKeyboardShortcutsSettings();
   private shortcutConflict: { rowId: string; message: string } | null = null;
@@ -129,6 +146,10 @@ export class SettingsTab extends Component {
       this.columnBreakValue = (await window.api?.getSetting<number>('columnbreakvalue', 90)) ?? 90;
       this.columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
       this.showRulerEnabled = !!(await window.api?.getSetting<boolean>('showruler', false));
+      this.editorFontSize = (await window.api?.getSetting<number>('fontSize', 14)) ?? 14;
+      this.editorFontFamily = (await window.api?.getSetting<string>('editorFontFamily', DEFAULT_FONT_FAMILY)) ?? DEFAULT_FONT_FAMILY;
+      this.terminalFontSize = (await window.api?.getSetting<number>('terminalFontSize', 14)) ?? 14;
+      this.terminalFontFamily = (await window.api?.getSetting<string>('terminalFontFamily', DEFAULT_FONT_FAMILY)) ?? DEFAULT_FONT_FAMILY;
       const storedShortcuts = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
       this.shortcutSettings = mergeKeyboardShortcutsSettings(storedShortcuts);
     } catch { /* use defaults */ }
@@ -526,6 +547,38 @@ export class SettingsTab extends Component {
         window.dispatchEvent(new CustomEvent('novi-showruler-changed', { detail: { enabled, column: this.columnBreakValue } }));
       },
     ));
+
+    const fontSectionLabel = el('div', {}, 'Font');
+    setStyles(fontSectionLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginTop: '20px',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(fontSectionLabel);
+
+    this.contentEl.appendChild(this.createNumberFieldRow(
+      'Default Font Size',
+      this.editorFontSize,
+      async (value) => {
+        this.editorFontSize = value;
+        await window.api?.setSetting('fontSize', value);
+        window.dispatchEvent(new CustomEvent('novi-fontsize-changed', { detail: { fontSize: value } }));
+      },
+      10, 24,
+    ));
+
+    this.contentEl.appendChild(this.createSelectFieldRow(
+      'Font Family',
+      this.editorFontFamily,
+      FONT_FAMILY_OPTIONS,
+      async (value) => {
+        this.editorFontFamily = value;
+        await window.api?.setSetting('editorFontFamily', value);
+        window.dispatchEvent(new CustomEvent('novi-editorfontfamily-changed', { detail: { fontFamily: value } }));
+      },
+    ));
   }
 
   /**
@@ -588,6 +641,8 @@ export class SettingsTab extends Component {
     label: string,
     value: number,
     onChange: (value: number) => void,
+    min = 1,
+    max = 500,
   ): HTMLElement {
     const row = el('div');
     setStyles(row, {
@@ -617,7 +672,7 @@ export class SettingsTab extends Component {
 
     const commit = () => {
       const parsed = parseInt(input.value, 10);
-      const clamped = Number.isFinite(parsed) ? Math.max(1, Math.min(500, parsed)) : value;
+      const clamped = Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : value;
       input.value = String(clamped);
       if (clamped !== value) onChange(clamped);
     };
@@ -627,6 +682,49 @@ export class SettingsTab extends Component {
     });
 
     row.append(labelEl, input);
+    return row;
+  }
+
+  private createSelectFieldRow(
+    label: string,
+    value: string,
+    options: string[],
+    onChange: (value: string) => void,
+  ): HTMLElement {
+    const row = el('div');
+    setStyles(row, {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '10px 12px',
+      marginBottom: '4px',
+      borderRadius: '4px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+
+    const labelEl = el('div', {}, label);
+    setStyles(labelEl, { fontSize: '13px', fontWeight: '500', flex: '1' });
+
+    const select = document.createElement('select');
+    setStyles(select, {
+      padding: '5px 8px',
+      fontSize: '12px',
+      backgroundColor: '#3c3c3c',
+      color: '#cccccc',
+      border: '1px solid #555',
+      borderRadius: '3px',
+      outline: 'none',
+      minWidth: '160px',
+    });
+    for (const optionValue of options) {
+      const opt = document.createElement('option');
+      opt.value = optionValue;
+      opt.textContent = optionValue;
+      select.appendChild(opt);
+    }
+    select.value = value;
+    select.addEventListener('change', () => onChange(select.value));
+
+    row.append(labelEl, select);
     return row;
   }
 
@@ -711,6 +809,38 @@ export class SettingsTab extends Component {
     } else {
       this.renderWindowsShellSettings();
     }
+
+    const fontSectionLabel = el('div', {}, 'Font');
+    setStyles(fontSectionLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginTop: '20px',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(fontSectionLabel);
+
+    this.contentEl.appendChild(this.createNumberFieldRow(
+      'Default Font Size',
+      this.terminalFontSize,
+      async (value) => {
+        this.terminalFontSize = value;
+        await window.api?.setSetting('terminalFontSize', value);
+        window.dispatchEvent(new CustomEvent('novi-terminalfontsize-changed', { detail: { fontSize: value } }));
+      },
+      10, 24,
+    ));
+
+    this.contentEl.appendChild(this.createSelectFieldRow(
+      'Font Family',
+      this.terminalFontFamily,
+      FONT_FAMILY_OPTIONS,
+      async (value) => {
+        this.terminalFontFamily = value;
+        await window.api?.setSetting('terminalFontFamily', value);
+        window.dispatchEvent(new CustomEvent('novi-terminalfontfamily-changed', { detail: { fontFamily: value } }));
+      },
+    ));
   }
 
   // ---- Windows shell options ----

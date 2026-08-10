@@ -55,6 +55,7 @@ export interface TerminalConfig {
   onResize?: (cols: number, rows: number) => void;
   onNewTerminal?: () => void;
   fontSize?: number;
+  fontFamily?: string;
 }
 
 export class Terminal extends Component {
@@ -64,6 +65,7 @@ export class Terminal extends Component {
   private onResize?: (cols: number, rows: number) => void;
   private onNewTerminal?: () => void;
   private fontSize: number;
+  private fontFamily: string;
 
   private terminal: XTerm | null = null;
   private fitAddon: FitAddon | null = null;
@@ -86,6 +88,7 @@ export class Terminal extends Component {
     this.onResize = config.onResize;
     this.onNewTerminal = config.onNewTerminal;
     this.fontSize = config.fontSize ?? 14;
+    this.fontFamily = config.fontFamily ?? 'DejaVu Sans Mono';
 
     // Fragment wrapper (replaces React Fragment)
     setStyles(this.el, { display: 'contents' });
@@ -168,6 +171,25 @@ export class Terminal extends Component {
     }
   }
 
+  /** Same live-update/no-op-guard/refit pattern as fontSizeProp above, for font family. */
+  set fontFamilyProp(family: string) {
+    if (this.fontFamily === family) return;
+    this.fontFamily = family;
+    if (this.terminal && this.fitAddon) {
+      this.terminal.options.fontFamily = this.cssFontFamily();
+      try {
+        this.fitAddon.fit();
+        if (this.onResize && this.terminal.cols && this.terminal.rows) {
+          this.onResize(this.terminal.cols, this.terminal.rows);
+        }
+      } catch (_) {}
+    }
+  }
+
+  private cssFontFamily(): string {
+    return `'${this.fontFamily}', monospace`;
+  }
+
   private async initPhase1(): Promise<void> {
     if (this.ptyCreated || this.initInProgress || !this._isActive) return;
     this.initInProgress = true;
@@ -190,7 +212,7 @@ export class Terminal extends Component {
     // Measure with temp terminal
     const tempTerminal = new XTerm({
       fontSize: this.fontSize,
-      fontFamily: "'DejaVu Sans Mono', monospace",
+      fontFamily: this.cssFontFamily(),
       lineHeight: 1.2,
     });
     const tempFitAddon = new FitAddon();
@@ -305,7 +327,7 @@ export class Terminal extends Component {
         brightBlue: '#3b8eea', brightMagenta: '#d670d6', brightCyan: '#29b8db', brightWhite: '#e5e5e5',
       },
       fontSize: this.fontSize,
-      fontFamily: "'DejaVu Sans Mono', monospace",
+      fontFamily: this.cssFontFamily(),
       cursorBlink: false, cursorStyle: 'underline', cursorWidth: 2,
       lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
     });

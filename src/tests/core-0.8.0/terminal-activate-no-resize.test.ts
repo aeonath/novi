@@ -38,7 +38,7 @@ function makeFakeXterm() {
     focus: jest.fn(),
     cols: 80,
     rows: 24,
-    options: {},
+    options: {} as { fontSize?: number; fontFamily?: string },
   };
 }
 
@@ -146,6 +146,42 @@ describe('Terminal activation does not re-fit or resize', () => {
 
     (terminal as any).fontSizeProp = 16;
 
+    expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
+    expect(onResize).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-assigning the same fontFamilyProp value does not fit/resize', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-fontfamily-1', onResize, fontFamily: 'Consolas' });
+
+    const fakeXterm = makeFakeXterm();
+    const fakeFitAddon = { fit: jest.fn() };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+
+    (terminal as any).fontFamilyProp = 'Consolas';
+    (terminal as any).fontFamilyProp = 'Consolas';
+
+    expect(fakeFitAddon.fit).not.toHaveBeenCalled();
+    expect(onResize).not.toHaveBeenCalled();
+  });
+
+  it('assigning a genuinely different fontFamilyProp updates xterm options and fits/resizes', () => {
+    const onResize = jest.fn();
+    const terminal = new Terminal({ terminalId: 'test-term-fontfamily-2', onResize, fontFamily: 'DejaVu Sans Mono' });
+
+    const fakeXterm = makeFakeXterm();
+    const fakeFitAddon = { fit: jest.fn() };
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any).fitAddon = fakeFitAddon;
+    (terminal as any).ptyCreated = true;
+    (terminal as any).isReady = true;
+
+    (terminal as any).fontFamilyProp = 'Consolas';
+
+    expect(fakeXterm.options.fontFamily).toBe("'Consolas', monospace");
     expect(fakeFitAddon.fit).toHaveBeenCalledTimes(1);
     expect(onResize).toHaveBeenCalledTimes(1);
   });

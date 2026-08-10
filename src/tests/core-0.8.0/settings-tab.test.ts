@@ -199,6 +199,96 @@ describe('SettingsTab', () => {
     }
   });
 
+  it('should render Editor default font size (14) and font family (DejaVu Sans Mono) by default', () => {
+    tab.section = 'editor';
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Default Font Size');
+    expect(text).toContain('Font Family');
+
+    const numberInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+    // Column Break's field is first; font size is appended after it.
+    expect(numberInputs[1].value).toBe('14');
+
+    const select = tab.getElement().querySelector('select') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe('DejaVu Sans Mono');
+  });
+
+  it('should persist and broadcast Editor default font size changes, clamped to [10, 24]', async () => {
+    tab.section = 'editor';
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-fontsize-changed', eventSpy);
+    try {
+      const numberInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+      const fontSizeInput = numberInputs[1];
+      fontSizeInput.value = '999';
+      fontSizeInput.dispatchEvent(new Event('blur'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(fontSizeInput.value).toBe('24'); // clamped to the max
+      expect(mockApi.setSetting).toHaveBeenCalledWith('fontSize', 24);
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      expect((eventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ fontSize: 24 });
+    } finally {
+      window.removeEventListener('novi-fontsize-changed', eventSpy);
+    }
+  });
+
+  it('should persist and broadcast Editor font family changes', async () => {
+    tab.section = 'editor';
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-editorfontfamily-changed', eventSpy);
+    try {
+      const select = tab.getElement().querySelector('select') as HTMLSelectElement;
+      select.value = 'Consolas';
+      select.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('editorFontFamily', 'Consolas');
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      expect((eventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ fontFamily: 'Consolas' });
+    } finally {
+      window.removeEventListener('novi-editorfontfamily-changed', eventSpy);
+    }
+  });
+
+  it('should render Terminal default font size and font family, and persist/broadcast changes', async () => {
+    tab.section = 'terminal';
+    await new Promise((r) => setTimeout(r, 10));
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Default Font Size');
+    expect(text).toContain('Font Family');
+
+    const fontSizeEventSpy = jest.fn();
+    const fontFamilyEventSpy = jest.fn();
+    window.addEventListener('novi-terminalfontsize-changed', fontSizeEventSpy);
+    window.addEventListener('novi-terminalfontfamily-changed', fontFamilyEventSpy);
+    try {
+      // Git Bash's path field is also an input[type="text"] and renders first;
+      // the font size field is appended last, after the shell settings.
+      const textInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+      const numberInput = textInputs[textInputs.length - 1];
+      expect(numberInput.value).toBe('14');
+      numberInput.value = '5';
+      numberInput.dispatchEvent(new Event('blur'));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(numberInput.value).toBe('10'); // clamped to the min
+      expect(mockApi.setSetting).toHaveBeenCalledWith('terminalFontSize', 10);
+      expect(fontSizeEventSpy).toHaveBeenCalledTimes(1);
+
+      const select = tab.getElement().querySelector('select') as HTMLSelectElement;
+      expect(select.value).toBe('DejaVu Sans Mono');
+      select.value = 'Fira Code';
+      select.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(mockApi.setSetting).toHaveBeenCalledWith('terminalFontFamily', 'Fira Code');
+      expect(fontFamilyEventSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('novi-terminalfontsize-changed', fontSizeEventSpy);
+      window.removeEventListener('novi-terminalfontfamily-changed', fontFamilyEventSpy);
+    }
+  });
+
   it('should render novi settings with all three toggles', () => {
     tab.section = 'novi';
     const h2 = tab.getElement().querySelector('h2');

@@ -81,6 +81,28 @@ describe('MonacoEditor Column Break / Show Ruler', () => {
   });
 });
 
+describe('MonacoEditor fontFamily', () => {
+  it('defaults to DejaVu Sans Mono when no fontFamily is configured', () => {
+    const editor = new MonacoEditor();
+    const fakeEditor = makeFakeEditor('', 1);
+    (editor as any).editor = fakeEditor;
+
+    editor.fontFamily = (editor as any)._fontFamily;
+
+    expect(fakeEditor.updateOptions).toHaveBeenCalledWith({ fontFamily: "'DejaVu Sans Mono', monospace" });
+  });
+
+  it('applies a configured font family live via updateOptions', () => {
+    const editor = new MonacoEditor({ fontFamily: 'Consolas' });
+    const fakeEditor = makeFakeEditor('', 1);
+    (editor as any).editor = fakeEditor;
+
+    editor.fontFamily = 'JetBrains Mono';
+
+    expect(fakeEditor.updateOptions).toHaveBeenCalledWith({ fontFamily: "'JetBrains Mono', monospace" });
+  });
+});
+
 describe('MonacoEditor Word Wrap honors Column Break', () => {
   it('wraps at the default 90 columns when Column Break is off', () => {
     const editor = new MonacoEditor();
