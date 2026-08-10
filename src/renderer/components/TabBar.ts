@@ -223,11 +223,14 @@ export class TabBar extends Component {
     });
     const labelText = tab.type === 'file' ? `${getFileIcon(tab.fileName)} ${tab.fileName}` : tab.fileName;
     label.textContent = labelText;
-    if (tab.type === 'file' && tab.isDirty) {
-      const dirty = el('span', { style: 'color: #e0e0e0; font-weight: bold; font-size: 14px;' }, ' \u25CF');
-      label.appendChild(dirty);
-    }
     tabEl.appendChild(label);
+
+    if (tab.type === 'file' && tab.isDirty) {
+      const dirty = el('span', {
+        style: 'flex-shrink: 0; margin-left: 4px; color: #e0e0e0; font-weight: bold; font-size: 14px;',
+      }, '\u25CF');
+      tabEl.appendChild(dirty);
+    }
 
     // Close button
     if (!isPinned) {
