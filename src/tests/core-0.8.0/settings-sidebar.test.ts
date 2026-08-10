@@ -38,12 +38,12 @@ describe('SettingsSidebar', () => {
     expect(header?.textContent).toBe('SETTINGS');
   });
 
-  it('should render four section items', () => {
+  it('should render five section items', () => {
     const listEl = sidebar.getElement().children[1];
-    expect(listEl?.children.length).toBe(4);
+    expect(listEl?.children.length).toBe(5);
   });
 
-  it('should render Terminal, Editor, Extensions, Novi labels', () => {
+  it('should render Terminal, Editor, Extensions, Keyboard Shortcuts, Novi labels', () => {
     const listEl = sidebar.getElement().children[1];
     const labels = Array.from(listEl!.children).map(c => c.textContent);
     expect(labels).toEqual(
@@ -51,6 +51,7 @@ describe('SettingsSidebar', () => {
         expect.stringContaining('Terminal'),
         expect.stringContaining('Editor'),
         expect.stringContaining('Extensions'),
+        expect.stringContaining('Keyboard Shortcuts'),
         expect.stringContaining('Novi'),
       ])
     );
@@ -72,7 +73,7 @@ describe('SettingsSidebar', () => {
 
   it('should update active section on click', () => {
     const listEl = sidebar.getElement().children[1];
-    const noviItem = listEl!.children[3] as HTMLElement;
+    const noviItem = listEl!.children[4] as HTMLElement;
     noviItem.click();
     expect(sidebar.section).toBe('novi');
   });
@@ -92,7 +93,16 @@ describe('SettingsSidebar', () => {
     sidebar.section = 'novi';
     expect(sidebar.section).toBe('novi');
     const listEl = sidebar.getElement().children[1];
-    const noviItem = listEl!.children[3] as HTMLElement;
+    const noviItem = listEl!.children[4] as HTMLElement;
     expect(noviItem.style.backgroundColor).toBe('rgb(55, 55, 61)');
+  });
+
+  it('should select the keyboard-shortcuts section when clicked', () => {
+    const listEl = sidebar.getElement().children[1];
+    const shortcutsItem = listEl!.children[3] as HTMLElement;
+    expect(shortcutsItem.textContent).toContain('Keyboard Shortcuts');
+    shortcutsItem.click();
+    expect(selectedSection).toBe('keyboard-shortcuts');
+    expect(sidebar.section).toBe('keyboard-shortcuts');
   });
 });

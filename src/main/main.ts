@@ -338,6 +338,13 @@ void app.whenReady().then(() => {
       void gitWatcher.unwatch();
       gitService.cancelActiveStatus();
     }
+    if (key === 'keyboardShortcuts' && mainWindowRef) {
+      // Novi-category accelerators are read fresh inside createMenuTemplate,
+      // so a rebuild + reapply is all that's needed to pick up the change —
+      // same pattern as the devtools toggle above.
+      const menu = buildMenu(mainWindowRef);
+      Menu.setApplicationMenu(menu);
+    }
   });
   ipcMain.on('renderer-error', (_e, payload: { message: string; stack?: string }) => {
     logError(`Renderer error: ${payload.message}`, payload.stack);

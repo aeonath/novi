@@ -10,6 +10,29 @@
 import { Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron';
 import { logInfo } from './logger';
 import { getSetting } from './settings';
+import { NOVI_SHORTCUTS, computeEffectiveAccelerator, defaultKeyboardShortcutsSettings } from '../core/shortcuts/shortcut-registry';
+import type { KeyboardShortcutsSettings } from '../core/shortcuts/shortcut-registry';
+
+/**
+ * Resolves the current effective accelerator for every Novi-category
+ * shortcut (default unless the user customized it in Options → Keyboard
+ * Shortcuts). Read fresh on every menu build so a settings change just
+ * needs a `buildMenu` + `Menu.setApplicationMenu` re-call to take effect —
+ * the same pattern already used for the devtools/show-hidden-files items.
+ */
+function getEffectiveNoviAccelerators(): Record<string, string | undefined> {
+  const stored = getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts', undefined);
+  const defaults = defaultKeyboardShortcutsSettings();
+  const settings: KeyboardShortcutsSettings = {
+    novi: stored?.novi ?? defaults.novi,
+    editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
+  };
+  const result: Record<string, string | undefined> = {};
+  for (const def of NOVI_SHORTCUTS) {
+    result[def.id] = computeEffectiveAccelerator(def, settings) ?? undefined;
+  }
+  return result;
+}
 
 export type MenuCommand = 
   | 'new-file'
@@ -57,6 +80,7 @@ function executeCommand(command: MenuCommand, window: BrowserWindow): void {
 
 function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   const isMac = process.platform === 'darwin';
+  const accel = getEffectiveNoviAccelerators();
 
   const template: MenuItemConstructorOptions[] = [
     {
@@ -64,12 +88,12 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
       submenu: [
         {
           label: 'New File',
-          accelerator: 'CmdOrCtrl+N',
+          accelerator: accel['new-file'],
           click: () => executeCommand('new-file', mainWindow),
         },
         {
           label: 'Open File…',
-          accelerator: 'CmdOrCtrl+O',
+          accelerator: accel['open-file'],
           click: () => executeCommand('open-file', mainWindow),
         },
         { type: 'separator' },
@@ -86,13 +110,17 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         { type: 'separator' },
         {
           label: 'Close File',
-          accelerator: 'CmdOrCtrl+W',
+          accelerator: accel['close-file'],
           click: () => executeCommand('close-file', mainWindow),
         },
         { type: 'separator' },
         {
+          // Novi's registry entry defaults to the Windows/Linux binding
+          // (Alt+F4); macOS keeps its own convention regardless of any
+          // customization, matching the platform-specific default it's
+          // shown with in Settings.
           label: 'Exit',
-          accelerator: isMac ? 'Cmd+Q' : 'Alt+F4',
+          accelerator: isMac ? 'Cmd+Q' : (accel['exit'] || 'Alt+F4'),
           click: () => executeCommand('exit', mainWindow),
         },
       ],
@@ -144,23 +172,23 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
       submenu: [
         {
           label: 'Toggle Full Screen',
-          accelerator: 'F11',
+          accelerator: accel['toggle-fullscreen'],
           click: () => executeCommand('toggle-fullscreen', mainWindow),
         },
         { type: 'separator' },
         {
           label: 'Zoom In',
-          accelerator: 'CmdOrCtrl+=',
+          accelerator: accel['zoom-in'],
           click: () => executeCommand('zoom-in', mainWindow),
         },
         {
           label: 'Zoom Out',
-          accelerator: 'CmdOrCtrl+-',
+          accelerator: accel['zoom-out'],
           click: () => executeCommand('zoom-out', mainWindow),
         },
         {
           label: 'Reset Zoom',
-          accelerator: 'CmdOrCtrl+0',
+          accelerator: accel['zoom-reset'],
           click: () => executeCommand('zoom-reset', mainWindow),
         },
         { type: 'separator' },
@@ -177,13 +205,13 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
       submenu: [
         {
           label: 'Settings',
-          accelerator: 'CmdOrCtrl+,',
+          accelerator: accel['settings'],
           click: () => executeCommand('settings', mainWindow),
         },
         { type: 'separator' },
         {
           label: 'New Terminal',
-          accelerator: 'CmdOrCtrl+`',
+          accelerator: accel['new-terminal'],
           click: () => executeCommand('new-terminal', mainWindow),
         },
         {
@@ -216,7 +244,7 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         { type: 'separator' },
         {
           label: !!getSetting<boolean>('devToolsEnabled', false) ? 'Disable Developer Tools' : 'Enable Developer Tools',
-          accelerator: 'CmdOrCtrl+Shift+I',
+          accelerator: accel['toggle-devtools'],
           click: () => executeCommand('toggle-devtools', mainWindow),
         },
         { type: 'separator' },

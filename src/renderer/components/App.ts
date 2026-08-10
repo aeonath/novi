@@ -29,6 +29,11 @@ import { SavePrompt, type SavePromptCallbacks } from './SavePrompt.js';
 import type { ActionContext } from './actions.js';
 import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
+import {
+  computeEffectiveAccelerator, acceleratorFromKeyboardEvent, normalizeAccelerator,
+  defaultKeyboardShortcutsSettings, NOVI_SHORTCUTS,
+} from '../../core/shortcuts/shortcut-registry.js';
+import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
 
 
 interface ActiveTab {
@@ -68,6 +73,7 @@ export class App extends Component {
   private lastGitRoot: string | null = null;
   private welcomeContextMenu: { x: number; y: number } | null = null;
   private shellLabel = 'Git Bash';
+  private keyboardShortcutsSettings: KeyboardShortcutsSettings = defaultKeyboardShortcutsSettings();
   // restartingTerminalId tracked via (window as any).__restartingTerminalId
 
   // ---- DOM refs ----
@@ -538,6 +544,14 @@ export class App extends Component {
     window.addEventListener('novi-wordwrap-changed', wwHandler);
     this.addCleanup(() => window.removeEventListener('novi-wordwrap-changed', wwHandler));
 
+    // keyboardShortcuts setting changes from Options -> Keyboard Shortcuts —
+    // the Novi (Electron menu) side applies itself via a main-process menu
+    // rebuild; this keeps setupKeyboardShortcuts()'s in-renderer copy (used
+    // for the handful of Novi shortcuts that have no menu item) in sync.
+    const ksHandler = () => { void this.reloadKeyboardShortcutsSettings(); };
+    window.addEventListener('novi-keyboardshortcuts-changed', ksHandler);
+    this.addCleanup(() => window.removeEventListener('novi-keyboardshortcuts-changed', ksHandler));
+
     // External file change detection — dedicated editor file watcher (independent of file tree)
     if (window.api?.editorOnFileChanged) {
       window.api.editorOnFileChanged((filePath: string) => {
@@ -550,21 +564,52 @@ export class App extends Component {
   // Keyboard shortcuts
   // ============================================================
 
+  /** Novi-category commands with no Electron menu item of their own — the
+   * only ones that need matching here off their customizable accelerator.
+   * Menu-backed Novi commands (New File, Save, Settings, etc.) apply through
+   * the native OS accelerator via menu.ts instead. */
+  private static readonly APP_ONLY_NOVI_ACTIONS: Record<string, (self: App) => void> = {
+    'reload-file': (self) => self.reloadFileFromDisk(),
+    'git-refresh': (self) => void self.actionContext.onGitRefresh?.(),
+    'cycle-tab-next': (self) => self.cycleTab(false),
+    'cycle-tab-prev': (self) => self.cycleTab(true),
+  };
+
   private setupKeyboardShortcuts(): void {
     this.listen(document, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
-      if (ke.ctrlKey && ke.key === 'o') { ke.preventDefault(); void this.actionContext.onOpenFile?.(); }
+
+      const pressed = acceleratorFromKeyboardEvent(ke);
+      if (pressed) {
+        const normalizedPressed = normalizeAccelerator(pressed);
+        for (const def of NOVI_SHORTCUTS) {
+          const action = App.APP_ONLY_NOVI_ACTIONS[def.id];
+          if (!action) continue;
+          const effective = computeEffectiveAccelerator(def, this.keyboardShortcutsSettings);
+          if (effective && normalizeAccelerator(effective) === normalizedPressed) {
+            ke.preventDefault();
+            action(this);
+            return;
+          }
+        }
+
+        // Open File has both a menu accelerator (menu.ts, Novi category) and
+        // this defensive in-renderer binding — keep both honoring the same
+        // customizable accelerator rather than leaving this one hardcoded.
+        const openFileDef = NOVI_SHORTCUTS.find(d => d.id === 'open-file')!;
+        const openFileAccel = computeEffectiveAccelerator(openFileDef, this.keyboardShortcutsSettings);
+        if (openFileAccel && normalizeAccelerator(openFileAccel) === normalizedPressed) {
+          ke.preventDefault();
+          void this.actionContext.onOpenFile?.();
+          return;
+        }
+      }
+
       if (ke.ctrlKey && ke.key === 's') {
         ke.preventDefault();
         if (this.activeTab?.type === 'file' || this.activeTab?.type === 'image') {
           void this.actionContext.onSaveFile?.();
         }
-      }
-      if (ke.ctrlKey && ke.key === 'r') { ke.preventDefault(); this.reloadFileFromDisk(); }
-      if (ke.ctrlKey && ke.shiftKey && ke.key === 'G') { ke.preventDefault(); void this.actionContext.onGitRefresh?.(); }
-      if (ke.ctrlKey && ke.key === 'Tab') {
-        ke.preventDefault();
-        this.cycleTab(ke.shiftKey);
       }
     });
   }
@@ -601,7 +646,17 @@ export class App extends Component {
       // git-bash-not-found-so-fell-back-to-PowerShell case.
       const shellType = await window.api?.getShellType?.();
       this.shellLabel = this.shellTypeToLabel(shellType);
+      await this.reloadKeyboardShortcutsSettings();
     } catch { /* ignore */ }
+  }
+
+  private async reloadKeyboardShortcutsSettings(): Promise<void> {
+    const stored = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
+    const defaults = defaultKeyboardShortcutsSettings();
+    this.keyboardShortcutsSettings = {
+      novi: stored?.novi ?? defaults.novi,
+      editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
+    };
   }
 
   private shellTypeToLabel(shellType?: string | null): string {

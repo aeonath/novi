@@ -9,8 +9,14 @@
 
 import { Component } from '../core/component.js';
 import { el, clearChildren, setStyles } from '../core/dom.js';
+import { ShortcutRecorder } from './ShortcutRecorder.js';
+import {
+  getShortcutsByCategory, computeEffectiveAccelerator, findConflict,
+  formatAcceleratorForDisplay, defaultKeyboardShortcutsSettings,
+} from '../../core/shortcuts/shortcut-registry.js';
+import type { KeyboardShortcutsSettings, ShortcutCategory, ShortcutDef } from '../../core/shortcuts/shortcut-registry.js';
 
-export type SettingsSection = 'terminal' | 'editor' | 'extensions' | 'novi';
+export type SettingsSection = 'terminal' | 'editor' | 'extensions' | 'keyboard-shortcuts' | 'novi';
 export type ShellType = 'gitbash' | 'cmd' | 'powershell' | 'wsl' | 'linux';
 
 interface ShellOption {
@@ -53,6 +59,10 @@ export class SettingsTab extends Component {
   private columnBreakValue = 90;
   private columnBreakHard = false;
   private showRulerEnabled = false;
+  private shortcutsSubTab: ShortcutCategory = 'novi';
+  private shortcutSettings: KeyboardShortcutsSettings = defaultKeyboardShortcutsSettings();
+  private shortcutConflict: { rowId: string; message: string } | null = null;
+  private activeRecorders: ShortcutRecorder[] = [];
 
   constructor() {
     super('div');
@@ -119,15 +129,28 @@ export class SettingsTab extends Component {
       this.columnBreakValue = (await window.api?.getSetting<number>('columnbreakvalue', 90)) ?? 90;
       this.columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
       this.showRulerEnabled = !!(await window.api?.getSetting<boolean>('showruler', false));
+      const storedShortcuts = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
+      const defaultShortcuts = defaultKeyboardShortcutsSettings();
+      this.shortcutSettings = {
+        novi: storedShortcuts?.novi ?? defaultShortcuts.novi,
+        editorTerminal: storedShortcuts?.editorTerminal ?? defaultShortcuts.editorTerminal,
+      };
     } catch { /* use defaults */ }
   }
 
   private render(): void {
+    // Any ShortcutRecorder currently waiting for a keypress owns a window-level
+    // keydown listener — destroy it before the DOM it lives in is torn down,
+    // otherwise switching section/sub-tab mid-recording leaks that listener.
+    for (const recorder of this.activeRecorders) recorder.destroy();
+    this.activeRecorders = [];
+
     clearChildren(this.contentEl);
     switch (this.activeSection) {
       case 'terminal': this.renderTerminalSettings(); break;
       case 'editor': this.renderEditorSettings(); break;
       case 'extensions': this.renderExtensionsSettings(); break;
+      case 'keyboard-shortcuts': this.renderKeyboardShortcutsSettings(); break;
       case 'novi': this.renderNoviSettings(); break;
     }
   }
@@ -221,6 +244,173 @@ export class SettingsTab extends Component {
       card.appendChild(details);
       this.contentEl.appendChild(card);
     }
+  }
+
+  // --- Keyboard Shortcuts ---
+
+  private renderKeyboardShortcutsSettings(): void {
+    const heading = el('h2', {}, 'Keyboard Shortcuts');
+    setStyles(heading, { margin: '0 0 24px 0', fontWeight: '400', fontSize: '1.3em' });
+    this.contentEl.appendChild(heading);
+
+    const subNav = el('div');
+    setStyles(subNav, { display: 'flex', gap: '8px', marginBottom: '20px' });
+    const subTabs: { id: ShortcutCategory; label: string }[] = [
+      { id: 'novi', label: 'Novi' },
+      { id: 'editorTerminal', label: 'Terminal + Editor' },
+    ];
+    for (const tab of subTabs) {
+      const isActive = this.shortcutsSubTab === tab.id;
+      const pill = el('div', {}, tab.label);
+      setStyles(pill, {
+        padding: '6px 14px', borderRadius: '14px', fontSize: '12px', cursor: 'pointer',
+        fontFamily: "'Segoe UI', sans-serif",
+        background: isActive ? '#0e639c' : '#3c3c3c',
+        color: isActive ? '#ffffff' : '#cccccc',
+      });
+      pill.addEventListener('click', () => {
+        if (this.shortcutsSubTab === tab.id) return;
+        this.shortcutsSubTab = tab.id;
+        this.shortcutConflict = null;
+        this.render();
+      });
+      subNav.appendChild(pill);
+    }
+    this.contentEl.appendChild(subNav);
+
+    const category = this.shortcutsSubTab;
+    const categorySettings = this.shortcutSettings[category];
+    const defs = getShortcutsByCategory(category);
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Use Defaults',
+      'When checked, every shortcut below uses its default key combination and cannot be changed. Uncheck to customize any of them.',
+      categorySettings.useDefaults,
+      async (enabled) => {
+        categorySettings.useDefaults = enabled;
+        this.shortcutConflict = null;
+        this.persistShortcutSettings();
+        this.render();
+      },
+    ));
+
+    const rowsContainer = el('div');
+    setStyles(rowsContainer, { marginTop: '8px' });
+    for (const def of defs) {
+      rowsContainer.appendChild(this.createShortcutRow(def, categorySettings.useDefaults));
+    }
+
+    if (defs.length > 6) {
+      const filterInput = el('input', { type: 'text', placeholder: 'Filter shortcuts…' }) as HTMLInputElement;
+      setStyles(filterInput, {
+        display: 'block', width: '280px', margin: '4px 0 12px',
+        padding: '6px 10px', fontSize: '12px', fontFamily: "'Segoe UI', sans-serif",
+        background: '#3c3c3c', border: '1px solid #3e3e42', color: '#cccccc', borderRadius: '2px',
+      });
+      filterInput.addEventListener('input', () => {
+        const q = filterInput.value.trim().toLowerCase();
+        for (const row of Array.from(rowsContainer.children) as HTMLElement[]) {
+          const haystack = row.dataset.filterText || '';
+          row.style.display = !q || haystack.includes(q) ? '' : 'none';
+        }
+      });
+      this.contentEl.appendChild(filterInput);
+    }
+
+    this.contentEl.appendChild(rowsContainer);
+  }
+
+  private createShortcutRow(def: ShortcutDef, useDefaults: boolean): HTMLElement {
+    const row = el('div');
+    row.dataset.filterText = `${def.label} ${def.description || ''}`.toLowerCase();
+    setStyles(row, {
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px',
+      padding: '10px 12px', marginBottom: '4px', borderRadius: '4px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+
+    const textCol = el('div');
+    setStyles(textCol, { flex: '1', minWidth: '0' });
+    const labelEl = el('div', {}, def.label);
+    setStyles(labelEl, { fontSize: '13px', fontWeight: '500' });
+    textCol.appendChild(labelEl);
+    if (def.description) {
+      const descEl = el('div', {}, def.description);
+      setStyles(descEl, { fontSize: '11px', opacity: '0.6', marginTop: '2px' });
+      textCol.appendChild(descEl);
+    }
+    row.appendChild(textCol);
+
+    const controlCol = el('div');
+    setStyles(controlCol, { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: '0' });
+
+    if (useDefaults) {
+      const badge = el('div', {}, formatAcceleratorForDisplay(def.defaultAccelerator));
+      setStyles(badge, {
+        padding: '6px 10px', borderRadius: '2px', fontFamily: "'Consolas', 'Courier New', monospace",
+        fontSize: '12px', background: '#3c3c3c', border: '1px solid #3e3e42', color: '#858585',
+      });
+      controlCol.appendChild(badge);
+    } else {
+      const categorySettings = this.shortcutSettings[def.category];
+      const effective = computeEffectiveAccelerator(def, this.shortcutSettings);
+      const hasOverride = categorySettings.overrides[def.id] !== undefined;
+
+      const recorder = new ShortcutRecorder(effective, {
+        onCapture: (accelerator) => this.handleShortcutCapture(def, accelerator),
+      });
+      recorder.mount(controlCol);
+      this.activeRecorders.push(recorder);
+
+      if (hasOverride) {
+        const resetLink = el('div', {}, 'Reset to default');
+        setStyles(resetLink, { fontSize: '11px', color: '#3794ff', cursor: 'pointer' });
+        resetLink.addEventListener('click', () => this.resetShortcutToDefault(def));
+        controlCol.appendChild(resetLink);
+      }
+
+      if (this.shortcutConflict?.rowId === def.id) {
+        const warn = el('div', {}, this.shortcutConflict.message);
+        setStyles(warn, { fontSize: '11px', color: '#f48771', maxWidth: '220px', textAlign: 'right' });
+        controlCol.appendChild(warn);
+      }
+    }
+
+    row.appendChild(controlCol);
+    return row;
+  }
+
+  private handleShortcutCapture(def: ShortcutDef, accelerator: string): void {
+    const conflict = findConflict(accelerator, def.id, this.shortcutSettings);
+    if (conflict) {
+      this.shortcutConflict = { rowId: def.id, message: `Already in use by "${conflict.label}"` };
+      this.render();
+      return;
+    }
+    this.shortcutConflict = null;
+    const categorySettings = this.shortcutSettings[def.category];
+    categorySettings.overrides = { ...categorySettings.overrides, [def.id]: accelerator };
+    this.persistShortcutSettings();
+    this.render();
+  }
+
+  private resetShortcutToDefault(def: ShortcutDef): void {
+    const categorySettings = this.shortcutSettings[def.category];
+    const rest = { ...categorySettings.overrides };
+    delete rest[def.id];
+    categorySettings.overrides = rest;
+    this.shortcutConflict = null;
+    this.persistShortcutSettings();
+    this.render();
+  }
+
+  /** Persists the shortcuts settings and notifies the rest of the renderer
+   * (App.ts's in-memory copy, used for the Novi shortcuts with no menu item)
+   * to refresh. The Novi/Electron-menu side applies itself via a main-process
+   * menu rebuild triggered by the setSetting call reaching main.ts. */
+  private persistShortcutSettings(): void {
+    void window.api?.setSetting('keyboardShortcuts', this.shortcutSettings);
+    window.dispatchEvent(new CustomEvent('novi-keyboardshortcuts-changed'));
   }
 
   private renderNoviSettings(): void {
