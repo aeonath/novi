@@ -35,6 +35,16 @@ describe('shortcut-registry', () => {
       expect(novi.length).toBe(NOVI_SHORTCUTS.length);
       expect(novi.every(d => d.category === 'novi')).toBe(true);
     });
+
+    it('no two default accelerators collide with each other', () => {
+      const seen = new Map<string, string>();
+      for (const def of SHORTCUT_REGISTRY) {
+        const key = normalizeAccelerator(def.defaultAccelerator);
+        const existing = seen.get(key);
+        expect(existing).toBeUndefined();
+        seen.set(key, def.id);
+      }
+    });
   });
 
   describe('computeEffectiveAccelerator', () => {

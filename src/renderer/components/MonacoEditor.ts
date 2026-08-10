@@ -312,13 +312,11 @@ export class MonacoEditor extends Component {
       const posDisp = this.editor.onDidChangeCursorPosition(updatePos);
       this.addCleanup(() => { posDisp?.dispose(); (window as any).__statusBarAPI?.removeItem?.('editor-position'); });
 
-      // Keyboard shortcuts
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.ctrlKey && e.key === 'f') { e.preventDefault(); this.editor?.getAction('actions.find')?.run(); }
-        if (e.ctrlKey && e.key === 'h') { e.preventDefault(); this.editor?.getAction('editor.action.startFindReplaceAction')?.run(); }
-      };
-      document.addEventListener('keydown', handleKeyDown);
-      this.addCleanup(() => document.removeEventListener('keydown', handleKeyDown));
+      // Find/Replace (Ctrl+F/Ctrl+H) are now dispatched centrally by App.ts's
+      // keyboard shortcut handler via __monacoEditorAPI.openFind/openReplace,
+      // so they respect the user's Keyboard Shortcuts customization and only
+      // fire while a file tab is actually focused (this used to be a global
+      // document-level listener that fired unconditionally).
 
       // Vim mode
       this.initVim();
@@ -467,6 +465,8 @@ export class MonacoEditor extends Component {
       copy: () => this.handleCopy(),
       paste: () => this.handlePaste(),
       selectAll: () => { this.editor?.focus(); this.editor?.trigger('menu', 'editor.action.selectAll', null); },
+      openFind: () => { this.editor?.focus(); this.editor?.getAction('actions.find')?.run(); },
+      openReplace: () => { this.editor?.focus(); this.editor?.getAction('editor.action.startFindReplaceAction')?.run(); },
       canUndo: () => !!this.editor?.getModel()?.canUndo(),
       canRedo: () => !!this.editor?.getModel()?.canRedo(),
     };

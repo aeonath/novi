@@ -31,7 +31,7 @@ import { ensureReady, waitForMultipleReady } from '../utils/ready-events.js';
 import { isImageFile, getMimeType } from '../../core/image/image-utils.js';
 import {
   computeEffectiveAccelerator, acceleratorFromKeyboardEvent, normalizeAccelerator,
-  defaultKeyboardShortcutsSettings, NOVI_SHORTCUTS,
+  defaultKeyboardShortcutsSettings, NOVI_SHORTCUTS, EDITOR_TERMINAL_SHORTCUTS,
 } from '../../core/shortcuts/shortcut-registry.js';
 import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
 
@@ -603,12 +603,19 @@ export class App extends Component {
           void this.actionContext.onOpenFile?.();
           return;
         }
-      }
 
-      if (ke.ctrlKey && ke.key === 's') {
-        ke.preventDefault();
-        if (this.activeTab?.type === 'file' || this.activeTab?.type === 'image') {
-          void this.actionContext.onSaveFile?.();
+        // Terminal+Editor shortcuts (Save, Copy, Select All, font size, ...):
+        // the menu items for the ones that still have one use
+        // registerAccelerator: false (see menu.ts), so this is their only
+        // real trigger. handleMenuCommand already does the activeTab-based
+        // editor-vs-terminal routing — reuse it rather than duplicating it.
+        for (const def of EDITOR_TERMINAL_SHORTCUTS) {
+          const effective = computeEffectiveAccelerator(def, this.keyboardShortcutsSettings);
+          if (effective && normalizeAccelerator(effective) === normalizedPressed) {
+            ke.preventDefault();
+            void this.handleMenuCommand(def.id);
+            return;
+          }
         }
       }
     });
@@ -1491,7 +1498,12 @@ export class App extends Component {
         }
         break;
       case 'reset-workspace': await this.resetWorkspace(); break;
-      case 'find': case 'replace': break;
+      case 'find':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.openFind();
+        break;
+      case 'replace':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.openReplace();
+        break;
       case 'toggle-fullscreen': window.api?.toggleFullScreen?.(); break;
       case 'zoom-in': window.api?.zoomIn?.(); break;
       case 'zoom-out': window.api?.zoomOut?.(); break;

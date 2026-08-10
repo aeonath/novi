@@ -10,8 +10,25 @@
 import { Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron';
 import { logInfo } from './logger';
 import { getSetting } from './settings';
-import { NOVI_SHORTCUTS, computeEffectiveAccelerator, defaultKeyboardShortcutsSettings } from '../core/shortcuts/shortcut-registry';
-import type { KeyboardShortcutsSettings } from '../core/shortcuts/shortcut-registry';
+import { NOVI_SHORTCUTS, EDITOR_TERMINAL_SHORTCUTS, computeEffectiveAccelerator, defaultKeyboardShortcutsSettings } from '../core/shortcuts/shortcut-registry';
+import type { KeyboardShortcutsSettings, ShortcutDef } from '../core/shortcuts/shortcut-registry';
+
+function loadKeyboardShortcutsSettings(): KeyboardShortcutsSettings {
+  const stored = getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts', undefined);
+  const defaults = defaultKeyboardShortcutsSettings();
+  return {
+    novi: stored?.novi ?? defaults.novi,
+    editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
+  };
+}
+
+function getEffectiveAccelerators(defs: ShortcutDef[], settings: KeyboardShortcutsSettings): Record<string, string | undefined> {
+  const result: Record<string, string | undefined> = {};
+  for (const def of defs) {
+    result[def.id] = computeEffectiveAccelerator(def, settings) ?? undefined;
+  }
+  return result;
+}
 
 /**
  * Resolves the current effective accelerator for every Novi-category
@@ -21,17 +38,19 @@ import type { KeyboardShortcutsSettings } from '../core/shortcuts/shortcut-regis
  * the same pattern already used for the devtools/show-hidden-files items.
  */
 function getEffectiveNoviAccelerators(): Record<string, string | undefined> {
-  const stored = getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts', undefined);
-  const defaults = defaultKeyboardShortcutsSettings();
-  const settings: KeyboardShortcutsSettings = {
-    novi: stored?.novi ?? defaults.novi,
-    editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
-  };
-  const result: Record<string, string | undefined> = {};
-  for (const def of NOVI_SHORTCUTS) {
-    result[def.id] = computeEffectiveAccelerator(def, settings) ?? undefined;
-  }
-  return result;
+  return getEffectiveAccelerators(NOVI_SHORTCUTS, loadKeyboardShortcutsSettings());
+}
+
+/**
+ * Resolves the current effective accelerator for every Terminal+Editor
+ * shortcut that still has a menu item (Save, Undo, Copy, etc.). These items
+ * use `registerAccelerator: false` — see createMenuTemplate — so this value
+ * is display-only; the real key handling lives in the renderer (App.ts),
+ * since which target (editor vs. terminal) a keypress applies to depends on
+ * which tab is focused, something the native menu can't express.
+ */
+function getEffectiveEditorTerminalAccelerators(): Record<string, string | undefined> {
+  return getEffectiveAccelerators(EDITOR_TERMINAL_SHORTCUTS, loadKeyboardShortcutsSettings());
 }
 
 export type MenuCommand = 
@@ -81,6 +100,7 @@ function executeCommand(command: MenuCommand, window: BrowserWindow): void {
 function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   const isMac = process.platform === 'darwin';
   const accel = getEffectiveNoviAccelerators();
+  const sharedAccel = getEffectiveEditorTerminalAccelerators();
 
   const template: MenuItemConstructorOptions[] = [
     {
@@ -98,13 +118,18 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
         },
         { type: 'separator' },
         {
+          // Save/Save As live in the Terminal+Editor shortcut category (they
+          // route to whichever tab is focused), so the actual key handling
+          // is done in the renderer — this accelerator is display-only.
           label: 'Save',
-          accelerator: 'CmdOrCtrl+S',
+          accelerator: sharedAccel['save'],
+          registerAccelerator: false,
           click: () => executeCommand('save', mainWindow),
         },
         {
           label: 'Save As…',
-          accelerator: 'CmdOrCtrl+Shift+S',
+          accelerator: sharedAccel['save-as'],
+          registerAccelerator: false,
           click: () => executeCommand('save-as', mainWindow),
         },
         { type: 'separator' },
@@ -129,40 +154,51 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
       label: 'Edit',
       submenu: [
         {
+          // Undo/Redo/Cut/Copy/Paste/Find/Replace all live in the
+          // Terminal+Editor shortcut category and route to whichever tab is
+          // focused — real key handling is in the renderer, so these
+          // accelerators are display-only (registerAccelerator: false).
           label: 'Undo',
-          accelerator: 'CmdOrCtrl+Z',
+          accelerator: sharedAccel['undo'],
+          registerAccelerator: false,
           click: () => executeCommand('undo', mainWindow),
         },
         {
           label: 'Redo',
-          accelerator: 'CmdOrCtrl+Y',
+          accelerator: sharedAccel['redo'],
+          registerAccelerator: false,
           click: () => executeCommand('redo', mainWindow),
         },
         { type: 'separator' },
         {
           label: 'Cut',
-          accelerator: 'CmdOrCtrl+X',
+          accelerator: sharedAccel['cut'],
+          registerAccelerator: false,
           click: () => executeCommand('cut', mainWindow),
         },
         {
           label: 'Copy',
-          accelerator: 'CmdOrCtrl+C',
+          accelerator: sharedAccel['copy'],
+          registerAccelerator: false,
           click: () => executeCommand('copy', mainWindow),
         },
         {
           label: 'Paste',
-          accelerator: 'CmdOrCtrl+V',
+          accelerator: sharedAccel['paste'],
+          registerAccelerator: false,
           click: () => executeCommand('paste', mainWindow),
         },
         { type: 'separator' },
         {
           label: 'Find…',
-          accelerator: 'CmdOrCtrl+F',
+          accelerator: sharedAccel['find'],
+          registerAccelerator: false,
           click: () => executeCommand('find', mainWindow),
         },
         {
           label: 'Replace…',
-          accelerator: 'CmdOrCtrl+H',
+          accelerator: sharedAccel['replace'],
+          registerAccelerator: false,
           click: () => executeCommand('replace', mainWindow),
         },
       ],

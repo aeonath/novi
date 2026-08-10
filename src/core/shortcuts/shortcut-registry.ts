@@ -75,10 +75,37 @@ export const NOVI_SHORTCUTS: ShortcutDef[] = [
  * Terminal + Editor shortcuts — combined into one section because several
  * commands (Copy, Paste, Select All, etc.) are a single shared binding that
  * must behave identically whether a file/image tab or a terminal tab is
- * focused. Populated across phases 2 (app-defined shared commands) and 3
- * (Monaco's own built-in defaults).
+ * focused. `monacoCommandId`, when present, is also applied to Monaco's own
+ * keybinding table (phase 3's addKeybindingRules wiring) so Monaco's
+ * internal default un-registers when the user rebinds the shared command.
  */
-export const EDITOR_TERMINAL_SHORTCUTS: ShortcutDef[] = [];
+export const EDITOR_TERMINAL_SHORTCUTS: ShortcutDef[] = [
+  { id: 'save', category: 'editorTerminal', label: 'Save', defaultAccelerator: 'CmdOrCtrl+S' },
+  { id: 'save-as', category: 'editorTerminal', label: 'Save As', defaultAccelerator: 'CmdOrCtrl+Shift+S' },
+  { id: 'undo', category: 'editorTerminal', label: 'Undo', defaultAccelerator: 'CmdOrCtrl+Z', monacoCommandId: 'undo' },
+  { id: 'redo', category: 'editorTerminal', label: 'Redo', defaultAccelerator: 'CmdOrCtrl+Y', monacoCommandId: 'redo' },
+  { id: 'cut', category: 'editorTerminal', label: 'Cut', defaultAccelerator: 'CmdOrCtrl+X', monacoCommandId: 'editor.action.clipboardCutAction' },
+  { id: 'copy', category: 'editorTerminal', label: 'Copy', defaultAccelerator: 'CmdOrCtrl+C', monacoCommandId: 'editor.action.clipboardCopyAction' },
+  { id: 'paste', category: 'editorTerminal', label: 'Paste', defaultAccelerator: 'CmdOrCtrl+V', monacoCommandId: 'editor.action.clipboardPasteAction' },
+  { id: 'find', category: 'editorTerminal', label: 'Find', description: 'Editor only — no find UI in the terminal', defaultAccelerator: 'CmdOrCtrl+F', monacoCommandId: 'actions.find' },
+  { id: 'replace', category: 'editorTerminal', label: 'Replace', description: 'Editor only — no replace UI in the terminal', defaultAccelerator: 'CmdOrCtrl+H', monacoCommandId: 'editor.action.startFindReplaceAction' },
+  { id: 'select-all', category: 'editorTerminal', label: 'Select All', defaultAccelerator: 'CmdOrCtrl+A', monacoCommandId: 'editor.action.selectAll' },
+  {
+    id: 'increase-font-size', category: 'editorTerminal', label: 'Increase Font Size',
+    description: 'Distinct from Zoom In under Novi, which resizes the whole app window',
+    defaultAccelerator: 'CmdOrCtrl+Shift+=',
+  },
+  {
+    id: 'decrease-font-size', category: 'editorTerminal', label: 'Decrease Font Size',
+    description: 'Distinct from Zoom Out under Novi, which resizes the whole app window',
+    defaultAccelerator: 'CmdOrCtrl+Shift+-',
+  },
+  {
+    id: 'reset-font-size', category: 'editorTerminal', label: 'Reset Font Size',
+    description: 'Distinct from Reset Zoom under Novi, which resizes the whole app window',
+    defaultAccelerator: 'CmdOrCtrl+Shift+0',
+  },
+];
 
 export const SHORTCUT_REGISTRY: ShortcutDef[] = [...NOVI_SHORTCUTS, ...EDITOR_TERMINAL_SHORTCUTS];
 

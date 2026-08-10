@@ -11,6 +11,41 @@ import { el, setStyles } from '../core/dom.js';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
+import {
+  EDITOR_TERMINAL_SHORTCUTS, computeEffectiveAccelerator, normalizeAccelerator,
+  acceleratorFromKeyboardEvent, defaultKeyboardShortcutsSettings,
+} from '../../core/shortcuts/shortcut-registry.js';
+import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
+
+// Module-level (not per-instance): every terminal tab shares the same
+// Terminal+Editor shortcut settings, same pattern MonacoEditor.ts uses for
+// settings that don't need to route through App.ts.
+let cachedShortcutSettings: KeyboardShortcutsSettings = defaultKeyboardShortcutsSettings();
+
+async function refreshCachedShortcutSettings(): Promise<void> {
+  const stored = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
+  const defaults = defaultKeyboardShortcutsSettings();
+  cachedShortcutSettings = {
+    novi: stored?.novi ?? defaults.novi,
+    editorTerminal: stored?.editorTerminal ?? defaults.editorTerminal,
+  };
+}
+void refreshCachedShortcutSettings();
+window.addEventListener('novi-keyboardshortcuts-changed', () => { void refreshCachedShortcutSettings(); });
+
+/** True when the pressed combo is claimed by a Terminal+Editor shortcut —
+ * xterm should not process it; App.ts's own keydown handler will. Exported
+ * for direct unit testing without needing to mount a real xterm instance. */
+export function isClaimedByAppShortcut(e: KeyboardEvent): boolean {
+  const pressed = acceleratorFromKeyboardEvent(e);
+  if (!pressed) return false;
+  const normalizedPressed = normalizeAccelerator(pressed);
+  for (const def of EDITOR_TERMINAL_SHORTCUTS) {
+    const effective = computeEffectiveAccelerator(def, cachedShortcutSettings);
+    if (effective && normalizeAccelerator(effective) === normalizedPressed) return true;
+  }
+  return false;
+}
 
 export interface TerminalConfig {
   terminalId: string;
@@ -276,6 +311,7 @@ export class Terminal extends Component {
 
     terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'Tab') return false;
+      if (isClaimedByAppShortcut(e)) return false;
       return true;
     });
 

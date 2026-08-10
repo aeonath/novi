@@ -143,13 +143,41 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     expect(recorderBox.textContent).toBe('Ctrl+N');
   });
 
-  it('switching to the Terminal + Editor sub-tab shows its own Use Defaults toggle', () => {
+  it('switching to the Terminal + Editor sub-tab shows its own Use Defaults toggle and its shared shortcuts', () => {
     const pills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Terminal + Editor');
     expect(pills.length).toBeGreaterThan(0);
     pills[0].click();
-    expect(tab.getElement().textContent).toContain('Terminal + Editor');
-    // Phase 1: this category has no entries yet, but the toggle itself must still render.
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Terminal + Editor');
     const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(checkbox).not.toBeNull();
+    // Phase 2: Copy/Paste/Select All/etc. are shared between the terminal and
+    // the editor, with one config entry each — confirm they actually render.
+    expect(text).toContain('Copy');
+    expect(text).toContain('Select All');
+    expect(text).toContain('Ctrl+A');
+    expect(text).toContain('Save');
+  });
+
+  it('recording a Terminal + Editor shortcut (Select All) persists under the editorTerminal category', async () => {
+    const pills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Terminal + Editor');
+    pills[0].click();
+
+    const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
+    checkbox.click();
+    await flush();
+
+    const selectAllRow = findRowByLabel(tab.getElement(), 'Select All')!;
+    const recorderBox = selectAllRow.querySelector('[title="Click, then press a key combination"]') as HTMLElement;
+    recorderBox.click();
+    dispatchKey({ key: 'L', ctrlKey: true, altKey: true });
+    await flush();
+
+    expect(mockApi.setSetting).toHaveBeenLastCalledWith(
+      'keyboardShortcuts',
+      expect.objectContaining({
+        editorTerminal: expect.objectContaining({ overrides: expect.objectContaining({ 'select-all': 'CmdOrCtrl+Alt+L' }) }),
+      })
+    );
   });
 });
