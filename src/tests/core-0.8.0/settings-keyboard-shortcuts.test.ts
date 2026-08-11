@@ -69,6 +69,8 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     // ...alongside Terminal + Editor shortcuts, on the same tab, with no click needed.
     expect(text).toContain('Copy');
     expect(text).toContain('Select All');
+    expect(text).toContain('Close Tab');
+    expect(text).toContain('Ctrl+F4');
     // Editor-only commands still don't belong here.
     expect(text).not.toContain('Fold');
     expect(text).not.toContain('Rename Symbol');

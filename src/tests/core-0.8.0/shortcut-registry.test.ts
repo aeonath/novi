@@ -58,6 +58,13 @@ describe('shortcut-registry', () => {
         seen.set(key, def.id);
       }
     });
+
+    it('registers Close Tab (Ctrl+F4) under editorTerminal, so it applies to both a file and a terminal tab', () => {
+      const closeTab = SHORTCUT_REGISTRY.find(d => d.id === 'close-tab');
+      expect(closeTab).toBeDefined();
+      expect(closeTab?.category).toBe('editorTerminal');
+      expect(closeTab?.defaultAccelerator).toBe('CmdOrCtrl+F4');
+    });
   });
 
   describe('computeEffectiveAccelerator', () => {

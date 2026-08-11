@@ -1618,6 +1618,16 @@ export class App extends Component {
           (window as any).__tabBarAPI?.closeTab(this.activeTab.id);
         }
         break;
+      // Terminal+Editor shortcut (Ctrl+F4): closes whichever tab is active,
+      // file or terminal (or image/settings) — file tabs go through
+      // onCloseFile so the unsaved-changes prompt still applies.
+      case 'close-tab':
+        if (this.activeTab?.type === 'file') {
+          await this.actionContext.onCloseFile?.();
+        } else if (this.activeTab) {
+          (window as any).__tabBarAPI?.closeTab(this.activeTab.id);
+        }
+        break;
       case 'exit': window.api?.quit(); break;
       case 'undo':
         if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.undo();

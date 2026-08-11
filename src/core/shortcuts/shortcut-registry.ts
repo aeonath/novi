@@ -101,6 +101,7 @@ export const EDITOR_TERMINAL_SHORTCUTS: ShortcutDef[] = [
   { id: 'copy', category: 'editorTerminal', label: 'Copy', defaultAccelerator: 'CmdOrCtrl+C', monacoCommandId: 'editor.action.clipboardCopyAction' },
   { id: 'paste', category: 'editorTerminal', label: 'Paste', defaultAccelerator: 'CmdOrCtrl+V', monacoCommandId: 'editor.action.clipboardPasteAction' },
   { id: 'select-all', category: 'editorTerminal', label: 'Select All', defaultAccelerator: 'CmdOrCtrl+A', monacoCommandId: 'editor.action.selectAll' },
+  { id: 'close-tab', category: 'editorTerminal', label: 'Close Tab', defaultAccelerator: 'CmdOrCtrl+F4' },
 ];
 
 /**
