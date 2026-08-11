@@ -22,6 +22,20 @@
 import { Terminal } from '../../renderer/components/Terminal';
 
 describe('Terminal xterm dispose guard', () => {
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    // These tests intentionally make xterm's dispose() throw to verify the
+    // guard catches it — disposeXterm() logs that via console.error by
+    // design. Silence it here so a passing run stays quiet; restored after
+    // each test so an unexpected error elsewhere still surfaces normally.
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
   it('destroy() does not throw when the underlying xterm instance throws during dispose()', () => {
     const terminal = new Terminal({ terminalId: 'test-term-1' });
     const fakeXterm = {

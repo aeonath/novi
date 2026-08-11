@@ -32,3 +32,15 @@ global.console = {
 
 // Mock Monaco Editor global for tests that need it
 (global as any).monaco = require('./__mocks__/monaco-editor').default;
+
+// Stub the canvas 2D context. jsdom doesn't implement it (that needs the
+// native `canvas` package) and logs a noisy "Not implemented" error via its
+// virtual console every time something calls getContext() — @xterm/xterm
+// and @xterm/addon-webgl both probe for a 2D canvas context at module-load
+// time (for color/gradient utilities) purely inside a try/if(ctx) that
+// already handles a null result gracefully. No test in this suite exercises
+// real canvas pixel operations under Jest (see image-crop.test.ts etc. —
+// those are documented as renderer-only, manually verified), so returning
+// null here is behaviorally identical to jsdom's real (broken) getContext,
+// just without the console spam.
+HTMLCanvasElement.prototype.getContext = jest.fn(() => null) as typeof HTMLCanvasElement.prototype.getContext;
