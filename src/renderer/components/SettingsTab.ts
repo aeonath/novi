@@ -77,7 +77,7 @@ export class SettingsTab extends Component {
   private editorFontFamily = DEFAULT_FONT_FAMILY;
   private terminalFontSize = 14;
   private terminalFontFamily = DEFAULT_FONT_FAMILY;
-  private shortcutsSubTab: ShortcutCategory = 'novi';
+  private shortcutsSubTab: ShortcutCategory = 'editorTerminal';
   private shortcutSettings: KeyboardShortcutsSettings = defaultKeyboardShortcutsSettings();
   private shortcutConflict: { rowId: string; message: string } | null = null;
   private activeRecorders: ShortcutRecorder[] = [];
@@ -274,8 +274,12 @@ export class SettingsTab extends Component {
 
     const subNav = el('div');
     setStyles(subNav, { display: 'flex', gap: '8px', marginBottom: '20px' });
+    // Novi (app-level: New File, Settings, New Terminal, ...) is merged into
+    // the same tab as Terminal + Editor — you're mainly ever in a terminal or
+    // an editor, so a separate "Novi" tab just added a click for no benefit.
+    // Editor-only shortcuts (Save, Undo, Find, Monaco built-ins — meaningless
+    // on a terminal) stay a distinct tab.
     const subTabs: { id: ShortcutCategory; label: string }[] = [
-      { id: 'novi', label: 'Novi' },
       { id: 'editorTerminal', label: 'Terminal + Editor' },
       { id: 'editor', label: 'Editor' },
     ];
@@ -299,15 +303,30 @@ export class SettingsTab extends Component {
     this.contentEl.appendChild(subNav);
 
     const category = this.shortcutsSubTab;
-    const categorySettings = this.shortcutSettings[category];
-    const defs = getShortcutsByCategory(category);
+    const isMergedTab = category === 'editorTerminal';
+    const defs = isMergedTab
+      ? [...getShortcutsByCategory('editorTerminal'), ...getShortcutsByCategory('novi')]
+      : getShortcutsByCategory(category);
+
+    // On the merged tab, "Use Defaults" covers both underlying categories at
+    // once (checked only when both already are); per-row rendering below
+    // still reads each row's own category so nothing looks wrong if the two
+    // were ever left out of sync (e.g. settings saved before this merge).
+    const masterUseDefaults = isMergedTab
+      ? this.shortcutSettings.editorTerminal.useDefaults && this.shortcutSettings.novi.useDefaults
+      : this.shortcutSettings[category].useDefaults;
 
     this.contentEl.appendChild(this.createToggleRow(
       'Use Defaults',
       'When checked, every shortcut below uses its default key combination and cannot be changed. Uncheck to customize any of them.',
-      categorySettings.useDefaults,
+      masterUseDefaults,
       async (enabled) => {
-        categorySettings.useDefaults = enabled;
+        if (isMergedTab) {
+          this.shortcutSettings.editorTerminal.useDefaults = enabled;
+          this.shortcutSettings.novi.useDefaults = enabled;
+        } else {
+          this.shortcutSettings[category].useDefaults = enabled;
+        }
         this.shortcutConflict = null;
         this.persistShortcutSettings();
         this.render();
@@ -317,7 +336,7 @@ export class SettingsTab extends Component {
     const rowsContainer = el('div');
     setStyles(rowsContainer, { marginTop: '8px' });
     for (const def of defs) {
-      rowsContainer.appendChild(this.createShortcutRow(def, categorySettings.useDefaults));
+      rowsContainer.appendChild(this.createShortcutRow(def, this.shortcutSettings[def.category].useDefaults));
     }
 
     if (defs.length > 6) {

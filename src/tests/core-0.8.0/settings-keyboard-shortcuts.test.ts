@@ -45,12 +45,33 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     container.remove();
   });
 
-  it('renders the heading and Novi/Terminal+Editor/Editor sub-tabs', () => {
+  it('renders the heading and just two sub-tabs — Novi is merged into Terminal + Editor, not its own tab', () => {
     const text = tab.getElement().textContent || '';
     expect(text).toContain('Keyboard Shortcuts');
-    expect(text).toContain('Novi');
     expect(text).toContain('Terminal + Editor');
     expect(text).toContain('Editor');
+
+    const pillTexts = Array.from(tab.getElement().querySelectorAll('div'))
+      .map(d => d.textContent)
+      .filter(t => t === 'Novi' || t === 'Terminal + Editor' || t === 'Editor');
+    expect(pillTexts).not.toContain('Novi');
+    // Exactly one "Terminal + Editor" pill and one "Editor" pill, no third.
+    expect(pillTexts.filter(t => t === 'Terminal + Editor').length).toBe(1);
+    expect(pillTexts.filter(t => t === 'Editor').length).toBe(1);
+  });
+
+  it('defaults to the merged Terminal + Editor tab, showing both Novi and Terminal+Editor shortcuts together', () => {
+    const text = tab.getElement().textContent || '';
+    // Novi (app-level) shortcuts...
+    expect(text).toContain('New File');
+    expect(text).toContain('Ctrl+N');
+    expect(text).toContain('New Terminal');
+    // ...alongside Terminal + Editor shortcuts, on the same tab, with no click needed.
+    expect(text).toContain('Copy');
+    expect(text).toContain('Select All');
+    // Editor-only commands still don't belong here.
+    expect(text).not.toContain('Fold');
+    expect(text).not.toContain('Rename Symbol');
   });
 
   it('defaults to Use Defaults checked, showing read-only accelerator badges', () => {
@@ -64,23 +85,28 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     expect(tab.getElement().textContent).toContain('Ctrl+N'); // New File's default, shown as a badge
   });
 
-  it('unchecking Use Defaults reveals a recorder box per shortcut and persists the setting', async () => {
+  it('unchecking the merged Use Defaults toggle turns off both novi and editorTerminal, and reveals a recorder box per shortcut', async () => {
     const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
     checkbox.click();
     await flush();
 
     expect(mockApi.setSetting).toHaveBeenCalledWith(
       'keyboardShortcuts',
-      expect.objectContaining({ novi: expect.objectContaining({ useDefaults: false }) })
+      expect.objectContaining({
+        novi: expect.objectContaining({ useDefaults: false }),
+        editorTerminal: expect.objectContaining({ useDefaults: false }),
+      })
     );
 
     const recorderBoxes = Array.from(tab.getElement().querySelectorAll('div')).filter(
       d => d.title === 'Click, then press a key combination'
     );
-    expect(recorderBoxes.length).toBeGreaterThan(0);
+    // Both a Novi row (New File) and a Terminal+Editor row (Copy) should now
+    // be editable on the same merged tab.
+    expect(recorderBoxes.length).toBeGreaterThan(1);
   });
 
-  it('recording a free key combination for New File saves the override', async () => {
+  it('recording a free key combination for New File (a Novi shortcut) saves the override under the novi category', async () => {
     const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
     checkbox.click();
     await flush();
@@ -95,6 +121,25 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
       'keyboardShortcuts',
       expect.objectContaining({
         novi: expect.objectContaining({ overrides: expect.objectContaining({ 'new-file': 'CmdOrCtrl+Shift+N' }) }),
+      })
+    );
+  });
+
+  it('recording a free key combination for Select All (a Terminal+Editor shortcut) saves the override under the editorTerminal category, on the same merged tab', async () => {
+    const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
+    checkbox.click();
+    await flush();
+
+    const selectAllRow = findRowByLabel(tab.getElement(), 'Select All')!;
+    const recorderBox = selectAllRow.querySelector('[title="Click, then press a key combination"]') as HTMLElement;
+    recorderBox.click();
+    dispatchKey({ key: 'L', ctrlKey: true, altKey: true });
+    await flush();
+
+    expect(mockApi.setSetting).toHaveBeenLastCalledWith(
+      'keyboardShortcuts',
+      expect.objectContaining({
+        editorTerminal: expect.objectContaining({ overrides: expect.objectContaining({ 'select-all': 'CmdOrCtrl+Alt+L' }) }),
       })
     );
   });
@@ -144,28 +189,7 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     expect(recorderBox.textContent).toBe('Ctrl+N');
   });
 
-  it('switching to the Terminal + Editor sub-tab shows its own Use Defaults toggle and its shared shortcuts', () => {
-    const pills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Terminal + Editor');
-    expect(pills.length).toBeGreaterThan(0);
-    pills[0].click();
-    const text = tab.getElement().textContent || '';
-    expect(text).toContain('Terminal + Editor');
-    const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
-    expect(checkbox).not.toBeNull();
-    // Copy/Paste/Select All/etc. are shared between the terminal and the
-    // editor, with one config entry each — confirm they actually render.
-    expect(text).toContain('Copy');
-    expect(text).toContain('Select All');
-    expect(text).toContain('Ctrl+A');
-    // Save/Close File/Fold/Rename Symbol etc. have no meaning in a terminal
-    // (and Ctrl+S/Ctrl+Z collide with real terminal XOFF/SIGTSTP semantics)
-    // so they must NOT appear here — they live under the Editor sub-tab only.
-    expect(text).not.toContain('Save');
-    expect(text).not.toContain('Fold');
-    expect(text).not.toContain('Rename Symbol');
-  });
-
-  it('switching to the Editor sub-tab shows editor-only commands (Save, Close File, Monaco built-ins) but not terminal ones', () => {
+  it('switching to the Editor sub-tab shows editor-only commands (Save, Close File, Monaco built-ins) but not terminal or Novi ones', () => {
     const pills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Editor');
     expect(pills.length).toBeGreaterThan(0);
     pills[0].click();
@@ -176,9 +200,10 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     // long enough to show the filter box.
     expect(text).toContain('Fold');
     expect(text).toContain('Rename Symbol');
-    // Shared Terminal + Editor shortcuts (e.g. Cut/Copy/Paste) belong on their
-    // own sub-tab, not here.
+    // Shared Terminal + Editor shortcuts (e.g. Cut/Copy/Paste) and Novi
+    // shortcuts (e.g. New File) belong on the merged tab, not here.
     expect(text).not.toContain('Paste');
+    expect(text).not.toContain('New File');
     const filterInput = tab.getElement().querySelector('input[placeholder="Filter shortcuts…"]');
     expect(filterInput).not.toBeNull();
   });
@@ -205,25 +230,15 @@ describe('SettingsTab: Keyboard Shortcuts section', () => {
     );
   });
 
-  it('recording a Terminal + Editor shortcut (Select All) persists under the editorTerminal category', async () => {
-    const pills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Terminal + Editor');
-    pills[0].click();
+  it('switching from Editor back to the merged tab shows Novi and Terminal+Editor shortcuts again', () => {
+    const editorPills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Editor');
+    editorPills[0].click();
+    expect(tab.getElement().textContent).not.toContain('New File');
 
-    const checkbox = tab.getElement().querySelector('input[type="checkbox"]') as HTMLInputElement;
-    checkbox.click();
-    await flush();
-
-    const selectAllRow = findRowByLabel(tab.getElement(), 'Select All')!;
-    const recorderBox = selectAllRow.querySelector('[title="Click, then press a key combination"]') as HTMLElement;
-    recorderBox.click();
-    dispatchKey({ key: 'L', ctrlKey: true, altKey: true });
-    await flush();
-
-    expect(mockApi.setSetting).toHaveBeenLastCalledWith(
-      'keyboardShortcuts',
-      expect.objectContaining({
-        editorTerminal: expect.objectContaining({ overrides: expect.objectContaining({ 'select-all': 'CmdOrCtrl+Alt+L' }) }),
-      })
-    );
+    const mergedPills = Array.from(tab.getElement().querySelectorAll('div')).filter(d => d.textContent === 'Terminal + Editor');
+    mergedPills[0].click();
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('New File');
+    expect(text).toContain('Copy');
   });
 });
