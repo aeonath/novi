@@ -38,7 +38,7 @@ function makeFakeXterm() {
     focus: jest.fn(),
     cols: 80,
     rows: 24,
-    options: {} as { fontSize?: number; fontFamily?: string },
+    options: {} as { fontSize?: number; fontFamily?: string; scrollback?: number },
   };
 }
 
@@ -363,5 +363,41 @@ describe('Terminal activation does not re-fit or resize', () => {
 
     terminal.isActive = true;
     expect((terminal as any).suppressNextResize).toBe(true); // re-activation arms it again
+  });
+});
+
+describe('Terminal.scrollbackProp', () => {
+  it('defaults to 25000', () => {
+    const terminal = new Terminal({ terminalId: 'test-term-scrollback-default' });
+    expect((terminal as any).scrollback).toBe(25000);
+  });
+
+  it('re-assigning the same value is a no-op', () => {
+    const terminal = new Terminal({ terminalId: 'test-term-scrollback-1', scrollback: 25000 });
+    const fakeXterm = makeFakeXterm();
+    (terminal as any).terminal = fakeXterm;
+
+    (terminal as any).scrollbackProp = 25000;
+
+    expect(fakeXterm.options.scrollback).toBeUndefined();
+  });
+
+  it('applies a genuinely different value directly to xterm, even while inactive — unlike fontSizeProp/fontFamilyProp, scrollback does not touch layout so there is no hidden-container fit danger to guard against', () => {
+    const terminal = new Terminal({ terminalId: 'test-term-scrollback-2', scrollback: 25000 });
+    const fakeXterm = makeFakeXterm();
+    (terminal as any).terminal = fakeXterm;
+    (terminal as any)._isActive = false;
+
+    (terminal as any).scrollbackProp = 100000;
+
+    expect(fakeXterm.options.scrollback).toBe(100000);
+    expect((terminal as any).scrollback).toBe(100000);
+  });
+
+  it('does nothing when there is no mounted xterm yet, but still updates the stored value for the eventual initDisplay() call', () => {
+    const terminal = new Terminal({ terminalId: 'test-term-scrollback-3', scrollback: 25000 });
+
+    expect(() => { (terminal as any).scrollbackProp = 50000; }).not.toThrow();
+    expect((terminal as any).scrollback).toBe(50000);
   });
 });

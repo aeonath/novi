@@ -79,6 +79,7 @@ export class SettingsTab extends Component {
   private editorFontFamily = DEFAULT_FONT_FAMILY;
   private terminalFontSize = 14;
   private terminalFontFamily = DEFAULT_FONT_FAMILY;
+  private terminalScrollback = 25000;
   private shortcutsSubTab: ShortcutCategory = 'editorTerminal';
   private shortcutSettings: KeyboardShortcutsSettings = defaultKeyboardShortcutsSettings();
   private shortcutConflict: { rowId: string; message: string } | null = null;
@@ -156,6 +157,7 @@ export class SettingsTab extends Component {
       this.editorFontFamily = (await window.api?.getSetting<string>('editorFontFamily', DEFAULT_FONT_FAMILY)) ?? DEFAULT_FONT_FAMILY;
       this.terminalFontSize = (await window.api?.getSetting<number>('terminalFontSize', 14)) ?? 14;
       this.terminalFontFamily = (await window.api?.getSetting<string>('terminalFontFamily', DEFAULT_FONT_FAMILY)) ?? DEFAULT_FONT_FAMILY;
+      this.terminalScrollback = (await window.api?.getSetting<number>('terminalScrollback', 25000)) ?? 25000;
       const storedShortcuts = await window.api?.getSetting<Partial<KeyboardShortcutsSettings>>('keyboardShortcuts');
       this.shortcutSettings = mergeKeyboardShortcutsSettings(storedShortcuts);
     } catch { /* use defaults */ }
@@ -916,6 +918,27 @@ export class SettingsTab extends Component {
         await window.api?.setSetting('terminalFontFamily', value);
         window.dispatchEvent(new CustomEvent('novi-terminalfontfamily-changed', { detail: { fontFamily: value } }));
       },
+    ));
+
+    const historySectionLabel = el('div', {}, 'History');
+    setStyles(historySectionLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginTop: '20px',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(historySectionLabel);
+
+    this.contentEl.appendChild(this.createNumberFieldRow(
+      'Scrollback (lines)',
+      this.terminalScrollback,
+      async (value) => {
+        this.terminalScrollback = value;
+        await window.api?.setSetting('terminalScrollback', value);
+        window.dispatchEvent(new CustomEvent('novi-terminalscrollback-changed', { detail: { scrollback: value } }));
+      },
+      10000, 200000,
     ));
   }
 

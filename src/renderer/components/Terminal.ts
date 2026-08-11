@@ -75,6 +75,7 @@ export interface TerminalConfig {
   onNewTerminal?: () => void;
   fontSize?: number;
   fontFamily?: string;
+  scrollback?: number;
 }
 
 export class Terminal extends Component {
@@ -85,6 +86,7 @@ export class Terminal extends Component {
   private onNewTerminal?: () => void;
   private fontSize: number;
   private fontFamily: string;
+  private scrollback: number;
 
   private terminal: XTerm | null = null;
   private fitAddon: FitAddon | null = null;
@@ -109,6 +111,7 @@ export class Terminal extends Component {
     this.onNewTerminal = config.onNewTerminal;
     this.fontSize = config.fontSize ?? 14;
     this.fontFamily = config.fontFamily ?? 'DejaVu Sans Mono';
+    this.scrollback = config.scrollback ?? 25000;
 
     // Fragment wrapper (replaces React Fragment)
     setStyles(this.el, { display: 'contents' });
@@ -205,6 +208,19 @@ export class Terminal extends Component {
     if (this.terminal && this.fitAddon) {
       this.terminal.options.fontFamily = this.cssFontFamily();
       this.refitOrDefer();
+    }
+  }
+
+  /** Unlike fontSizeProp/fontFamilyProp, scrollback only affects how many
+   * lines xterm retains off-screen — it doesn't change cell dimensions or
+   * the current viewport, so there's no fit()/resize to (mis)trigger and no
+   * hidden-container danger. Safe to apply directly regardless of whether
+   * this terminal is currently active. */
+  set scrollbackProp(lines: number) {
+    if (this.scrollback === lines) return;
+    this.scrollback = lines;
+    if (this.terminal) {
+      this.terminal.options.scrollback = lines;
     }
   }
 
@@ -420,7 +436,7 @@ export class Terminal extends Component {
       fontSize: this.fontSize,
       fontFamily: this.cssFontFamily(),
       cursorBlink: false, cursorStyle: 'underline', cursorWidth: 2,
-      lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
+      lineHeight: 1.2, letterSpacing: 0, scrollback: this.scrollback, windowsMode: false,
     });
 
     terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => shouldXtermHandleKey(e, terminal.hasSelection()));

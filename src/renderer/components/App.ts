@@ -60,6 +60,7 @@ export class App extends Component {
   private terminalFontSize = 14;
   private editorFontFamily = 'DejaVu Sans Mono';
   private terminalFontFamily = 'DejaVu Sans Mono';
+  private terminalScrollback = 25000;
   private editorWordWrap = false;
   private editorLineNumbers = true;
   private vimModeEnabled = false;
@@ -590,6 +591,15 @@ export class App extends Component {
     window.addEventListener('novi-terminalfontfamily-changed', tffHandler);
     this.addCleanup(() => window.removeEventListener('novi-terminalfontfamily-changed', tffHandler));
 
+    const tsbHandler = () => {
+      window.api?.getSetting<number>('terminalScrollback', 25000).then((v) => {
+        this.terminalScrollback = v ?? 25000;
+        this.syncTerminalActiveState();
+      });
+    };
+    window.addEventListener('novi-terminalscrollback-changed', tsbHandler);
+    this.addCleanup(() => window.removeEventListener('novi-terminalscrollback-changed', tsbHandler));
+
     // vimode / preserveNoviKeybindingsInVim: both feed shouldForceNoviDispatch(),
     // which decides whether Novi shortcuts (New File, Open File, ...) need to
     // pre-empt monaco-vim in the capture-phase listener in setupKeyboardShortcuts().
@@ -775,6 +785,8 @@ export class App extends Component {
       this.editorFontFamily = eff ?? 'DejaVu Sans Mono';
       this.terminalFontFamily = tff ?? 'DejaVu Sans Mono';
       this.monacoEditor.fontFamily = this.editorFontFamily;
+      const tsb = await window.api?.getSetting<number>('terminalScrollback', 25000);
+      this.terminalScrollback = tsb ?? 25000;
       const ww = await window.api?.getSetting<boolean>('wordwrap', false);
       const ln = await window.api?.getSetting<boolean>('linenumbers', true);
       this.editorWordWrap = ww ?? false;
@@ -1144,6 +1156,7 @@ export class App extends Component {
           onNewTerminal: () => this.actionContext.onNewTerminal?.(),
           fontSize: this.terminalFontSize,
           fontFamily: this.terminalFontFamily,
+          scrollback: this.terminalScrollback,
         });
         terminal.mount(wrapper);
         this.terminalInstances.set(tab.id, { instance: terminal, container: wrapper });
@@ -1178,6 +1191,7 @@ export class App extends Component {
       entry.instance.isActive = isAct;
       entry.instance.fontSizeProp = this.terminalFontSize;
       entry.instance.fontFamilyProp = this.terminalFontFamily;
+      entry.instance.scrollbackProp = this.terminalScrollback;
     }
   }
 

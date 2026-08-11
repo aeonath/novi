@@ -367,10 +367,10 @@ describe('SettingsTab', () => {
     window.addEventListener('novi-terminalfontsize-changed', fontSizeEventSpy);
     window.addEventListener('novi-terminalfontfamily-changed', fontFamilyEventSpy);
     try {
-      // Git Bash's path field is also an input[type="text"] and renders first;
-      // the font size field is appended last, after the shell settings.
+      // Git Bash's path field is also an input[type="text"] and renders
+      // first; Font Size then Scrollback follow, after the shell settings.
       const textInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
-      const numberInput = textInputs[textInputs.length - 1];
+      const numberInput = textInputs[1];
       expect(numberInput.value).toBe('14');
       numberInput.value = '5';
       numberInput.dispatchEvent(new Event('blur'));
@@ -389,6 +389,46 @@ describe('SettingsTab', () => {
     } finally {
       window.removeEventListener('novi-terminalfontsize-changed', fontSizeEventSpy);
       window.removeEventListener('novi-terminalfontfamily-changed', fontFamilyEventSpy);
+    }
+  });
+
+  it('should render Terminal Scrollback defaulting to 25000', async () => {
+    tab.section = 'terminal';
+    await new Promise((r) => setTimeout(r, 10));
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Scrollback');
+
+    const textInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+    // Git Bash path, Default Font Size, then Scrollback.
+    const scrollbackInput = textInputs[2];
+    expect(scrollbackInput.value).toBe('25000');
+  });
+
+  it('should persist and broadcast Terminal Scrollback changes, clamped to [10000, 200000]', async () => {
+    tab.section = 'terminal';
+    await new Promise((r) => setTimeout(r, 10));
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-terminalscrollback-changed', eventSpy);
+    try {
+      const textInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+      const scrollbackInput = textInputs[2];
+
+      scrollbackInput.value = '5000';
+      scrollbackInput.dispatchEvent(new Event('blur'));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(scrollbackInput.value).toBe('10000'); // clamped to the min
+      expect(mockApi.setSetting).toHaveBeenCalledWith('terminalScrollback', 10000);
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      expect((eventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ scrollback: 10000 });
+
+      scrollbackInput.value = '999999';
+      scrollbackInput.dispatchEvent(new Event('blur'));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(scrollbackInput.value).toBe('200000'); // clamped to the max
+      expect(mockApi.setSetting).toHaveBeenCalledWith('terminalScrollback', 200000);
+      expect(eventSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      window.removeEventListener('novi-terminalscrollback-changed', eventSpy);
     }
   });
 
