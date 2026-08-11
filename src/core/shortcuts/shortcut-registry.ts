@@ -101,21 +101,6 @@ export const EDITOR_TERMINAL_SHORTCUTS: ShortcutDef[] = [
   { id: 'copy', category: 'editorTerminal', label: 'Copy', defaultAccelerator: 'CmdOrCtrl+C', monacoCommandId: 'editor.action.clipboardCopyAction' },
   { id: 'paste', category: 'editorTerminal', label: 'Paste', defaultAccelerator: 'CmdOrCtrl+V', monacoCommandId: 'editor.action.clipboardPasteAction' },
   { id: 'select-all', category: 'editorTerminal', label: 'Select All', defaultAccelerator: 'CmdOrCtrl+A', monacoCommandId: 'editor.action.selectAll' },
-  {
-    id: 'increase-font-size', category: 'editorTerminal', label: 'Increase Font Size',
-    description: 'Distinct from Zoom In under Novi, which resizes the whole app window',
-    defaultAccelerator: 'CmdOrCtrl+Shift+=',
-  },
-  {
-    id: 'decrease-font-size', category: 'editorTerminal', label: 'Decrease Font Size',
-    description: 'Distinct from Zoom Out under Novi, which resizes the whole app window',
-    defaultAccelerator: 'CmdOrCtrl+Shift+-',
-  },
-  {
-    id: 'reset-font-size', category: 'editorTerminal', label: 'Reset Font Size',
-    description: 'Distinct from Reset Zoom under Novi, which resizes the whole app window',
-    defaultAccelerator: 'CmdOrCtrl+Shift+0',
-  },
 ];
 
 /**
