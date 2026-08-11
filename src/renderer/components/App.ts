@@ -1147,6 +1147,16 @@ export class App extends Component {
         });
         terminal.mount(wrapper);
         this.terminalInstances.set(tab.id, { instance: terminal, container: wrapper });
+        // Eagerly start the shell for background tabs too — the active tab
+        // still goes through syncTerminalActiveState() below, which uses
+        // the real measured-size path (initPhase1(), via the isActive
+        // setter). Without this, a restored-but-never-clicked terminal tab
+        // stayed completely uninitialized (no PTY, tab label stuck on a
+        // generic placeholder — see deriveTerminalTabName's callers) until
+        // the user actually switched to it.
+        if (this.activeTab?.id !== tab.id) {
+          void terminal.initPtyEagerly();
+        }
       }
     }
 

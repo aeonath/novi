@@ -297,6 +297,37 @@ export class Terminal extends Component {
     }
   }
 
+  /**
+   * Eagerly creates the PTY for a tab that isn't visible yet — e.g. every
+   * terminal tab restored from the previous session except whichever one
+   * ends up active. initPhase1() can't be reused for this: it measures the
+   * real size via a temp xterm mounted into the container, which requires
+   * waiting for a ResizeObserver entry with non-zero dimensions — a
+   * display:none container never produces one, so that wait would hang
+   * forever. This skips measurement entirely and uses the same 100x30
+   * fallback initPhase1() already falls back to for a degenerate
+   * measurement; the real size is corrected once the tab is actually shown,
+   * via the normal fit() that already runs on activation.
+   *
+   * Deliberately does NOT call initDisplay() — the isActive setter's
+   * `active && this.ptyCreated && !this.terminal` branch (already used
+   * after a restart while hidden) handles mounting the real xterm display
+   * once this tab is actually clicked.
+   */
+  async initPtyEagerly(): Promise<void> {
+    if (this.ptyCreated || this.initInProgress || this._isActive) return;
+    this.initInProgress = true;
+    this.ptyCols = 100;
+    this.ptyRows = 30;
+    try {
+      await (window as any).api?.terminalCreate(this.workspaceRoot, this.ptyCols, this.ptyRows, this.terminalId);
+      this.ptyCreated = true;
+    } catch (error) {
+      console.error('[Terminal] Failed to eagerly create PTY:', error);
+      this.initInProgress = false;
+    }
+  }
+
   resetTerminal(): void {
     this.terminal?.reset();
   }
