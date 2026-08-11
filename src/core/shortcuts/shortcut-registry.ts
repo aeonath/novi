@@ -322,6 +322,28 @@ export function acceleratorFromKeyboardEvent(e: { key: string; ctrlKey: boolean;
   return parts.join('+');
 }
 
+/**
+ * True when the pressed combo matches the effective (default-or-overridden)
+ * accelerator of any shortcut in `defs`. Shared by every "should the
+ * terminal/vim/etc. yield this keystroke to an app-level shortcut instead of
+ * handling it itself" check (Terminal.ts, MonacoEditor.ts's vim mode) so the
+ * matching logic lives in exactly one place.
+ */
+export function matchesAnyShortcut(
+  e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean },
+  defs: ShortcutDef[],
+  settings: KeyboardShortcutsSettings,
+): boolean {
+  const pressed = acceleratorFromKeyboardEvent(e);
+  if (!pressed) return false;
+  const normalizedPressed = normalizeAccelerator(pressed);
+  for (const def of defs) {
+    const effective = computeEffectiveAccelerator(def, settings);
+    if (effective && normalizeAccelerator(effective) === normalizedPressed) return true;
+  }
+  return false;
+}
+
 /** Renders an accelerator string for display (Windows/Linux convention). */
 export function formatAcceleratorForDisplay(accelerator: string | null): string {
   if (!accelerator) return '(none)';

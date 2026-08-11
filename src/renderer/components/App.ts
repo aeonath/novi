@@ -62,6 +62,8 @@ export class App extends Component {
   private terminalFontFamily = 'DejaVu Sans Mono';
   private editorWordWrap = false;
   private editorLineNumbers = true;
+  private vimModeEnabled = false;
+  private preserveNoviKeybindingsInVim = false;
   private showAbout = false;
   private showCheckUpdates = false;
   private appVersion = 'unknown';
@@ -588,6 +590,23 @@ export class App extends Component {
     window.addEventListener('novi-terminalfontfamily-changed', tffHandler);
     this.addCleanup(() => window.removeEventListener('novi-terminalfontfamily-changed', tffHandler));
 
+    // vimode / preserveNoviKeybindingsInVim: both feed shouldForceNoviDispatch(),
+    // which decides whether Novi shortcuts (New File, Open File, ...) need to
+    // pre-empt monaco-vim in the capture-phase listener in setupKeyboardShortcuts().
+    const vmHandler = (e: CustomEvent<{ enabled: boolean }>) => {
+      this.vimModeEnabled = e.detail?.enabled ?? false;
+    };
+    window.addEventListener('novi-vimode-changed', vmHandler as EventListener);
+    this.addCleanup(() => window.removeEventListener('novi-vimode-changed', vmHandler as EventListener));
+
+    const pnkHandler = () => {
+      window.api?.getSetting<boolean>('preserveNoviKeybindingsInVim', false).then((v) => {
+        this.preserveNoviKeybindingsInVim = !!v;
+      });
+    };
+    window.addEventListener('novi-preservenovikeybindingsinvim-changed', pnkHandler);
+    this.addCleanup(() => window.removeEventListener('novi-preservenovikeybindingsinvim-changed', pnkHandler));
+
     // keyboardShortcuts setting changes from Options -> Keyboard Shortcuts —
     // the Novi (Electron menu) side applies itself via a main-process menu
     // rebuild; this keeps setupKeyboardShortcuts()'s in-renderer copy (used
@@ -611,7 +630,8 @@ export class App extends Component {
   /** Novi-category commands with no Electron menu item of their own — the
    * only ones that need matching here off their customizable accelerator.
    * Menu-backed Novi commands (New File, Settings, etc.) apply through
-   * the native OS accelerator via menu.ts instead. */
+   * the native OS accelerator via menu.ts instead — dispatchNoviShortcut()
+   * falls back to handleMenuCommand() for those. */
   private static readonly APP_ONLY_NOVI_ACTIONS: Record<string, (self: App) => void> = {
     'git-refresh': (self) => void self.actionContext.onGitRefresh?.(),
     'cycle-tab-next': (self) => self.cycleTab(false),
@@ -627,33 +647,77 @@ export class App extends Component {
     'save', 'save-as', 'close-file', 'reload-file', 'undo', 'redo', 'find', 'replace',
   ]);
 
+  private dispatchNoviShortcut(id: string): void {
+    const action = App.APP_ONLY_NOVI_ACTIONS[id];
+    if (action) action(this);
+    else void this.handleMenuCommand(id);
+  }
+
+  /**
+   * True while the currently-focused context would otherwise consume/
+   * preventDefault a Novi shortcut's keystroke itself before this component
+   * ever saw it: a terminal tab (xterm sends real control bytes for many
+   * Ctrl+letter combos — Ctrl+N/Ctrl+O previously vanished as SO/SI with
+   * no effect) or a vim-mode editor tab with "Preserve Novi Keybindings"
+   * turned on (monaco-vim treats almost every keystroke as a vim command —
+   * Ctrl+N/Ctrl+O are real vim navigation bindings, which is why this is
+   * opt-in rather than always overriding vim). Drives the capture-phase
+   * listener in setupKeyboardShortcuts(), which must pre-empt those two
+   * cases; everywhere else (non-vim editing, Settings, file tree, Welcome)
+   * nothing swallows the keystroke, so the bubble-phase listener below (or
+   * the native OS accelerator) already handles it fine, unchanged.
+   */
+  private shouldForceNoviDispatch(): boolean {
+    if (this.activeTab?.type === 'terminal') return true;
+    if (this.activeTab?.type === 'file' && this.vimModeEnabled && this.preserveNoviKeybindingsInVim) return true;
+    return false;
+  }
+
   private setupKeyboardShortcuts(): void {
+    // Capture phase: fires before xterm's or monaco-vim's own keydown
+    // handling (both live on DOM nodes inside document, so a capture-phase
+    // listener registered here always runs first). Only forces a Novi
+    // shortcut through when shouldForceNoviDispatch() says the underlying
+    // context would otherwise swallow it — everywhere else this no-ops and
+    // the event proceeds untouched to its normal handling.
+    this.listen(document, 'keydown', (e: Event) => {
+      if (!this.shouldForceNoviDispatch()) return;
+      const ke = e as KeyboardEvent;
+      const pressed = acceleratorFromKeyboardEvent(ke);
+      if (!pressed) return;
+      const normalizedPressed = normalizeAccelerator(pressed);
+      for (const def of NOVI_SHORTCUTS) {
+        const effective = computeEffectiveAccelerator(def, this.keyboardShortcutsSettings);
+        if (effective && normalizeAccelerator(effective) === normalizedPressed) {
+          ke.preventDefault();
+          ke.stopPropagation();
+          this.dispatchNoviShortcut(def.id);
+          return;
+        }
+      }
+    }, { capture: true });
+
     this.listen(document, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
 
       const pressed = acceleratorFromKeyboardEvent(ke);
       if (pressed) {
         const normalizedPressed = normalizeAccelerator(pressed);
+
+        // Novi (app-level) shortcuts: defensive bubble-phase dispatch,
+        // reached whenever nothing upstream already consumed the key (plain
+        // editing, Settings, file tree, Welcome, ...) — both honoring the
+        // native OS accelerator (menu.ts) and covering contexts where it
+        // doesn't fire reliably. The capture-phase listener above already
+        // handled + stopped propagation for the terminal/vim-preserve
+        // cases, so this never double-fires for those.
         for (const def of NOVI_SHORTCUTS) {
-          const action = App.APP_ONLY_NOVI_ACTIONS[def.id];
-          if (!action) continue;
           const effective = computeEffectiveAccelerator(def, this.keyboardShortcutsSettings);
           if (effective && normalizeAccelerator(effective) === normalizedPressed) {
             ke.preventDefault();
-            action(this);
+            this.dispatchNoviShortcut(def.id);
             return;
           }
-        }
-
-        // Open File has both a menu accelerator (menu.ts, Novi category) and
-        // this defensive in-renderer binding — keep both honoring the same
-        // customizable accelerator rather than leaving this one hardcoded.
-        const openFileDef = NOVI_SHORTCUTS.find(d => d.id === 'open-file')!;
-        const openFileAccel = computeEffectiveAccelerator(openFileDef, this.keyboardShortcutsSettings);
-        if (openFileAccel && normalizeAccelerator(openFileAccel) === normalizedPressed) {
-          ke.preventDefault();
-          void this.actionContext.onOpenFile?.();
-          return;
         }
 
         // Terminal+Editor shortcuts (Copy, Select All, font size, ...):
@@ -717,6 +781,10 @@ export class App extends Component {
       this.editorLineNumbers = ln ?? true;
       this.monacoEditor.wordWrap = this.editorWordWrap;
       this.monacoEditor.lineNumbers = this.editorLineNumbers;
+      const vm = await window.api?.getSetting<boolean>('vimode', false);
+      const pnk = await window.api?.getSetting<boolean>('preserveNoviKeybindingsInVim', false);
+      this.vimModeEnabled = !!vm;
+      this.preserveNoviKeybindingsInVim = !!pnk;
       const v = await window.api?.getVersion?.();
       this.appVersion = v ?? 'unknown';
       const ge = await window.api?.getSetting<boolean>('gitenabled', true);

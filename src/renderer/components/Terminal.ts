@@ -12,8 +12,8 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import {
-  EDITOR_TERMINAL_SHORTCUTS, computeEffectiveAccelerator, normalizeAccelerator,
-  acceleratorFromKeyboardEvent, defaultKeyboardShortcutsSettings, mergeKeyboardShortcutsSettings,
+  EDITOR_TERMINAL_SHORTCUTS, defaultKeyboardShortcutsSettings, mergeKeyboardShortcutsSettings,
+  matchesAnyShortcut,
 } from '../../core/shortcuts/shortcut-registry.js';
 import type { KeyboardShortcutsSettings } from '../../core/shortcuts/shortcut-registry.js';
 
@@ -38,14 +38,7 @@ window.addEventListener('novi-keyboardshortcuts-changed', () => { void refreshCa
  * Exported for direct unit testing without needing to mount a real xterm
  * instance. */
 export function isClaimedByAppShortcut(e: KeyboardEvent): boolean {
-  const pressed = acceleratorFromKeyboardEvent(e);
-  if (!pressed) return false;
-  const normalizedPressed = normalizeAccelerator(pressed);
-  for (const def of EDITOR_TERMINAL_SHORTCUTS) {
-    const effective = computeEffectiveAccelerator(def, cachedShortcutSettings);
-    if (effective && normalizeAccelerator(effective) === normalizedPressed) return true;
-  }
-  return false;
+  return matchesAnyShortcut(e, EDITOR_TERMINAL_SHORTCUTS, cachedShortcutSettings);
 }
 
 /** True when the pressed combo matches the (possibly remapped) Copy
@@ -53,13 +46,9 @@ export function isClaimedByAppShortcut(e: KeyboardEvent): boolean {
  * (copy vs. SIGINT); see the comment where this is called in initDisplay().
  * Exported for the same direct-unit-testing reason as isClaimedByAppShortcut. */
 export function isCopyAccelerator(e: KeyboardEvent): boolean {
-  const pressed = acceleratorFromKeyboardEvent(e);
-  if (!pressed) return false;
-  const normalizedPressed = normalizeAccelerator(pressed);
   const copyDef = EDITOR_TERMINAL_SHORTCUTS.find((def) => def.id === 'copy');
   if (!copyDef) return false;
-  const effective = computeEffectiveAccelerator(copyDef, cachedShortcutSettings);
-  return !!effective && normalizeAccelerator(effective) === normalizedPressed;
+  return matchesAnyShortcut(e, [copyDef], cachedShortcutSettings);
 }
 
 /** attachCustomKeyEventHandler's decision function: true lets xterm handle

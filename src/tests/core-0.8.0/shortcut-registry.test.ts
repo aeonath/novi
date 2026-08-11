@@ -14,6 +14,7 @@ import {
   formatAcceleratorForDisplay,
   getShortcutsByCategory,
   getMonacoMappedShortcuts,
+  matchesAnyShortcut,
   parseAccelerator,
   monacoKeyCodeForKeyName,
   acceleratorToMonacoKeybinding,
@@ -88,6 +89,40 @@ describe('shortcut-registry', () => {
         novi: { useDefaults: false, overrides: { 'test-cmd': null } },
       });
       expect(computeEffectiveAccelerator(def, settings)).toBeNull();
+    });
+  });
+
+  describe('matchesAnyShortcut', () => {
+    const settings = defaultKeyboardShortcutsSettings();
+
+    it('matches New File\'s default accelerator against NOVI_SHORTCUTS', () => {
+      const e = { key: 'n', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false };
+      expect(matchesAnyShortcut(e, NOVI_SHORTCUTS, settings)).toBe(true);
+    });
+
+    it('matches Open File\'s default accelerator against NOVI_SHORTCUTS', () => {
+      const e = { key: 'o', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false };
+      expect(matchesAnyShortcut(e, NOVI_SHORTCUTS, settings)).toBe(true);
+    });
+
+    it('does not match an unrelated combination', () => {
+      const e = { key: 'q', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false };
+      expect(matchesAnyShortcut(e, NOVI_SHORTCUTS, settings)).toBe(false);
+    });
+
+    it('follows a remapped accelerator, not the stale default', () => {
+      const remapped = mergeKeyboardShortcutsSettings({
+        novi: { useDefaults: false, overrides: { 'new-file': 'CmdOrCtrl+M' } },
+      });
+      const ctrlN = { key: 'n', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false };
+      const ctrlM = { key: 'm', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false };
+      expect(matchesAnyShortcut(ctrlN, NOVI_SHORTCUTS, remapped)).toBe(false);
+      expect(matchesAnyShortcut(ctrlM, NOVI_SHORTCUTS, remapped)).toBe(true);
+    });
+
+    it('returns false for a lone modifier keypress', () => {
+      const e = { key: 'Control', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false };
+      expect(matchesAnyShortcut(e, NOVI_SHORTCUTS, settings)).toBe(false);
     });
   });
 

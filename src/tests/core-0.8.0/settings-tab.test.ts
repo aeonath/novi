@@ -70,6 +70,52 @@ describe('SettingsTab', () => {
     expect(checkbox.checked).toBe(false);
   });
 
+  it('disables Preserve Novi Keybindings and labels it "(disabled)" while VI Mode is off', () => {
+    tab.section = 'editor';
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Preserve Novi Keybindings (disabled)');
+
+    const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+    const preserveBox = checkboxes[1]; // VI Mode, Preserve Novi Keybindings, ...
+    expect(preserveBox.disabled).toBe(true);
+  });
+
+  it('enables Preserve Novi Keybindings and persists/broadcasts it once VI Mode is turned on', async () => {
+    tab.section = 'editor';
+    const vimEventSpy = jest.fn();
+    const preserveEventSpy = jest.fn();
+    window.addEventListener('novi-vimode-changed', vimEventSpy);
+    window.addEventListener('novi-preservenovikeybindingsinvim-changed', preserveEventSpy);
+    try {
+      const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      const vimBox = checkboxes[0];
+      vimBox.checked = true;
+      vimBox.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('vimode', true);
+      expect(vimEventSpy).toHaveBeenCalledTimes(1);
+
+      const text = tab.getElement().textContent || '';
+      expect(text).not.toContain('Preserve Novi Keybindings (disabled)');
+
+      const checkboxesAfter = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      const preserveBox = checkboxesAfter[1];
+      expect(preserveBox.disabled).toBe(false);
+
+      preserveBox.checked = true;
+      preserveBox.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('preserveNoviKeybindingsInVim', true);
+      expect(preserveEventSpy).toHaveBeenCalledTimes(1);
+      expect((preserveEventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ enabled: true });
+    } finally {
+      window.removeEventListener('novi-vimode-changed', vimEventSpy);
+      window.removeEventListener('novi-preservenovikeybindingsinvim-changed', preserveEventSpy);
+    }
+  });
+
   it('should render Word Wrap, Column Break (with Hard Break), and Show Ruler, all off by default', () => {
     tab.section = 'editor';
     const text = tab.getElement().textContent || '';
@@ -80,15 +126,15 @@ describe('SettingsTab', () => {
     expect(text).toContain('ignored while Word Wrap is on');
 
     const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-    // VI Mode, Word Wrap, Column Break, Hard Break, Show Ruler
-    expect(checkboxes.length).toBe(5);
+    // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, Hard Break, Show Ruler
+    expect(checkboxes.length).toBe(6);
     for (const cb of checkboxes) expect(cb.checked).toBe(false);
   });
 
   it('disables Hard Break and labels it "(disabled)" once Word Wrap is turned on', async () => {
     tab.section = 'editor';
     const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-    const wordWrapBox = checkboxes[1]; // VI Mode, Word Wrap, ...
+    const wordWrapBox = checkboxes[2]; // VI Mode, Preserve Novi Keybindings, Word Wrap, ...
     wordWrapBox.checked = true;
     wordWrapBox.dispatchEvent(new Event('change'));
     await new Promise((r) => setTimeout(r, 10)); // onChange awaits setSetting before re-rendering
@@ -97,7 +143,7 @@ describe('SettingsTab', () => {
     expect(text).toContain('Hard Break (disabled)');
 
     const checkboxesAfter = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-    const hardBreakBox = checkboxesAfter[3]; // VI Mode, Word Wrap, Column Break, Hard Break, ...
+    const hardBreakBox = checkboxesAfter[4]; // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, Hard Break, ...
     expect(hardBreakBox.disabled).toBe(true);
 
     // Disabled rows never attach a change listener — dispatching one directly should no-op.
@@ -113,7 +159,7 @@ describe('SettingsTab', () => {
     expect(text).not.toContain('Hard Break (disabled)');
 
     const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-    expect(checkboxes[3].disabled).toBe(false);
+    expect(checkboxes[4].disabled).toBe(false);
   });
 
   it('should default the Column Break value text field to 90', () => {
@@ -130,7 +176,7 @@ describe('SettingsTab', () => {
     window.addEventListener('novi-wordwrap-changed', eventSpy);
     try {
       const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-      const wordWrapBox = checkboxes[1]; // VI Mode, Word Wrap, ...
+      const wordWrapBox = checkboxes[2]; // VI Mode, Preserve Novi Keybindings, Word Wrap, ...
       wordWrapBox.checked = true;
       wordWrapBox.dispatchEvent(new Event('change'));
       await new Promise((r) => setTimeout(r, 10)); // onChange is async (awaits setSetting) before dispatching
@@ -149,7 +195,7 @@ describe('SettingsTab', () => {
     window.addEventListener('novi-columnbreak-changed', eventSpy);
     try {
       const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-      const columnBreakBox = checkboxes[2]; // VI Mode, Word Wrap, Column Break, ...
+      const columnBreakBox = checkboxes[3]; // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, ...
       columnBreakBox.checked = true;
       columnBreakBox.dispatchEvent(new Event('change'));
       await new Promise((r) => setTimeout(r, 10));
@@ -186,7 +232,7 @@ describe('SettingsTab', () => {
     window.addEventListener('novi-showruler-changed', eventSpy);
     try {
       const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-      const showRulerBox = checkboxes[4]; // VI Mode, Word Wrap, Column Break, Hard Break, Show Ruler
+      const showRulerBox = checkboxes[5]; // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, Hard Break, Show Ruler
       showRulerBox.checked = true;
       showRulerBox.dispatchEvent(new Event('change'));
       await new Promise((r) => setTimeout(r, 10));

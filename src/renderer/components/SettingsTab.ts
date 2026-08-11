@@ -64,6 +64,7 @@ export class SettingsTab extends Component {
   private loadedExtensions: ExtensionInfo[] = [];
   private extensionsLoaded = false;
   private vimodeEnabled = false;
+  private preserveNoviKeybindingsInVimEnabled = false;
   private singlefiletreeEnabled = false;
   private keeptabsEnabled = true;
   private gitenabledEnabled = true;
@@ -138,6 +139,7 @@ export class SettingsTab extends Component {
         this.currentShellPath = sp || 'C:\\Program Files\\Git\\bin\\bash.exe';
       }
       this.vimodeEnabled = !!(await window.api?.getSetting<boolean>('vimode', false));
+      this.preserveNoviKeybindingsInVimEnabled = !!(await window.api?.getSetting<boolean>('preserveNoviKeybindingsInVim', false));
       this.singlefiletreeEnabled = !!(await window.api?.getSetting<boolean>('singlefiletree', false));
       this.keeptabsEnabled = (await window.api?.getSetting<boolean>('keeptabs', true)) !== false;
       this.gitenabledEnabled = (await window.api?.getSetting<boolean>('gitenabled', true)) !== false;
@@ -520,7 +522,20 @@ export class SettingsTab extends Component {
         this.vimodeEnabled = enabled;
         await window.api?.setSetting('vimode', enabled);
         window.dispatchEvent(new CustomEvent('novi-vimode-changed', { detail: { enabled } }));
+        this.render(); // Preserve Novi Keybindings' disabled state depends on this
       },
+    ));
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Preserve Novi Keybindings',
+      'In VI Mode, let Novi\'s global shortcuts (New File, Open File, ...) take priority over conflicting Vim keybindings (e.g. Ctrl+N, Ctrl+O)',
+      this.preserveNoviKeybindingsInVimEnabled,
+      async (enabled) => {
+        this.preserveNoviKeybindingsInVimEnabled = enabled;
+        await window.api?.setSetting('preserveNoviKeybindingsInVim', enabled);
+        window.dispatchEvent(new CustomEvent('novi-preservenovikeybindingsinvim-changed', { detail: { enabled } }));
+      },
+      !this.vimodeEnabled,
     ));
 
     this.contentEl.appendChild(this.createToggleRow(
