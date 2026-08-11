@@ -48,6 +48,36 @@ export function isClaimedByAppShortcut(e: KeyboardEvent): boolean {
   return false;
 }
 
+/** True when the pressed combo matches the (possibly remapped) Copy
+ * shortcut specifically — used to give Ctrl+C its dual terminal meaning
+ * (copy vs. SIGINT); see the comment where this is called in initDisplay().
+ * Exported for the same direct-unit-testing reason as isClaimedByAppShortcut. */
+export function isCopyAccelerator(e: KeyboardEvent): boolean {
+  const pressed = acceleratorFromKeyboardEvent(e);
+  if (!pressed) return false;
+  const normalizedPressed = normalizeAccelerator(pressed);
+  const copyDef = EDITOR_TERMINAL_SHORTCUTS.find((def) => def.id === 'copy');
+  if (!copyDef) return false;
+  const effective = computeEffectiveAccelerator(copyDef, cachedShortcutSettings);
+  return !!effective && normalizeAccelerator(effective) === normalizedPressed;
+}
+
+/** attachCustomKeyEventHandler's decision function: true lets xterm handle
+ * the keystroke itself (write it to the shell); false yields it to the
+ * app's own shortcut handling instead. `hasSelection` is the mounted
+ * terminal's current `terminal.hasSelection()` — Ctrl+C is dual-purpose in
+ * every terminal emulator: copy the selection if one exists, otherwise send
+ * the real interrupt byte to the shell (SIGINT) — e.g. to break out of
+ * `tail -f`. Only defer to the app's Copy menu accelerator (which no-ops
+ * with nothing selected) when there's actually a selection to copy.
+ * Exported for the same direct-unit-testing reason as the two functions above. */
+export function shouldXtermHandleKey(e: KeyboardEvent, hasSelection: boolean): boolean {
+  if (e.ctrlKey && e.key === 'Tab') return false;
+  if (isCopyAccelerator(e) && !hasSelection) return true;
+  if (isClaimedByAppShortcut(e)) return false;
+  return true;
+}
+
 export interface TerminalConfig {
   terminalId: string;
   workspaceRoot?: string;
@@ -363,11 +393,7 @@ export class Terminal extends Component {
       lineHeight: 1.2, letterSpacing: 0, scrollback: 10000, windowsMode: false,
     });
 
-    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'Tab') return false;
-      if (isClaimedByAppShortcut(e)) return false;
-      return true;
-    });
+    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => shouldXtermHandleKey(e, terminal.hasSelection()));
 
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);

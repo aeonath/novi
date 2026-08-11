@@ -18,7 +18,7 @@
  * working while a terminal is focused.
  */
 
-import { isClaimedByAppShortcut } from '../../renderer/components/Terminal';
+import { isClaimedByAppShortcut, isCopyAccelerator, shouldXtermHandleKey } from '../../renderer/components/Terminal';
 
 function keyEvent(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
   return new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
@@ -55,5 +55,44 @@ describe('Terminal.isClaimedByAppShortcut', () => {
 
   it('does not claim a plain letter with no modifiers', () => {
     expect(isClaimedByAppShortcut(keyEvent({ key: 'a' }))).toBe(false);
+  });
+});
+
+describe('Terminal.isCopyAccelerator', () => {
+  it('matches Ctrl+C (Copy default)', () => {
+    expect(isCopyAccelerator(keyEvent({ key: 'c', ctrlKey: true }))).toBe(true);
+  });
+
+  it('does not match Ctrl+A (Select All, a different Terminal+Editor shortcut)', () => {
+    expect(isCopyAccelerator(keyEvent({ key: 'a', ctrlKey: true }))).toBe(false);
+  });
+
+  it('does not match an unrelated combination', () => {
+    expect(isCopyAccelerator(keyEvent({ key: 'z', ctrlKey: true }))).toBe(false);
+  });
+});
+
+describe('Terminal.shouldXtermHandleKey (Ctrl+C dual purpose: copy vs. SIGINT)', () => {
+  it('lets xterm handle Ctrl+C when there is no selection, so the shell receives the real interrupt (e.g. to break `tail -f`)', () => {
+    expect(shouldXtermHandleKey(keyEvent({ key: 'c', ctrlKey: true }), false)).toBe(true);
+  });
+
+  it('yields Ctrl+C to the app\'s Copy accelerator when there IS a selection', () => {
+    expect(shouldXtermHandleKey(keyEvent({ key: 'c', ctrlKey: true }), true)).toBe(false);
+  });
+
+  it('still claims Ctrl+A (Select All) regardless of selection state', () => {
+    expect(shouldXtermHandleKey(keyEvent({ key: 'a', ctrlKey: true }), false)).toBe(false);
+    expect(shouldXtermHandleKey(keyEvent({ key: 'a', ctrlKey: true }), true)).toBe(false);
+  });
+
+  it('still lets xterm handle Ctrl+S (XOFF) regardless of selection state', () => {
+    expect(shouldXtermHandleKey(keyEvent({ key: 's', ctrlKey: true }), false)).toBe(true);
+    expect(shouldXtermHandleKey(keyEvent({ key: 's', ctrlKey: true }), true)).toBe(true);
+  });
+
+  it('never lets xterm handle Ctrl+Tab, regardless of selection', () => {
+    expect(shouldXtermHandleKey(keyEvent({ key: 'Tab', ctrlKey: true }), false)).toBe(false);
+    expect(shouldXtermHandleKey(keyEvent({ key: 'Tab', ctrlKey: true }), true)).toBe(false);
   });
 });
