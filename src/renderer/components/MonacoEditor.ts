@@ -23,6 +23,67 @@ declare const monaco: typeof import('monaco-editor');
 
 const WORD_WRAP_COLUMN = 90;
 
+/** Minimal shapes of window.__tabBarAPI / window.__monacoEditorAPI that the
+ * vim :w/:q/:wq ex commands below need — kept separate from the real global
+ * API surfaces so saveActiveVimFile()/closeActiveVimFile() are pure functions,
+ * testable with plain mock objects instead of a mounted TabBar/MonacoEditor. */
+export interface VimTabBarLike {
+  getActiveTab?: () => { id: string; type: string } | null | undefined;
+  updateTabDirty?: (id: string, dirty: boolean) => void;
+  removeTab?: (id: string) => void;
+}
+export interface VimMonacoEditorLike {
+  getFilePath?: () => string | null;
+  getValue?: () => string;
+  markAsSaved?: () => void;
+  isDirty?: () => boolean;
+}
+
+/** Vim's :w — saves the active file tab. 'no-path' for an untitled tab
+ * (nothing to write to; :w silently no-ops for these, same as before this
+ * was extracted). 'failed' covers both a rejected save and there being no
+ * saveFile API at all to call. */
+export async function saveActiveVimFile(
+  monacoEditorAPI: VimMonacoEditorLike | undefined,
+  tabBarAPI: VimTabBarLike | undefined,
+  saveFile: ((path: string, content: string) => Promise<unknown>) | undefined,
+): Promise<'saved' | 'no-path' | 'failed'> {
+  if (!monacoEditorAPI?.getFilePath || !saveFile) return 'failed';
+  const filePath = monacoEditorAPI.getFilePath();
+  if (!filePath) return 'no-path';
+  try {
+    await saveFile(filePath, monacoEditorAPI.getValue?.() ?? '');
+    monacoEditorAPI.markAsSaved?.();
+    const activeTab = tabBarAPI?.getActiveTab?.();
+    if (activeTab?.type === 'file') tabBarAPI?.updateTabDirty?.(activeTab.id, false);
+    return 'saved';
+  } catch {
+    return 'failed';
+  }
+}
+
+/** Vim's :q / :q! — closes the active file tab. force=false refuses (real
+ * vim's :q behavior, reported via `notify`) if there are unsaved changes;
+ * force=true (:q!, or :wq after a successful save) discards them — marks the
+ * tab clean first so TabBar's close-confirmation dialog (meant for the
+ * interactive [x]/Ctrl+W path) never shows, mirroring what the Save Prompt's
+ * own Discard button already does. */
+export function closeActiveVimFile(
+  tabBarAPI: VimTabBarLike | undefined,
+  monacoEditorAPI: VimMonacoEditorLike | undefined,
+  notify: ((text: string) => void) | undefined,
+  force: boolean,
+): void {
+  const tab = tabBarAPI?.getActiveTab?.();
+  if (!tab || tab.type !== 'file') return;
+  if (!force && monacoEditorAPI?.isDirty?.()) {
+    notify?.('E37: No write since last change (add ! to override)');
+    return;
+  }
+  if (force) tabBarAPI?.updateTabDirty?.(tab.id, false);
+  tabBarAPI?.removeTab?.(tab.id);
+}
+
 export interface MonacoEditorConfig {
   onDirtyChange?: (isDirty: boolean) => void;
   fontSize?: number;
@@ -424,18 +485,33 @@ export class MonacoEditor extends Component {
         this.vimAdapter = mod.initVimMode(this.editor, this.vimStatusBar);
         const Vim = (mod as any).VimMode?.Vim;
         if (Vim && typeof Vim.defineEx === 'function') {
+          const win = window as any;
+
           Vim.defineEx('write', 'w', (_cm: unknown, params: { callback?: () => void }) => {
-            const win = window as any;
-            const api = win.__monacoEditorAPI;
-            if (!api?.getFilePath || !win.api?.saveFile) return;
-            const fp = api.getFilePath();
-            if (!fp) return;
-            win.api.saveFile(fp, api.getValue()).then(() => {
-              api.markAsSaved();
-              const tb = win.__tabBarAPI;
-              if (tb?.getActiveTab) { const a = tb.getActiveTab(); if (a?.type === 'file') tb.updateTabDirty(a.id, false); }
+            void saveActiveVimFile(win.__monacoEditorAPI, win.__tabBarAPI, win.api?.saveFile)
+              .finally(() => params?.callback?.());
+          });
+
+          Vim.defineEx('quit', 'q', (
+            cm: { openNotification?: (text: string) => void },
+            params: { argString?: string; callback?: () => void },
+          ) => {
+            const force = params?.argString?.trim() === '!';
+            closeActiveVimFile(win.__tabBarAPI, win.__monacoEditorAPI, cm.openNotification, force);
+            params?.callback?.();
+          });
+
+          // :wq! is accepted but the bang is meaningless here (there's no
+          // read-only-file concept to force past) — treated identically to :wq.
+          Vim.defineEx('wq', 'wq', (
+            cm: { openNotification?: (text: string) => void },
+            params: { callback?: () => void },
+          ) => {
+            void saveActiveVimFile(win.__monacoEditorAPI, win.__tabBarAPI, win.api?.saveFile).then((result) => {
+              if (result === 'saved') closeActiveVimFile(win.__tabBarAPI, win.__monacoEditorAPI, cm.openNotification, true);
+              else if (result === 'failed') cm.openNotification?.("E212: Can't open file for writing");
               params?.callback?.();
-            }).catch(() => params?.callback?.());
+            });
           });
         }
         // Retokenize after vim init to preserve syntax highlighting
