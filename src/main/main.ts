@@ -1091,7 +1091,13 @@ void app.whenReady().then(() => {
       mainWindowRef.close();
     }
   });
-  
+
+  ipcMain.on('window-toggle-fullscreen', () => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.setFullScreen(!mainWindowRef.isFullScreen());
+    }
+  });
+
   ipcMain.on('app-quit', () => {
     logInfo('[Main] App quit requested via IPC');
     app.quit();

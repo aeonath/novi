@@ -1675,9 +1675,6 @@ export class App extends Component {
         if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.openReplace();
         break;
       case 'toggle-fullscreen': window.api?.toggleFullScreen?.(); break;
-      case 'zoom-in': window.api?.zoomIn?.(); break;
-      case 'zoom-out': window.api?.zoomOut?.(); break;
-      case 'zoom-reset': window.api?.zoomReset?.(); break;
       case 'toggle-devtools': window.api?.toggleDevTools?.(); break;
       case 'show-hidden-files':
         window.dispatchEvent(new CustomEvent('novi-showhiddenfiles-changed'));

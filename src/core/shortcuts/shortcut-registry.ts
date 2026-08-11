@@ -72,11 +72,8 @@ export const NOVI_SHORTCUTS: ShortcutDef[] = [
   // platform for this app is Windows, so the registry's reference default is Alt+F4.
   { id: 'exit', category: 'novi', label: 'Exit', defaultAccelerator: 'Alt+F4' },
   { id: 'toggle-fullscreen', category: 'novi', label: 'Toggle Full Screen', defaultAccelerator: 'F11' },
-  { id: 'zoom-in', category: 'novi', label: 'Zoom In (App)', description: 'Zooms the whole app window, not the editor', defaultAccelerator: 'CmdOrCtrl+=' },
-  { id: 'zoom-out', category: 'novi', label: 'Zoom Out (App)', description: 'Zooms the whole app window, not the editor', defaultAccelerator: 'CmdOrCtrl+-' },
-  { id: 'zoom-reset', category: 'novi', label: 'Reset Zoom (App)', defaultAccelerator: 'CmdOrCtrl+0' },
   { id: 'settings', category: 'novi', label: 'Open Settings', defaultAccelerator: 'CmdOrCtrl+,' },
-  { id: 'new-terminal', category: 'novi', label: 'New Terminal', defaultAccelerator: 'CmdOrCtrl+`' },
+  { id: 'new-terminal', category: 'novi', label: 'New Terminal', defaultAccelerator: 'CmdOrCtrl+T' },
   { id: 'toggle-devtools', category: 'novi', label: 'Toggle Developer Tools', defaultAccelerator: 'CmdOrCtrl+Shift+I' },
   { id: 'git-refresh', category: 'novi', label: 'Refresh Git Status', defaultAccelerator: 'CmdOrCtrl+Shift+G' },
   { id: 'cycle-tab-next', category: 'novi', label: 'Cycle to Next Tab', defaultAccelerator: 'CmdOrCtrl+Tab' },

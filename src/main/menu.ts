@@ -77,9 +77,6 @@ export type MenuCommand =
   | 'find'
   | 'replace'
   | 'toggle-fullscreen'
-  | 'zoom-in'
-  | 'zoom-out'
-  | 'zoom-reset'
   | 'new-terminal'
   | 'command-palette'
   | 'debug'
@@ -223,22 +220,6 @@ function createMenuTemplate(mainWindow: BrowserWindow): MenuItemConstructorOptio
           label: 'Toggle Full Screen',
           accelerator: accel['toggle-fullscreen'],
           click: () => executeCommand('toggle-fullscreen', mainWindow),
-        },
-        { type: 'separator' },
-        {
-          label: 'Zoom In',
-          accelerator: accel['zoom-in'],
-          click: () => executeCommand('zoom-in', mainWindow),
-        },
-        {
-          label: 'Zoom Out',
-          accelerator: accel['zoom-out'],
-          click: () => executeCommand('zoom-out', mainWindow),
-        },
-        {
-          label: 'Reset Zoom',
-          accelerator: accel['zoom-reset'],
-          click: () => executeCommand('zoom-reset', mainWindow),
         },
         { type: 'separator' },
         {

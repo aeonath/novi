@@ -144,6 +144,7 @@ declare global {
       windowMaximize: () => void;
       windowClose: () => void;
       windowIsMaximized: () => Promise<boolean>;
+      toggleFullScreen: () => void;
       quit: () => void;
       // Terminal operations
       terminalCreate: (cwd?: string, cols?: number, rows?: number, customId?: string) => Promise<{ id: string }>;
