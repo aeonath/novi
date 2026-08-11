@@ -459,18 +459,6 @@ export class Terminal extends Component {
     try {
       terminal.open(this.container);
 
-      // Replay the previous session's scrollback (see saveHistory()) before
-      // anything else touches the buffer — earlyTerminalData's flush (the
-      // live shell's own startup output, queued in App.ts until this
-      // terminal became ready) happens later, in registerAPI() below, so
-      // writing this first guarantees restored history always appears
-      // above the live session, never interleaved with it.
-      if (this.initialHistory) {
-        terminal.write(this.initialHistory);
-        terminal.write('\r\n\x1b[38;5;240m─── restored previous session ───\x1b[0m\r\n\r\n');
-        this.initialHistory = undefined;
-      }
-
       try {
         const webglAddon = new WebglAddon();
         // dispose() here can throw (see disposeXterm()'s comment) if this fires
@@ -496,6 +484,25 @@ export class Terminal extends Component {
           // redraws a fresh prompt with the correct column width.
           (window as any).__appInstance?.clearEarlyTerminalData?.(this.terminalId);
         }
+
+        // Replay the previous session's scrollback (see serializeHistory())
+        // now that fit() above has resized the terminal to its real
+        // dimensions — NOT right after open(), while it's still at
+        // whatever default size xterm starts with. Writing it before the
+        // resize meant this same fit() call would immediately reflow the
+        // just-written buffer to the new column width, and that reflow was
+        // exactly what corrupted/dropped the most-recently-written rows —
+        // i.e. whatever had been on-screen — while older scrollback further
+        // back survived. Still runs before registerAPI() below (which
+        // flushes the live shell's own early-buffered output, queued in
+        // App.ts until this terminal became ready), so restored history
+        // always appears above the live session, never interleaved with it.
+        if (this.initialHistory) {
+          terminal.write(this.initialHistory);
+          terminal.write('\r\n\x1b[38;5;240m─── restored previous session ───\x1b[0m\r\n\r\n');
+          this.initialHistory = undefined;
+        }
+
         this.registerAPI();
         if (dimensionsChanged && this.onResize) {
           this.onResize(newCols, newRows);
