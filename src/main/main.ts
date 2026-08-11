@@ -19,6 +19,7 @@ import { gitCredentialHelper } from './services/git-credential-helper';
 import { terminalService, DEFAULT_GITBASH_PATH } from './services/terminal-service';
 import type { ShellType } from './services/terminal-service';
 import { workspaceManager } from './services/workspace-service';
+import { terminalHistoryService } from './services/terminal-history-service';
 import { fileTreeWatcher } from './services/file-tree-watcher';
 import { editorFileWatcher } from './services/editor-file-watcher';
 import { initializeMenu, setMenuCommandHandler, MenuCommand, buildMenu } from './menu';
@@ -250,6 +251,39 @@ function createWindow(): void {
   mainWindow.on('close', saveBounds);
   mainWindow.on('move', saveBounds);
   mainWindow.on('resize', saveBounds);
+
+  // Flush each terminal tab's scrollback to disk before actually quitting,
+  // so "Restore Previous Session" can replay it next launch — gated on the
+  // same 'keeptabs' setting the rest of workspace restore already uses.
+  // This has to intercept the close (preventDefault + a real second close
+  // once done) rather than just listening passively like saveBounds does:
+  // serializing/writing potentially large buffers is async, and the
+  // renderer is the only side that can serialize its own live xterm
+  // buffers, so this is a genuine round trip that must complete before the
+  // window (and the renderer along with it) is allowed to go away.
+  let allowWindowClose = false;
+  let quitSaveInFlight = false;
+  mainWindow.on('close', (event) => {
+    if (allowWindowClose) return;
+    if (quitSaveInFlight) { event.preventDefault(); return; }
+    const keeptabs = getSetting<boolean>('keeptabs', true) !== false;
+    if (!keeptabs || mainWindow.isDestroyed()) return;
+    event.preventDefault();
+    quitSaveInFlight = true;
+
+    const finishClose = () => {
+      quitSaveInFlight = false;
+      allowWindowClose = true;
+      if (!mainWindow.isDestroyed()) mainWindow.close();
+    };
+    // Never block quitting indefinitely if the renderer is gone/unresponsive.
+    const timeout = setTimeout(finishClose, 3000);
+    ipcMain.once('terminal-history-save-and-quit', (_e, entries: { index: number; text: string }[]) => {
+      clearTimeout(timeout);
+      terminalHistoryService.saveAll(entries).finally(finishClose);
+    });
+    mainWindow.webContents.send('request-terminal-history-for-quit');
+  });
 
   // Sync devtools setting and menu label when devtools are opened/closed externally
   mainWindow.webContents.on('devtools-opened', () => {
@@ -853,6 +887,7 @@ void app.whenReady().then(() => {
   ipcMain.handle('workspace-clear', async () => {
     try {
       await workspaceManager.clearWorkspace();
+      await terminalHistoryService.clearAll();
       return { success: true };
     } catch (error) {
       logError('Failed to clear workspace', error as Error);
@@ -866,6 +901,19 @@ void app.whenReady().then(() => {
     } catch (error) {
       logError('Failed to get workspace path', error as Error);
       throw error;
+    }
+  });
+
+  // Terminal history (restored scrollback content) IPC handlers — the
+  // save side is driven by the window-close interception below, not a
+  // simple handle() call, since it has to happen before the app is
+  // actually allowed to quit.
+  ipcMain.handle('terminal-history-load-all', async (_e, count: number) => {
+    try {
+      return await terminalHistoryService.loadAll(count);
+    } catch (error) {
+      logError('Failed to load terminal history', error as Error);
+      return [];
     }
   });
 

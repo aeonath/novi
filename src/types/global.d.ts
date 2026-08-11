@@ -140,6 +140,10 @@ declare global {
       workspaceLoad: () => Promise<WorkspaceState | null>;
       workspaceClear: () => Promise<{ success: boolean }>;
       workspaceGetPath: () => Promise<{ path: string }>;
+      terminalHistoryLoadAll: (count: number) => Promise<string[]>;
+      terminalHistorySaveAndQuit: (entries: Array<{ index: number; text: string }>) => void;
+      onRequestTerminalHistoryForQuit: (callback: () => void) => void;
+      removeRequestTerminalHistoryForQuitListener: () => void;
       windowMinimize: () => void;
       windowMaximize: () => void;
       windowClose: () => void;

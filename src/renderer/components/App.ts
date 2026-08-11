@@ -52,7 +52,7 @@ export class App extends Component {
   private gitEnabled = true;
   private workspaceRoot: string | null = null;
   private activeTab: ActiveTab | null = null;
-  private terminalTabs: Array<{ id: string; fileName: string; workspaceRoot?: string | null }> = [];
+  private terminalTabs: Array<{ id: string; fileName: string; workspaceRoot?: string | null; initialHistory?: string }> = [];
   private untitledCounter = 1;
   private sidebarWidth = 250;
   private isResizing = false;
@@ -501,6 +501,30 @@ export class App extends Component {
       this.addCleanup(() => window.api?.removeOpenFromCliListener?.());
     }
 
+    // Terminal history flush on quit — main.ts intercepts the window close
+    // and holds it open until it hears back on 'terminal-history-save-and-quit'
+    // (with a timeout fallback so a gone/unresponsive renderer never blocks
+    // quitting forever); it only asks in the first place when "Restore
+    // Previous Session" is on. Gathered in this.terminalTabs' own order,
+    // the same index loadWorkspace()'s restore loop later uses to match a
+    // saved history file back to the tab it belongs to.
+    if (window.api?.onRequestTerminalHistoryForQuit) {
+      window.api.onRequestTerminalHistoryForQuit(() => {
+        void (async () => {
+          // Flush the latest tab list/cwd state immediately (not the
+          // debounced saveWorkspaceDebounced) so the workspace file and the
+          // history files below come from the exact same snapshot.
+          await this.saveWorkspace();
+          const entries = this.terminalTabs.map((tab, index) => ({
+            index,
+            text: (window as any).__terminalAPI?.[tab.id]?.serialize?.() ?? '',
+          }));
+          window.api?.terminalHistorySaveAndQuit?.(entries);
+        })();
+      });
+      this.addCleanup(() => window.api?.removeRequestTerminalHistoryForQuitListener?.());
+    }
+
     // singlefiletree setting changes
     const sftHandler = () => {
       window.api?.getSetting<boolean>('singlefiletree', false).then((v) => {
@@ -937,6 +961,11 @@ export class App extends Component {
       const oldToNewTabId: Record<string, string> = {};
       if (workspace.openTerminals?.length) {
         const tabBarAPI = (window as any).__tabBarAPI;
+        // Saved scrollback (see App.ts's request-terminal-history-for-quit
+        // handler / Terminal.serializeHistory()) — keyed by the same
+        // tab-order index the rest of this loop already uses to correlate
+        // a saved openTerminals entry with its freshly-generated tab id.
+        const savedHistory = (await window.api?.terminalHistoryLoadAll?.(workspace.openTerminals.length)) ?? [];
         for (let i = 0; i < workspace.openTerminals.length; i++) {
           const ti = workspace.openTerminals[i];
           const tid = `terminal-${Date.now()}-restore-${i}`;
@@ -950,7 +979,7 @@ export class App extends Component {
           // right label immediately instead of a stale/generic one.
           const restoredName = cwd ? this.deriveTerminalTabName(cwd) : (ti.name || '\u{1F4BB} bash');
           tabBarAPI.addTab({ id: tid, type: 'terminal', filePath: tid, fileName: restoredName, isDirty: false, content: '', language: 'terminal' });
-          this.terminalTabs = [...this.terminalTabs, { id: tid, fileName: restoredName, workspaceRoot: cwd || this.workspaceRoot }];
+          this.terminalTabs = [...this.terminalTabs, { id: tid, fileName: restoredName, workspaceRoot: cwd || this.workspaceRoot, initialHistory: savedHistory[i] || undefined }];
           this.terminalFileTreeRoots = { ...this.terminalFileTreeRoots, [tid]: { cwd, overriddenRoot: undefined } };
         }
         this.syncTerminalInstances();
@@ -1157,6 +1186,7 @@ export class App extends Component {
           fontSize: this.terminalFontSize,
           fontFamily: this.terminalFontFamily,
           scrollback: this.terminalScrollback,
+          initialHistory: tab.initialHistory,
         });
         terminal.mount(wrapper);
         this.terminalInstances.set(tab.id, { instance: terminal, container: wrapper });

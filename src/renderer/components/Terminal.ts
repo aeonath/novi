@@ -11,6 +11,7 @@ import { el, setStyles } from '../core/dom.js';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
+import { SerializeAddon } from '@xterm/addon-serialize';
 import {
   EDITOR_TERMINAL_SHORTCUTS, defaultKeyboardShortcutsSettings, mergeKeyboardShortcutsSettings,
   matchesAnyShortcut,
@@ -76,6 +77,11 @@ export interface TerminalConfig {
   fontSize?: number;
   fontFamily?: string;
   scrollback?: number;
+  /** Serialized buffer (ANSI escapes + text) from a previous session's
+   * addon-serialize output, written into the terminal the moment it's
+   * displayed — restores prior scrollback content on restart. Consumed
+   * once, then dropped. */
+  initialHistory?: string;
 }
 
 export class Terminal extends Component {
@@ -87,9 +93,11 @@ export class Terminal extends Component {
   private fontSize: number;
   private fontFamily: string;
   private scrollback: number;
+  private initialHistory?: string;
 
   private terminal: XTerm | null = null;
   private fitAddon: FitAddon | null = null;
+  private serializeAddon: SerializeAddon | null = null;
   private container: HTMLElement;
   private contextMenuEl: HTMLElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -112,6 +120,7 @@ export class Terminal extends Component {
     this.fontSize = config.fontSize ?? 14;
     this.fontFamily = config.fontFamily ?? 'DejaVu Sans Mono';
     this.scrollback = config.scrollback ?? 25000;
+    this.initialHistory = config.initialHistory;
 
     // Fragment wrapper (replaces React Fragment)
     setStyles(this.el, { display: 'contents' });
@@ -444,8 +453,23 @@ export class Terminal extends Component {
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
 
+    const serializeAddon = new SerializeAddon();
+    try { terminal.loadAddon(serializeAddon); } catch (_) {}
+
     try {
       terminal.open(this.container);
+
+      // Replay the previous session's scrollback (see saveHistory()) before
+      // anything else touches the buffer — earlyTerminalData's flush (the
+      // live shell's own startup output, queued in App.ts until this
+      // terminal became ready) happens later, in registerAPI() below, so
+      // writing this first guarantees restored history always appears
+      // above the live session, never interleaved with it.
+      if (this.initialHistory) {
+        terminal.write(this.initialHistory);
+        terminal.write('\r\n\x1b[38;5;240m─── restored previous session ───\x1b[0m\r\n\r\n');
+        this.initialHistory = undefined;
+      }
 
       try {
         const webglAddon = new WebglAddon();
@@ -459,6 +483,7 @@ export class Terminal extends Component {
 
       this.terminal = terminal;
       this.fitAddon = fitAddon;
+      this.serializeAddon = serializeAddon;
 
       requestAnimationFrame(() => {
         fitAddon.fit();
@@ -547,10 +572,28 @@ export class Terminal extends Component {
     }
   }
 
+  /**
+   * Serializes the current buffer (scrollback + viewport, with ANSI
+   * formatting preserved) via addon-serialize, for persisting to disk on
+   * quit and replaying into a fresh terminal via initialHistory on the next
+   * restore. Empty string if the terminal was never actually displayed
+   * (e.g. an eagerly-PTY'd background tab that was never clicked before
+   * quit — nothing to restore has ever appeared for it anyway).
+   */
+  serializeHistory(): string {
+    if (!this.serializeAddon) return '';
+    try {
+      return this.serializeAddon.serialize({ scrollback: this.scrollback });
+    } catch (_) {
+      return '';
+    }
+  }
+
   private registerAPI(): void {
     (window as any).__terminalAPI = (window as any).__terminalAPI || {};
     (window as any).__terminalAPI[this.terminalId] = {
       write: (data: string) => this.terminal?.write(data),
+      serialize: () => this.serializeHistory(),
       clear: () => this.terminal?.clear(),
       focus: () => this.terminal?.focus(),
       copy: () => this.handleCopy(),
@@ -667,5 +710,6 @@ export class Terminal extends Component {
     }
     this.terminal = null;
     this.fitAddon = null;
+    this.serializeAddon = null;
   }
 }

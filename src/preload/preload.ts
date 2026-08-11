@@ -101,6 +101,17 @@ contextBridge.exposeInMainWorld('api', {
   workspaceLoad: () => ipcRenderer.invoke('workspace-load'),
   workspaceClear: () => ipcRenderer.invoke('workspace-clear'),
   workspaceGetPath: () => ipcRenderer.invoke('workspace-get-path'),
+  // Terminal history (restored scrollback content)
+  terminalHistoryLoadAll: (count: number) => ipcRenderer.invoke('terminal-history-load-all', count),
+  terminalHistorySaveAndQuit: (entries: Array<{ index: number; text: string }>) =>
+    ipcRenderer.send('terminal-history-save-and-quit', entries),
+  onRequestTerminalHistoryForQuit: (callback: () => void) => {
+    ipcRenderer.removeAllListeners('request-terminal-history-for-quit');
+    ipcRenderer.on('request-terminal-history-for-quit', () => callback());
+  },
+  removeRequestTerminalHistoryForQuitListener: () => {
+    ipcRenderer.removeAllListeners('request-terminal-history-for-quit');
+  },
   // Extension loading
   loadAllExtensions: () => ipcRenderer.invoke('load-all-extensions'),
   // Window controls
