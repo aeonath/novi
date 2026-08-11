@@ -80,6 +80,37 @@ describe('Terminal.initPtyEagerly', () => {
     expect((terminal as any).initInProgress).toBe(true);
   });
 
+  it('mounts the real display once terminalCreate resolves, if the tab became active while the call was still in flight', async () => {
+    // The exact race workspace restore can hit: syncTerminalInstances() fires
+    // initPtyEagerly() for a tab before the restore code has assigned the
+    // real active tab yet, so a tab that's about to become active gets
+    // treated as background first. isActive=true then arrives while
+    // terminalCreate()'s IPC round-trip is still pending.
+    let resolveCreate!: () => void;
+    const terminalCreate = jest.fn(() => new Promise<{ id: string; initialCwd: string }>((resolve) => {
+      resolveCreate = () => resolve({ id: 'test-term-race-1', initialCwd: '' });
+    }));
+    (window as unknown as { api: { terminalCreate: typeof terminalCreate } }).api = { terminalCreate };
+
+    const terminal = new Terminal({ terminalId: 'test-term-race-1' });
+    const initDisplaySpy = jest.spyOn(terminal as any, 'initDisplay').mockImplementation(() => {});
+
+    const pending = terminal.initPtyEagerly(); // fire-and-forget, still in flight
+    terminal.isActive = true; // arrives before terminalCreate() resolves
+
+    // isActive's own initPhase1() call must have bailed out here —
+    // initInProgress was already true from the in-flight eager call — so
+    // nothing should have mounted a display yet.
+    expect(initDisplaySpy).not.toHaveBeenCalled();
+
+    resolveCreate();
+    await pending;
+
+    // initPtyEagerly() must notice _isActive flipped true and finish the
+    // job itself instead of leaving the tab permanently blank.
+    expect(initDisplaySpy).toHaveBeenCalledTimes(1);
+  });
+
   it('resets initInProgress and leaves ptyCreated false if terminalCreate rejects', async () => {
     // Intentionally triggers Terminal.ts's own console.error for this failure — silence it here.
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

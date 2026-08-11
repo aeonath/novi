@@ -309,10 +309,19 @@ export class Terminal extends Component {
    * measurement; the real size is corrected once the tab is actually shown,
    * via the normal fit() that already runs on activation.
    *
-   * Deliberately does NOT call initDisplay() — the isActive setter's
+   * Normally does NOT call initDisplay() itself — the isActive setter's
    * `active && this.ptyCreated && !this.terminal` branch (already used
    * after a restart while hidden) handles mounting the real xterm display
-   * once this tab is actually clicked.
+   * once this tab is actually clicked. BUT: this tab can become active
+   * *while* the terminalCreate() IPC round-trip below is still in flight —
+   * e.g. workspace restore calls syncTerminalInstances() (which fires this
+   * for every restored tab, since the real active tab isn't assigned yet)
+   * before it knows which tab will actually end up active. If that happens,
+   * the isActive setter's own initPhase1() call finds initInProgress
+   * already true (set synchronously below) and silently bails out — so
+   * nothing would ever mount the display, leaving a blank pane with no
+   * prompt. Checking _isActive again once ptyCreated flips true catches
+   * that missed activation and finishes the job here instead.
    */
   async initPtyEagerly(): Promise<void> {
     if (this.ptyCreated || this.initInProgress || this._isActive) return;
@@ -322,6 +331,7 @@ export class Terminal extends Component {
     try {
       await (window as any).api?.terminalCreate(this.workspaceRoot, this.ptyCols, this.ptyRows, this.terminalId);
       this.ptyCreated = true;
+      if (this._isActive) this.initDisplay();
     } catch (error) {
       console.error('[Terminal] Failed to eagerly create PTY:', error);
       this.initInProgress = false;
