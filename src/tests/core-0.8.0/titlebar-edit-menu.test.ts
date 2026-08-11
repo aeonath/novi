@@ -106,4 +106,19 @@ describe('TitleBar Edit menu enable/disable', () => {
       expect(isDisabled(items.get(label)!)).toBe(true);
     }
   });
+
+  it('enables Convert Tabs to Spaces on a file tab', () => {
+    const items = openEditMenu('file');
+    expect(isDisabled(items.get('Convert Tabs to Spaces')!)).toBe(false);
+  });
+
+  it('grays out Convert Tabs to Spaces on a terminal tab (editor-only, like Command Palette/Close File)', () => {
+    const items = openEditMenu('terminal');
+    expect(isDisabled(items.get('Convert Tabs to Spaces')!)).toBe(true);
+  });
+
+  it('grays out Convert Tabs to Spaces when no tab is active', () => {
+    const items = openEditMenu(null);
+    expect(isDisabled(items.get('Convert Tabs to Spaces')!)).toBe(true);
+  });
 });

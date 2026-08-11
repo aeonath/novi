@@ -29,9 +29,26 @@ export class EditorService {
   private editor: any; // monaco.editor.IStandaloneCodeEditor
   private models: Map<string, EditorModel> = new Map();
   private currentFilePath: string | null = null;
+  private tabSize = 4;
+  private insertSpaces = true;
 
   constructor(editor: any) {
     this.editor = editor;
+  }
+
+  /**
+   * Applies the given tab size / insert-spaces indentation setting to every
+   * model currently open (not just the active one — a per-file model is
+   * cached indefinitely once opened, see getOrCreateModel, and this app
+   * treats indentation as one global editor setting, not per-file), and
+   * remembers it as the default for any model created afterward.
+   */
+  public setIndentationOptions(tabSize: number, insertSpaces: boolean): void {
+    this.tabSize = tabSize;
+    this.insertSpaces = insertSpaces;
+    for (const { model } of this.models.values()) {
+      model.updateOptions({ tabSize, insertSpaces });
+    }
   }
 
   /**
@@ -50,6 +67,7 @@ export class EditorService {
     // Create new model
     const uri = monaco.Uri.file(filePath);
     const model = monaco.editor.createModel(content, language, uri);
+    model.updateOptions({ tabSize: this.tabSize, insertSpaces: this.insertSpaces });
 
     const editorModel: EditorModel = {
       filePath,

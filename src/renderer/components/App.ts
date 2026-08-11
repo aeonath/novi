@@ -1660,6 +1660,9 @@ export class App extends Component {
         if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.selectAll();
         else if (this.activeTab?.type === 'terminal') (window as any).__terminalAPI?.[this.activeTab.id]?.selectAll?.();
         break;
+      case 'convert-tabs-to-spaces':
+        if (this.activeTab?.type === 'file') (window as any).__monacoEditorAPI?.convertTabsToSpaces?.();
+        break;
       case 'toggle-word-wrap':
         if (this.activeTab?.type === 'file') {
           // TitleBar's checkbox click already flipped and persisted the

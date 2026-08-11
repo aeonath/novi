@@ -126,9 +126,10 @@ describe('SettingsTab', () => {
     expect(text).toContain('ignored while Word Wrap is on');
 
     const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-    // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, Hard Break, Show Ruler
-    expect(checkboxes.length).toBe(6);
-    for (const cb of checkboxes) expect(cb.checked).toBe(false);
+    // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, Hard Break, Show Ruler, Insert Spaces
+    expect(checkboxes.length).toBe(7);
+    // Insert Spaces (index 6) defaults to checked; everything else here defaults to off.
+    for (let i = 0; i < checkboxes.length; i++) expect(checkboxes[i].checked).toBe(i === 6);
   });
 
   it('disables Hard Break and labels it "(disabled)" once Word Wrap is turned on', async () => {
@@ -245,6 +246,62 @@ describe('SettingsTab', () => {
     }
   });
 
+  it('should render Insert Spaces (checked) and Tab Size (4) by default', () => {
+    tab.section = 'editor';
+    const text = tab.getElement().textContent || '';
+    expect(text).toContain('Insert Spaces');
+    expect(text).toContain('Tab Size');
+
+    // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, Hard Break, Show Ruler, Insert Spaces
+    const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+    expect(checkboxes[6].checked).toBe(true);
+
+    const numberInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+    // Order: Column Break's Column, then Tab Size.
+    expect(numberInputs[1].value).toBe('4');
+  });
+
+  it('should persist and broadcast Insert Spaces toggling and Tab Size changes together', async () => {
+    tab.section = 'editor';
+    const eventSpy = jest.fn();
+    window.addEventListener('novi-editorindentation-changed', eventSpy);
+    try {
+      const checkboxes = Array.from(tab.getElement().querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      const insertSpacesBox = checkboxes[6]; // VI Mode, Preserve Novi Keybindings, Word Wrap, Column Break, Hard Break, Show Ruler, Insert Spaces
+      insertSpacesBox.checked = false;
+      insertSpacesBox.dispatchEvent(new Event('change'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('editorInsertSpaces', false);
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      expect((eventSpy.mock.calls[0][0] as CustomEvent).detail).toEqual({ insertSpaces: false, tabSize: 4 });
+
+      const numberInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+      const tabSizeInput = numberInputs[1];
+      tabSizeInput.value = '2';
+      tabSizeInput.dispatchEvent(new Event('blur'));
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockApi.setSetting).toHaveBeenCalledWith('editorTabSize', 2);
+      expect(eventSpy).toHaveBeenCalledTimes(2);
+      expect((eventSpy.mock.calls[1][0] as CustomEvent).detail).toEqual({ insertSpaces: false, tabSize: 2 });
+    } finally {
+      window.removeEventListener('novi-editorindentation-changed', eventSpy);
+    }
+  });
+
+  it('clamps Tab Size to [1, 8]', async () => {
+    tab.section = 'editor';
+    const numberInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
+    const tabSizeInput = numberInputs[1];
+    tabSizeInput.value = '99';
+    tabSizeInput.dispatchEvent(new Event('blur'));
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(tabSizeInput.value).toBe('8');
+    expect(mockApi.setSetting).toHaveBeenCalledWith('editorTabSize', 8);
+  });
+
   it('should render Editor default font size (14) and font family (DejaVu Sans Mono) by default', () => {
     tab.section = 'editor';
     const text = tab.getElement().textContent || '';
@@ -252,8 +309,8 @@ describe('SettingsTab', () => {
     expect(text).toContain('Font Family');
 
     const numberInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
-    // Column Break's field is first; font size is appended after it.
-    expect(numberInputs[1].value).toBe('14');
+    // Order: Column Break's Column, then Tab Size (Indentation), then Default Font Size.
+    expect(numberInputs[2].value).toBe('14');
 
     const select = tab.getElement().querySelector('select') as HTMLSelectElement;
     expect(select).not.toBeNull();
@@ -266,7 +323,7 @@ describe('SettingsTab', () => {
     window.addEventListener('novi-fontsize-changed', eventSpy);
     try {
       const numberInputs = Array.from(tab.getElement().querySelectorAll('input[type="text"]')) as HTMLInputElement[];
-      const fontSizeInput = numberInputs[1];
+      const fontSizeInput = numberInputs[2];
       fontSizeInput.value = '999';
       fontSizeInput.dispatchEvent(new Event('blur'));
       await new Promise((r) => setTimeout(r, 10));
@@ -366,7 +423,15 @@ describe('SettingsTab', () => {
     expect(el).toBe(el2);
   });
 
-  it('should cycle through all sections', () => {
+  it('should cycle through all sections', async () => {
+    // The very first iteration below re-assigns 'terminal' onto a tab that
+    // already defaults to 'terminal' — a no-op for the `section` setter (it
+    // only re-renders on an actual change), so it depends on the
+    // constructor's own async loadSettings().then(() => this.render()) —
+    // fired at construction time, unlike every other test here — having
+    // already resolved. Give it a tick first rather than relying on
+    // however many microtask hops loadSettings() happens to need.
+    await new Promise((r) => setTimeout(r, 10));
     const sections: SettingsSection[] = ['terminal', 'editor', 'novi'];
     for (const section of sections) {
       tab.section = section;

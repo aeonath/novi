@@ -73,6 +73,8 @@ export class SettingsTab extends Component {
   private columnBreakValue = 90;
   private columnBreakHard = false;
   private showRulerEnabled = false;
+  private editorInsertSpaces = true;
+  private editorTabSize = 4;
   private editorFontSize = 14;
   private editorFontFamily = DEFAULT_FONT_FAMILY;
   private terminalFontSize = 14;
@@ -148,6 +150,8 @@ export class SettingsTab extends Component {
       this.columnBreakValue = (await window.api?.getSetting<number>('columnbreakvalue', 90)) ?? 90;
       this.columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
       this.showRulerEnabled = !!(await window.api?.getSetting<boolean>('showruler', false));
+      this.editorInsertSpaces = (await window.api?.getSetting<boolean>('editorInsertSpaces', true)) !== false;
+      this.editorTabSize = (await window.api?.getSetting<number>('editorTabSize', 4)) ?? 4;
       this.editorFontSize = (await window.api?.getSetting<number>('fontSize', 14)) ?? 14;
       this.editorFontFamily = (await window.api?.getSetting<string>('editorFontFamily', DEFAULT_FONT_FAMILY)) ?? DEFAULT_FONT_FAMILY;
       this.terminalFontSize = (await window.api?.getSetting<number>('terminalFontSize', 14)) ?? 14;
@@ -580,6 +584,44 @@ export class SettingsTab extends Component {
         await window.api?.setSetting('showruler', enabled);
         window.dispatchEvent(new CustomEvent('novi-showruler-changed', { detail: { enabled, column: this.columnBreakValue } }));
       },
+    ));
+
+    const indentationSectionLabel = el('div', {}, 'Indentation');
+    setStyles(indentationSectionLabel, {
+      fontSize: '14px',
+      fontWeight: '600',
+      marginTop: '20px',
+      marginBottom: '12px',
+      fontFamily: "'Segoe UI', sans-serif",
+    });
+    this.contentEl.appendChild(indentationSectionLabel);
+
+    const dispatchIndentationChange = () => {
+      window.dispatchEvent(new CustomEvent('novi-editorindentation-changed', {
+        detail: { insertSpaces: this.editorInsertSpaces, tabSize: this.editorTabSize },
+      }));
+    };
+
+    this.contentEl.appendChild(this.createToggleRow(
+      'Insert Spaces',
+      'Pressing Tab inserts spaces instead of a tab character. Turn off to insert real tabs — the size below still controls how wide they (and any existing tabs) display.',
+      this.editorInsertSpaces,
+      async (enabled) => {
+        this.editorInsertSpaces = enabled;
+        await window.api?.setSetting('editorInsertSpaces', enabled);
+        dispatchIndentationChange();
+      },
+    ));
+
+    this.contentEl.appendChild(this.createNumberFieldRow(
+      'Tab Size',
+      this.editorTabSize,
+      async (value) => {
+        this.editorTabSize = value;
+        await window.api?.setSetting('editorTabSize', value);
+        dispatchIndentationChange();
+      },
+      1, 8,
     ));
 
     const fontSectionLabel = el('div', {}, 'Font');

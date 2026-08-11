@@ -113,6 +113,8 @@ export class MonacoEditor extends Component {
   private _columnBreakEnabled = false;
   private _columnBreakValue = 90;
   private _columnBreakHard = false;
+  private _insertSpaces = true;
+  private _tabSize = 4;
   private keybindingOverridesDisposable: { dispose: () => void } | null = null;
 
   constructor(config: MonacoEditorConfig = {}) {
@@ -202,6 +204,20 @@ export class MonacoEditor extends Component {
     this.applyRuler();
   }
 
+  /**
+   * Indentation: insertSpaces controls what pressing Tab inserts (spaces vs.
+   * a real tab character); tabSize controls both the indent width when
+   * insertSpaces is on AND how wide an existing tab character renders —
+   * both apply regardless of which mode is active, matching every other
+   * editor's convention. Applied to every open model (not just the current
+   * one), via EditorService.setIndentationOptions.
+   */
+  setIndentation(insertSpaces: boolean, tabSize: number): void {
+    this._insertSpaces = insertSpaces;
+    this._tabSize = tabSize;
+    this.editorService?.setIndentationOptions(tabSize, insertSpaces);
+  }
+
   private applyRuler(): void {
     if (!this.editor) return;
     this.editor.updateOptions({ rulers: this._showRuler ? [this._columnBreakValue] : [] });
@@ -221,6 +237,9 @@ export class MonacoEditor extends Component {
       this._columnBreakHard = !!(await window.api?.getSetting<boolean>('columnbreakhard', false));
       this._showRuler = !!(await window.api?.getSetting<boolean>('showruler', false));
       this.applyRuler();
+      this._insertSpaces = (await window.api?.getSetting<boolean>('editorInsertSpaces', true)) !== false;
+      this._tabSize = (await window.api?.getSetting<number>('editorTabSize', 4)) ?? 4;
+      this.editorService?.setIndentationOptions(this._tabSize, this._insertSpaces);
       // Word Wrap was applied at editor creation using whatever Column
       // Break state existed then (still the defaults, since this load
       // hadn't resolved yet) — reapply now that the real values are in.
@@ -342,6 +361,7 @@ export class MonacoEditor extends Component {
         bracketPairColorization: { enabled: true },
         guides: { indentation: true, bracketPairs: true },
         lineNumbers: this._lineNumbers ? 'on' : 'off', readOnly: false,
+        tabSize: this._tabSize, insertSpaces: this._insertSpaces,
         scrollbar: { vertical: 'visible', horizontal: 'visible', verticalScrollbarSize: 17, horizontalScrollbarSize: 17, alwaysConsumeMouseWheel: false, useShadows: false },
         glyphMargin: false, folding: true, lineDecorationsWidth: 5, lineNumbersMinChars: 3,
         quickSuggestions: { other: false, comments: false, strings: false },
@@ -430,6 +450,12 @@ export class MonacoEditor extends Component {
       };
       window.addEventListener('novi-showruler-changed', showRulerHandler as EventListener);
       this.addCleanup(() => window.removeEventListener('novi-showruler-changed', showRulerHandler as EventListener));
+
+      const indentationHandler = (e: CustomEvent<{ insertSpaces: boolean; tabSize: number }>) => {
+        this.setIndentation(e.detail?.insertSpaces ?? true, e.detail?.tabSize ?? 4);
+      };
+      window.addEventListener('novi-editorindentation-changed', indentationHandler as EventListener);
+      this.addCleanup(() => window.removeEventListener('novi-editorindentation-changed', indentationHandler as EventListener));
 
       // Close context menu on outside click
       const closeCtxMenus = (e: CustomEvent) => {
@@ -573,6 +599,7 @@ export class MonacoEditor extends Component {
       selectAll: () => { this.editor?.focus(); this.editor?.trigger('menu', 'editor.action.selectAll', null); },
       openFind: () => { this.editor?.focus(); this.editor?.getAction('actions.find')?.run(); },
       openReplace: () => { this.editor?.focus(); this.editor?.getAction('editor.action.startFindReplaceAction')?.run(); },
+      convertTabsToSpaces: () => { this.editor?.focus(); this.editor?.getAction('editor.action.indentationToSpaces')?.run(); },
       canUndo: () => !!this.editor?.getModel()?.canUndo(),
       canRedo: () => !!this.editor?.getModel()?.canRedo(),
     };

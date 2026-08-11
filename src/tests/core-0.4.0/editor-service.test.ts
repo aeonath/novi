@@ -22,6 +22,7 @@ const mockMonaco = {
         getValue: jest.fn(() => currentContent),
         setValue: jest.fn((newContent: string) => { currentContent = newContent; }),
         getLanguageId: jest.fn(() => language),
+        updateOptions: jest.fn(),
         dispose: jest.fn(),
       };
     }),
@@ -115,6 +116,34 @@ describe('EditorService', () => {
       const openModels = editorService.getOpenModels();
 
       expect(openModels).toEqual(['file1.ts', 'file2.ts']);
+    });
+  });
+
+  describe('Indentation options', () => {
+    it('applies the default 4-space setting to a newly created model', () => {
+      const model = editorService.getOrCreateModel('test.ts', 'const x = 1;', 'typescript');
+
+      expect(model.model.updateOptions).toHaveBeenCalledWith({ tabSize: 4, insertSpaces: true });
+    });
+
+    it('applies a custom setIndentationOptions call to every already-open model, not just the active one', () => {
+      const model1 = editorService.getOrCreateModel('file1.ts', 'content1', 'typescript');
+      const model2 = editorService.getOrCreateModel('file2.ts', 'content2', 'typescript');
+      model1.model.updateOptions.mockClear();
+      model2.model.updateOptions.mockClear();
+
+      editorService.setIndentationOptions(2, false);
+
+      expect(model1.model.updateOptions).toHaveBeenCalledWith({ tabSize: 2, insertSpaces: false });
+      expect(model2.model.updateOptions).toHaveBeenCalledWith({ tabSize: 2, insertSpaces: false });
+    });
+
+    it('applies the latest setIndentationOptions value to models created afterward too', () => {
+      editorService.setIndentationOptions(8, false);
+
+      const model = editorService.getOrCreateModel('file3.ts', 'content3', 'typescript');
+
+      expect(model.model.updateOptions).toHaveBeenCalledWith({ tabSize: 8, insertSpaces: false });
     });
   });
 

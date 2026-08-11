@@ -50,6 +50,8 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: 'Paste', command: 'paste', shortcut: 'Ctrl+V' },
     { separator: true },
     { label: 'Select All', command: 'select-all', shortcut: 'Ctrl+A' },
+    { separator: true },
+    { label: 'Convert Tabs to Spaces', command: 'convert-tabs-to-spaces' },
   ],
   View: [
     { label: 'Toggle Word Wrap', command: 'toggle-word-wrap', checkbox: true, settingKey: 'wordwrap', settingDefault: false },
@@ -84,7 +86,7 @@ const FONT_COMMANDS = ['increase-font-size', 'decrease-font-size', 'reset-font-s
 const SAVE_COMMANDS = ['save', 'save-as'];
 // Close File only ever acts on a 'file' tab (App.onCloseFile is a no-op
 // otherwise) — New/Open File still make sense from any tab, so they're not here.
-const EDITOR_ONLY_COMMANDS = ['command-palette', 'close-file'];
+const EDITOR_ONLY_COMMANDS = ['command-palette', 'close-file', 'convert-tabs-to-spaces'];
 const SETTINGS_DISABLED_COMMANDS = ['show-hidden-files'];
 // Undo/Redo/Cut don't apply to a terminal (or any non-editor tab) at all.
 const EDITOR_ONLY_EDIT_COMMANDS = ['undo', 'redo', 'cut'];
