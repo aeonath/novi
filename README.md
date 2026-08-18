@@ -11,6 +11,9 @@ git panel, and an image editor — all wrapped in a frameless, themeable shell.
 
 **Status:** Active Development
 
+**Note:** There is a known bug where the image editor will corrupt the image if you
+try to save it.  This software is still very much a work in progress.
+
 ## Project Structure
 
 ```
