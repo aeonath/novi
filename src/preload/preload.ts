@@ -28,8 +28,13 @@ contextBridge.exposeInMainWorld('api', {
   // File operations
   openFile: () => ipcRenderer.invoke('open-file'),
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
-  saveFile: (filePath: string, content: string) => ipcRenderer.invoke('save-file', filePath, content),
-  saveFileAs: (content: string) => ipcRenderer.invoke('save-file-as', content),
+  saveFile: (filePath: string, content: string, encoding?: 'utf-8' | 'base64') =>
+    ipcRenderer.invoke('save-file', filePath, content, encoding),
+  saveFileAs: (
+    content: string,
+    encoding?: 'utf-8' | 'base64',
+    options?: { defaultPath?: string; filters?: { name: string; extensions: string[] }[]; forcedExtension?: string },
+  ) => ipcRenderer.invoke('save-file-as', content, encoding, options),
   // Recovery operations
   saveRecoveryFiles: (tabs: Array<{ filePath: string; content: string }>) => 
     ipcRenderer.invoke('save-recovery-files', tabs),

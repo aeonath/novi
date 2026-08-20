@@ -102,8 +102,12 @@ declare global {
       selectDirectory: () => Promise<string | null>;
       openFile: () => Promise<string | null>;
       readFile: (filePath: string) => Promise<FileData>;
-      saveFile: (filePath: string, content: string) => Promise<{ path: string; size: number; modified: Date }>;
-      saveFileAs: (content: string) => Promise<{ path: string; size: number; modified: Date } | null>;
+      saveFile: (filePath: string, content: string, encoding?: 'utf-8' | 'base64') => Promise<{ path: string; size: number; modified: Date }>;
+      saveFileAs: (
+        content: string,
+        encoding?: 'utf-8' | 'base64',
+        options?: { defaultPath?: string; filters?: { name: string; extensions: string[] }[]; forcedExtension?: string },
+      ) => Promise<{ path: string; size: number; modified: Date } | null>;
       saveRecoveryFiles: (tabs: Array<{ filePath: string; content: string }>) => Promise<{ success: boolean }>;
       getRecoveryFiles: () => Promise<RecoveryFile[]>;
       deleteRecoveryFile: (id: string) => Promise<{ success: boolean }>;

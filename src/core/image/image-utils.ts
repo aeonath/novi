@@ -524,3 +524,112 @@ export function getMimeTypeForFormat(format: string): string {
   return `image/${normalizedFormat}`;
 }
 
+export type ImageSaveFormat = 'png' | 'jpg' | 'webp' | 'gif' | 'avif';
+
+/**
+ * Normalizes a MIME type or short format name to an ImageSaveFormat.
+ * `image/jpeg` and `jpeg` both become `jpg`.
+ */
+export function normalizeImageSaveFormat(format: string | null | undefined): ImageSaveFormat {
+  const raw = (format ?? 'png').toLowerCase().replace(/^image\//, '');
+  if (raw === 'jpeg' || raw === 'jpg') return 'jpg';
+  if (raw === 'webp' || raw === 'gif' || raw === 'avif') return raw;
+  return 'png';
+}
+
+/**
+ * Returns the short format of a `data:image/...;base64,` URL, or null if the
+ * string is not a base64 image data URL (e.g. a `file://` URL).
+ */
+export function getDataUrlImageFormat(dataUrl: string): ImageSaveFormat | null {
+  const match = /^data:image\/([\w.+-]+);base64,/i.exec(dataUrl);
+  if (!match) return null;
+  return normalizeImageSaveFormat(match[1]);
+}
+
+/**
+ * Strips a `data:image/...;base64,` prefix and returns the raw base64 payload
+ * so it can be written with encoding `'base64'`. Writing the payload as UTF-8
+ * would store ASCII text (`iVBO...`) instead of image bytes and corrupt the file.
+ * @throws if `dataUrl` is not a base64 image data URL
+ */
+export function getImageBase64Payload(dataUrl: string): string {
+  const match = /^data:image\/[\w.+-]+;base64,([A-Za-z0-9+/=\s]+)$/i.exec(dataUrl.trim());
+  if (!match) {
+    throw new Error('Cannot save image: expected a base64 image data URL');
+  }
+  return match[1].replace(/\s+/g, '');
+}
+
+export interface FileSaveFilter {
+  name: string;
+  extensions: string[];
+}
+
+export interface ImageSaveAsDialogOptions {
+  defaultPath: string;
+  filters: FileSaveFilter[];
+  /** Extension without the dot, e.g. `png`. Applied if the OS dialog omits one or picks `.txt`. */
+  forcedExtension: string;
+}
+
+const IMAGE_SAVE_FILTER_NAMES: Record<ImageSaveFormat, string> = {
+  png: 'PNG Image',
+  jpg: 'JPEG Image',
+  webp: 'WebP Image',
+  gif: 'GIF Image',
+  avif: 'AVIF Image',
+};
+
+function joinDirAndFile(dir: string, fileName: string): string {
+  if (!dir) return fileName;
+  const sep = dir.includes('\\') && !dir.includes('/') ? '\\' : '/';
+  return `${dir.replace(/[/\\]+$/, '')}${sep}${fileName}`;
+}
+
+/**
+ * Replaces whatever extension the OS save dialog chose (often `.txt` on
+ * Windows when the dialog is built for text files) with the extension that
+ * matches the image bytes being written.
+ */
+export function applyImageSaveExtension(filePath: string, format: string): string {
+  const desired = getExtensionForFormat(format);
+  const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+  const lastDot = filePath.lastIndexOf('.');
+  if (lastDot <= lastSep) return filePath + desired;
+  return filePath.substring(0, lastDot) + desired;
+}
+
+/**
+ * Native save-dialog options for image Save As: suggest the right filename
+ * extension and expose the chosen format as the default "Save as type",
+ * never text-file filters (which make Windows append `.txt`).
+ */
+export function buildImageSaveAsDialogOptions(
+  sourcePath: string,
+  format: ImageSaveFormat,
+  lastDirectory?: string | null
+): ImageSaveAsDialogOptions {
+  const ext = getExtensionForFormat(format);
+  const extNoDot = ext.slice(1);
+  const sourceName = sourcePath.split(/[/\\]/).pop() || 'image';
+  const lastDot = sourceName.lastIndexOf('.');
+  const base = lastDot > 0 ? sourceName.slice(0, lastDot) : sourceName;
+  const fileName = `${base}${ext}`;
+  const lastSep = Math.max(sourcePath.lastIndexOf('/'), sourcePath.lastIndexOf('\\'));
+  const sourceDir = lastSep >= 0 ? sourcePath.slice(0, lastSep) : '';
+  const dir = lastDirectory && lastDirectory.length > 0 ? lastDirectory : sourceDir;
+
+  return {
+    defaultPath: joinDirAndFile(dir, fileName),
+    filters: [
+      {
+        name: IMAGE_SAVE_FILTER_NAMES[format],
+        extensions: format === 'jpg' ? ['jpg', 'jpeg'] : [extNoDot],
+      },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+    forcedExtension: extNoDot,
+  };
+}
+

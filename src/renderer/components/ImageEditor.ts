@@ -13,8 +13,10 @@ import {
   getImageDimensions, resizeImage, calculateProportionalDimensions,
   cropImage, setTransparency, supportsTransparency,
   convertFormat, computeCropHandleDrag, clampZoom,
+  getDataUrlImageFormat, getImageBase64Payload, normalizeImageSaveFormat,
+  buildImageSaveAsDialogOptions,
 } from '../../core/image/image-utils.js';
-import type { CropHandleMode, CropRegion } from '../../core/image/image-utils.js';
+import type { CropHandleMode, CropRegion, ImageSaveFormat } from '../../core/image/image-utils.js';
 
 interface HistoryEntry {
   imageUrl: string;
@@ -835,12 +837,23 @@ export class ImageEditor extends Component {
 
   // --- Save ---
 
+  /**
+   * Ensures we have a base64 data URL in `targetFormat`. Canvas edits always
+   * produce PNG data URLs, and an unmodified image is a `file://` URL — both
+   * would corrupt the destination if written as UTF-8 text.
+   */
+  private async resolveImageDataUrl(targetFormat: ImageSaveFormat): Promise<string> {
+    if (!this.imageUrl) throw new Error('No image to save');
+    if (getDataUrlImageFormat(this.imageUrl) === targetFormat) return this.imageUrl;
+    return convertFormat(this.imageUrl, targetFormat, this.saveAsQuality);
+  }
+
   private async handleSave(): Promise<void> {
     if (!this.imageUrl || !window.api?.saveFile) return;
     try {
       this.processing = true; this.render();
-      const base64Data = this.imageUrl.replace(/^data:image\/\w+;base64,/, '');
-      await window.api.saveFile(this.filePath, base64Data);
+      const dataUrl = await this.resolveImageDataUrl(normalizeImageSaveFormat(this.mimeType));
+      await window.api.saveFile(this.filePath, getImageBase64Payload(dataUrl), 'base64');
       this.isModified = false;
     } catch (err) {
       console.error('[ImageEditor] Failed to save:', err);
@@ -927,15 +940,13 @@ export class ImageEditor extends Component {
     try {
       this.processing = true; this.render();
 
-      let finalUrl = this.imageUrl;
-      const currentFmt = this.mimeType?.replace('image/', '') || 'png';
-      const targetFmt = this.saveAsFormat === 'jpg' ? 'jpeg' : this.saveAsFormat;
-      if (currentFmt !== targetFmt) {
-        finalUrl = await convertFormat(this.imageUrl, this.saveAsFormat, this.saveAsQuality);
-      }
-
-      const base64Data = finalUrl.replace(/^data:image\/\w+;base64,/, '');
-      const result = await window.api.saveFileAs(base64Data);
+      const finalUrl = await this.resolveImageDataUrl(this.saveAsFormat);
+      let lastDir: string | undefined;
+      try {
+        lastDir = await window.api.getSetting<string>('imageEditor.lastSaveDirectory');
+      } catch { /* ignore */ }
+      const dialogOptions = buildImageSaveAsDialogOptions(this.filePath, this.saveAsFormat, lastDir);
+      const result = await window.api.saveFileAs(getImageBase64Payload(finalUrl), 'base64', dialogOptions);
       if (result) {
         this.isModified = false;
         try {

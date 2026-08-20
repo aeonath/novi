@@ -28,6 +28,7 @@ import { SshTitleTracker } from './services/ssh-title-tracker';
 import { cliService, parseStartupArgs } from './services/cli-service';
 import { runCliMode } from './cli-mode';
 import { loadAllExtensions } from '../core/extension-loader';
+import { applyImageSaveExtension } from '../core/image/image-utils';
 import { DEBUG } from '../debug';
 
 let mainWindowRef: BrowserWindow | null = null;
@@ -547,12 +548,12 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('save-file', async (_e, filePath: string, content: string) => {
+  ipcMain.handle('save-file', async (_e, filePath: string, content: string, encoding: BufferEncoding = 'utf-8') => {
     try {
       editorFileWatcher.markSaved(filePath);
       const parentDir = dirname(filePath);
       await mkdir(parentDir, { recursive: true });
-      await writeFile(filePath, content, 'utf-8');
+      await writeFile(filePath, content, encoding);
       const stats = await stat(filePath);
       return {
         path: filePath,
@@ -565,10 +566,16 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('save-file-as', async (_e, content: string) => {
+  ipcMain.handle('save-file-as', async (
+    _e,
+    content: string,
+    encoding: BufferEncoding = 'utf-8',
+    options?: { defaultPath?: string; filters?: Electron.FileFilter[]; forcedExtension?: string },
+  ) => {
     try {
       const result = await dialog.showSaveDialog(mainWindowRef!, {
-        filters: [
+        defaultPath: options?.defaultPath,
+        filters: options?.filters ?? [
           { name: 'All Files', extensions: ['*'] },
           { name: 'Text Files', extensions: ['txt', 'md', 'json', 'js', 'ts', 'html', 'css'] },
         ],
@@ -577,11 +584,15 @@ void app.whenReady().then(() => {
       if (result.canceled || !result.filePath) {
         return null;
       }
+
+      const filePath = options?.forcedExtension
+        ? applyImageSaveExtension(result.filePath, options.forcedExtension)
+        : result.filePath;
       
-      await writeFile(result.filePath, content, 'utf-8');
-      const stats = await stat(result.filePath);
+      await writeFile(filePath, content, encoding);
+      const stats = await stat(filePath);
       return {
-        path: result.filePath,
+        path: filePath,
         size: stats.size,
         modified: stats.mtime,
       };

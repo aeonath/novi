@@ -10,7 +10,15 @@ import {
   pathToFileUrl,
   SUPPORTED_IMAGE_TYPES,
   SUPPORTED_IMAGE_EXTENSIONS,
+  getDataUrlImageFormat,
+  getImageBase64Payload,
+  normalizeImageSaveFormat,
+  applyImageSaveExtension,
+  buildImageSaveAsDialogOptions,
 } from '../../core/image/image-utils';
+import { writeFile, readFile, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 describe('Image Utils', () => {
   describe('getFileExtension', () => {
@@ -133,6 +141,90 @@ describe('Image Utils', () => {
       expect(SUPPORTED_IMAGE_EXTENSIONS).toContain('.gif');
       expect(SUPPORTED_IMAGE_EXTENSIONS).toContain('.webp');
       expect(SUPPORTED_IMAGE_EXTENSIONS).toContain('.avif');
+    });
+  });
+
+  describe('normalizeImageSaveFormat', () => {
+    it('maps jpeg MIME types to jpg', () => {
+      expect(normalizeImageSaveFormat('image/jpeg')).toBe('jpg');
+      expect(normalizeImageSaveFormat('jpeg')).toBe('jpg');
+      expect(normalizeImageSaveFormat('JPG')).toBe('jpg');
+    });
+
+    it('keeps png/webp/gif/avif and defaults unknown values to png', () => {
+      expect(normalizeImageSaveFormat('image/png')).toBe('png');
+      expect(normalizeImageSaveFormat('webp')).toBe('webp');
+      expect(normalizeImageSaveFormat('unknown')).toBe('png');
+      expect(normalizeImageSaveFormat(null)).toBe('png');
+    });
+  });
+
+  describe('getDataUrlImageFormat / getImageBase64Payload', () => {
+    // 1x1 transparent PNG
+    const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const PNG_DATA_URL = `data:image/png;base64,${PNG_B64}`;
+
+    it('reads the format from a data URL and returns null for file:// URLs', () => {
+      expect(getDataUrlImageFormat(PNG_DATA_URL)).toBe('png');
+      expect(getDataUrlImageFormat('data:image/jpeg;base64,/9j/4AAQ')).toBe('jpg');
+      expect(getDataUrlImageFormat('file:///C:/photos/pic.png')).toBeNull();
+    });
+
+    it('strips the data-URL prefix so the payload can be written as binary', () => {
+      expect(getImageBase64Payload(PNG_DATA_URL)).toBe(PNG_B64);
+    });
+
+    it('rejects file:// URLs instead of treating the path as image bytes', () => {
+      expect(() => getImageBase64Payload('file:///C:/photos/pic.png')).toThrow(/base64 image data URL/);
+    });
+
+    it('writing the payload with encoding base64 produces a real PNG signature (not ASCII "iVBO")', async () => {
+      const payload = getImageBase64Payload(PNG_DATA_URL);
+      const tmp = join(tmpdir(), `novi-image-save-${Date.now()}.png`);
+      try {
+        await writeFile(tmp, payload, 'base64');
+        const bytes = await readFile(tmp);
+        expect([...bytes.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+
+        // The previous bug: saving the same payload as UTF-8 stored the
+        // base64 characters themselves, so the file was not a PNG.
+        const corrupt = Buffer.from(payload, 'utf-8');
+        expect([...corrupt.subarray(0, 4)]).toEqual([0x69, 0x56, 0x42, 0x4f]); // "iVBO"
+      } finally {
+        await unlink(tmp).catch(() => undefined);
+      }
+    });
+  });
+
+  describe('applyImageSaveExtension', () => {
+    it('replaces a Windows text-dialog .txt extension with the chosen image type', () => {
+      expect(applyImageSaveExtension('C:\\photos\\cat.txt', 'png')).toBe('C:\\photos\\cat.png');
+      expect(applyImageSaveExtension('C:\\photos\\cat.txt', 'jpg')).toBe('C:\\photos\\cat.jpg');
+      expect(applyImageSaveExtension('/tmp/cat.txt', 'webp')).toBe('/tmp/cat.webp');
+    });
+
+    it('appends the extension when the OS dialog returns a name with none', () => {
+      expect(applyImageSaveExtension('C:\\photos\\cat', 'png')).toBe('C:\\photos\\cat.png');
+    });
+
+    it('keeps the path when it already has the right extension', () => {
+      expect(applyImageSaveExtension('C:\\photos\\cat.png', 'png')).toBe('C:\\photos\\cat.png');
+    });
+  });
+
+  describe('buildImageSaveAsDialogOptions', () => {
+    it('suggests a .png defaultPath and PNG save-as-type, never a text-file filter', () => {
+      const options = buildImageSaveAsDialogOptions('C:/photos/vacation.jpg', 'png');
+      expect(options.defaultPath).toBe('C:/photos/vacation.png');
+      expect(options.forcedExtension).toBe('png');
+      expect(options.filters[0]).toEqual({ name: 'PNG Image', extensions: ['png'] });
+      expect(options.filters.some(f => f.extensions.includes('txt'))).toBe(false);
+    });
+
+    it('uses lastSaveDirectory when provided and jpg filters include jpeg', () => {
+      const options = buildImageSaveAsDialogOptions('C:/photos/vacation.png', 'jpg', 'D:\\exports');
+      expect(options.defaultPath).toBe('D:\\exports\\vacation.jpg');
+      expect(options.filters[0].extensions).toEqual(['jpg', 'jpeg']);
     });
   });
 });
