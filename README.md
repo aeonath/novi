@@ -11,8 +11,6 @@ git panel, and an image editor — all wrapped in a frameless, themeable shell.
 
 **Status:** Active Development
 
-**Note:** Novi Image Editor bug appears to be fixed however it requires more testing.
-
 ## Project Structure
 
 ```
