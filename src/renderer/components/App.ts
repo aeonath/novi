@@ -17,6 +17,7 @@ import { TabBar } from './TabBar.js';
 import type { Tab } from './TabBar.js';
 import { MonacoEditor } from './MonacoEditor.js';
 import { ImageEditor } from './ImageEditor.js';
+import { planImageEditorSync } from './image-editor-sync.js';
 import { FileTree } from './FileTree.js';
 import { GitPanel } from './GitPanel.js';
 import { Terminal } from './Terminal.js';
@@ -108,7 +109,7 @@ export class App extends Component {
   private monacoEditor!: MonacoEditor;
   private savePromptInst!: SavePrompt;
   private terminalInstances = new Map<string, { instance: Terminal; container: HTMLElement }>();
-  private imageEditorInstance: { instance: ImageEditor; filePath: string } | null = null;
+  private imageEditorInstances = new Map<string, { instance: ImageEditor; container: HTMLElement }>();
   private settingsTab: SettingsTab | null = null;
   private settingsSidebar: SettingsSidebar | null = null;
   private actionContext: ActionContext = {};
@@ -148,7 +149,7 @@ export class App extends Component {
     this.monacoEditor?.destroy();
     this.savePromptInst?.destroy();
     for (const [, entry] of this.terminalInstances) { entry.instance.destroy(); entry.container.remove(); }
-    if (this.imageEditorInstance) this.imageEditorInstance.instance.destroy();
+    for (const [, entry] of this.imageEditorInstances) { entry.instance.destroy(); entry.container.remove(); }
     delete (window as any).__actionAPI;
     delete (window as any).__noviVimQuit;
   }
@@ -186,7 +187,11 @@ export class App extends Component {
 
     this.terminalContainerEl = el('div', { style: 'display: contents;' });
     this.monacoContainerEl = el('div', { style: 'flex: 1; display: none; flex-direction: column; overflow: hidden;' });
-    this.imageEditorContainerEl = el('div', { style: 'flex: 1; display: none; overflow: hidden;' });
+    // Same `display: contents` trick as the terminal container: each image
+    // tab's wrapper is a flex child of the content area. Nesting editors
+    // inside a show/hide flex box made every wrapper height 0 after a tab
+    // switch, so the pane went blank (no toolbar, no image).
+    this.imageEditorContainerEl = el('div', { style: 'display: contents;' });
     this.settingsContainerEl = el('div', { style: 'flex: 1; display: none; flex-direction: column; overflow: hidden;' });
 
     const contentArea = el('div', { style: 'flex: 1; display: flex; flex-direction: column; overflow: hidden;' },
@@ -1148,8 +1153,8 @@ export class App extends Component {
 
     // Monaco
     this.monacoContainerEl.style.display = at?.type === 'file' && !showW ? 'flex' : 'none';
-    // Image editor
-    this.imageEditorContainerEl.style.display = at?.type === 'image' && !showW ? 'flex' : 'none';
+    // Image editors: wrappers are show/hidden in manageImageEditor(); the
+    // container itself is `display: contents` like terminals.
     // Settings
     const showSettings = at?.type === 'settings' && !showW;
     this.settingsContainerEl.style.display = showSettings ? 'flex' : 'none';
@@ -1227,36 +1232,59 @@ export class App extends Component {
 
   private manageImageEditor(): void {
     const container = this.imageEditorContainerEl;
-    let imagePath: string | null = null;
-    if (this.activeTab?.type === 'image') {
-      if (this.activeTab.filePath) {
-        imagePath = this.activeTab.filePath;
-      } else {
-        const tabBarAPI = (window as any).__tabBarAPI;
-        const tabs = tabBarAPI?.getTabs() || [];
-        const current = tabs.find((t: any) => t.id === this.activeTab!.id);
-        imagePath = current?.filePath || null;
-      }
+    const tabs = this.tabBar?.getTabs() ?? [];
+    const imageTabs = tabs
+      .filter(t => t.type === 'image' && !!t.filePath)
+      .map(t => ({ id: t.id, filePath: t.filePath }));
+    // TabBar is the source of truth for which tab the user clicked. App's
+    // activeTab.id can be a stale generated id after addTab() found an
+    // existing tab, which hid every editor (all wrappers display:none).
+    const barActive = this.tabBar?.getActiveTab();
+
+    const plan = planImageEditorSync(
+      imageTabs,
+      this.imageEditorInstances.keys(),
+      barActive?.id ?? this.activeTab?.id,
+      barActive?.type ?? this.activeTab?.type,
+    );
+
+    for (const tab of plan.toCreate) {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'flex:1;display:none;flex-direction:column;overflow:hidden;min-height:0;background-color:#1e1e1e';
+      container.appendChild(wrapper);
+      const ie = new ImageEditor(tab.filePath);
+      ie.mount(wrapper);
+      this.imageEditorInstances.set(tab.id, { instance: ie, container: wrapper });
     }
 
-    if (!imagePath) {
-      if (this.imageEditorInstance) {
-        this.imageEditorInstance.instance.destroy();
-        this.imageEditorInstance = null;
-        clearChildren(container);
-      }
-      return;
+    for (const id of plan.toDestroy) {
+      const entry = this.imageEditorInstances.get(id);
+      if (!entry) continue;
+      entry.instance.destroy();
+      entry.container.remove();
+      this.imageEditorInstances.delete(id);
     }
 
-    if (this.imageEditorInstance?.filePath === imagePath) return;
-
-    if (this.imageEditorInstance) {
-      this.imageEditorInstance.instance.destroy();
-      clearChildren(container);
+    for (const [id, entry] of this.imageEditorInstances) {
+      const isAct = id === plan.activeId;
+      entry.container.style.display = isAct ? 'flex' : 'none';
+      entry.instance.setActive(isAct);
     }
-    const ie = new ImageEditor(imagePath);
-    ie.mount(container);
-    this.imageEditorInstance = { instance: ie, filePath: imagePath };
+  }
+
+  /** After addTab(), use the tab bar's real active tab (not a freshly
+   * generated id that addTab may have ignored for an already-open file). */
+  private syncActiveTabFromTabBar(fileTreeRoot?: string | null): void {
+    const active = this.tabBar?.getActiveTab();
+    if (!active) return;
+    if (fileTreeRoot && (active.type === 'file' || active.type === 'image')) {
+      this.fileTabToTreeRoot = { ...this.fileTabToTreeRoot, [active.id]: fileTreeRoot };
+    }
+    this.setActiveTab({
+      id: active.id,
+      type: active.type,
+      filePath: (active.type === 'file' || active.type === 'image') ? active.filePath : undefined,
+    });
   }
 
   // ============================================================
@@ -1317,6 +1345,14 @@ export class App extends Component {
       if (tab && (tab.type === 'file' || tab.type === 'image')) {
         if (tab.type === 'file' && tab.filePath) window.api?.editorUnwatchFile?.(tab.filePath);
         const next = { ...this.fileTabToTreeRoot }; delete next[tabId]; this.fileTabToTreeRoot = next;
+      }
+      if (tab?.type === 'image') {
+        const entry = this.imageEditorInstances.get(tabId);
+        if (entry) {
+          entry.instance.destroy();
+          entry.container.remove();
+          this.imageEditorInstances.delete(tabId);
+        }
       }
       if (tab?.type === 'file' && tab.isDirty) {
         return new Promise<boolean>((resolve) => {
@@ -1383,9 +1419,7 @@ export class App extends Component {
           const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
           const tabId = `tab-${Date.now()}`;
           tabBarAPI.addTab({ id: tabId, type: 'image', filePath, fileName, isDirty: false, content: '' });
-          const root = this.currentFileTreeDisplayRoot;
-          if (root) this.fileTabToTreeRoot = { ...this.fileTabToTreeRoot, [tabId]: root };
-          this.setActiveTab({ id: tabId, type: 'image' });
+          this.syncActiveTabFromTabBar(this.currentFileTreeDisplayRoot);
         }
         return;
       }
@@ -1442,7 +1476,7 @@ export class App extends Component {
     const existing = tabBarAPI.getTabs?.().find((t: any) => t.filePath === filePath);
     if (existing) {
       tabBarAPI.switchTab(existing.id);
-      this.setActiveTab({ id: existing.id, type: existing.type });
+      this.syncActiveTabFromTabBar();
       this.showWelcome = false;
       this.updateContentVisibility();
       return;
@@ -1453,9 +1487,7 @@ export class App extends Component {
       const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
       const tabId = `tab-${Date.now()}`;
       tabBarAPI.addTab({ id: tabId, type: 'image', filePath, fileName, isDirty: false, content: '' });
-      const root = this.currentFileTreeDisplayRoot;
-      if (root) this.fileTabToTreeRoot = { ...this.fileTabToTreeRoot, [tabId]: root };
-      this.setActiveTab({ id: tabId, type: 'image' });
+      this.syncActiveTabFromTabBar(this.currentFileTreeDisplayRoot);
       return;
     }
     try {
@@ -1530,7 +1562,7 @@ export class App extends Component {
               const fileName = filePath.split(/[\\/]/).pop() || 'untitled';
               const tabId = `tab-${Date.now()}`;
               tabBarAPI.addTab({ id: tabId, type: 'image', filePath, fileName, isDirty: false, content: '' });
-              this.setActiveTab({ id: tabId, type: 'image', filePath });
+              this.syncActiveTabFromTabBar();
             }
             (window as any).__statusBarAPI?.setStatus(`Viewing: ${filePath.split(/[\\/]/).pop()}`);
             return;

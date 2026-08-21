@@ -76,6 +76,9 @@ export class ImageEditor extends Component {
   // the viewport is kept auto-fitted to the window so scrollbars don't
   // appear until the user actually zooms in past the fitted size.
   private autoFit = true;
+  // Only the active image tab should handle undo/redo shortcuts. Each open
+  // tab keeps its own editor instance, and they all listen on `window`.
+  private active = true;
   private static readonly ZOOM_MIN = 0.1;
   private static readonly ZOOM_MAX = 4.0;
   private static readonly ZOOM_STEP = 0.25;
@@ -118,7 +121,7 @@ export class ImageEditor extends Component {
 
     setStyles(this.el, {
       display: 'flex', flexDirection: 'column',
-      width: '100%', height: '100%',
+      flex: '1', minHeight: '0', width: '100%', height: '100%',
       background: '#1e1e1e', overflow: 'hidden',
     });
 
@@ -184,6 +187,7 @@ export class ImageEditor extends Component {
 
     // Keyboard shortcuts
     const keyHandler = (e: KeyboardEvent) => {
+      if (!this.active) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault(); this.handleUndo();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
@@ -224,6 +228,17 @@ export class ImageEditor extends Component {
 
   get isDirty(): boolean { return this.isModified; }
 
+  /** Show/hide this editor as the active image tab without destroying it. */
+  setActive(active: boolean): void {
+    this.active = active;
+    if (!active) {
+      this.cropInteraction = null;
+      this.panDrag = null;
+      return;
+    }
+    this.applyAutoFit();
+  }
+
   // --- Image Loading ---
 
   private async loadImage(): Promise<void> {
@@ -235,12 +250,22 @@ export class ImageEditor extends Component {
       this.showLoading();
 
       this.mimeType = ImageEditorService.getMimeType(this.filePath);
-      const url = await ImageEditorService.openImage(this.filePath);
+      let url = await ImageEditorService.openImage(this.filePath);
+      // file:// images are blocked by the renderer CSP (img-src 'self' data:)
+      // and can also fail to paint after the <img> was hidden. Prefer a data URL.
+      if (!url.startsWith('data:') && window.api?.readFile) {
+        try {
+          const file = await window.api.readFile(this.filePath, 'base64');
+          if (file?.content) url = `data:${this.mimeType || 'image/png'};base64,${file.content}`;
+        } catch { /* keep the file:// fallback */ }
+      }
+      if (!this.isMounted()) return;
       this.imageUrl = url;
       this.originalDataUrl = url;
 
       try {
         const dims = await getImageDimensions(url);
+        if (!this.isMounted()) return;
         this.dims = dims;
         this.originalDims = { ...dims };
         this.resizeWidth = String(dims.width);

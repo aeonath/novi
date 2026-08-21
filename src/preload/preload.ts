@@ -27,7 +27,8 @@ contextBridge.exposeInMainWorld('api', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   // File operations
   openFile: () => ipcRenderer.invoke('open-file'),
-  readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
+  readFile: (filePath: string, encoding?: 'utf-8' | 'base64') =>
+    ipcRenderer.invoke('read-file', filePath, encoding),
   saveFile: (filePath: string, content: string, encoding?: 'utf-8' | 'base64') =>
     ipcRenderer.invoke('save-file', filePath, content, encoding),
   saveFileAs: (

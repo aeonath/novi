@@ -101,7 +101,7 @@ declare global {
       readDirectory: (path: string) => Promise<DirectoryEntry[]>;
       selectDirectory: () => Promise<string | null>;
       openFile: () => Promise<string | null>;
-      readFile: (filePath: string) => Promise<FileData>;
+      readFile: (filePath: string, encoding?: 'utf-8' | 'base64') => Promise<FileData>;
       saveFile: (filePath: string, content: string, encoding?: 'utf-8' | 'base64') => Promise<{ path: string; size: number; modified: Date }>;
       saveFileAs: (
         content: string,

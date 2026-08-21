@@ -190,7 +190,7 @@ function createWindow(): void {
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
           "style-src 'self' 'unsafe-inline' data:; " +
           "font-src 'self' data: blob:; " +
-          "img-src 'self' data: blob:; " +
+          "img-src 'self' data: blob: file:; " +
           "worker-src 'self' blob: data:; " +
           "child-src 'self' blob: data:;"
         ]
@@ -514,10 +514,12 @@ void app.whenReady().then(() => {
     return normalize(p);
   }
 
-  ipcMain.handle('read-file', async (_e, filePath: string) => {
+  ipcMain.handle('read-file', async (_e, filePath: string, encoding: BufferEncoding = 'utf-8') => {
     const resolvedPath = normalizePathForFs(filePath);
     try {
-      const content = await readFile(resolvedPath, 'utf-8');
+      const content = encoding === 'base64'
+        ? (await readFile(resolvedPath)).toString('base64')
+        : await readFile(resolvedPath, 'utf-8');
       const stats = await stat(resolvedPath);
       return {
         path: resolvedPath,
